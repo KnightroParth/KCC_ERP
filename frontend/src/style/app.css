@@ -1,0 +1,23 @@
+@import './partials/rest.css';
+@import './partials/customAntd.css';
+@import './partials/layout.css';
+@import './partials/core.css';
+
+@import './partials/auth.css';
+@import './partials/navigation.css';
+@import './partials/header.css';
+@import './partials/sidePanel.css';
+@import './partials/collapseBox.css';
+@import './partials/erp.css';
+
+/* ✅ Remove the unwanted white center box created by .whiteBox, .layoutPadding */
+.whiteBox,
+.whiteBox.shadow,
+.whiteBox.shadow.layoutPadding {
+  background: transparent !important;
+  box-shadow: none !important;
+  max-width: 100% !important;
+  width: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}

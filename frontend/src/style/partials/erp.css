@@ -1,0 +1,22 @@
+.moneyInput {
+  width: 100%;
+}
+
+.moneyInput input {
+  text-align: right;
+}
+/* REMOVE DEFAULT WHITE BOX / PADDING FROM OLD LAYOUT */
+.whiteBox,
+.layoutPadding,
+.whiteBox.shadow {
+  background: transparent !important;
+  box-shadow: none !important;
+  max-width: 100% !important;
+  width: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.erp-wrapper {
+  width: 100% !important;
+}
