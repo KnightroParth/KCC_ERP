@@ -1,27 +1,62 @@
-const mongoose = require("mongoose");
-const Units = mongoose.model("units");
+// backend/src/controllers/appControllers/unitsController.js
 
-exports.list = async (req, res) => {
-  const result = await Units.find({});
-  res.json({ success: true, result });
-};
+const Units = require("@/models/appModels/Units");
 
-exports.create = async (req, res) => {
-  const result = await Units.create(req.body);
-  res.json({ success: true, result });
-};
+module.exports = {
+  async create(req, res) {
+    try {
+      const unit = await Units.create(req.body);
+      res.status(201).json(unit);
+    } catch (error) {
+      res.status(500).json({ message: error.message });
+    }
+  },
 
-exports.read = async (req, res) => {
-  const result = await Units.findById(req.params.id);
-  res.json({ success: true, result });
-};
+  async read(req, res) {
+    try {
+      const unit = await Units.findById(req.params.id).populate("projectId", "name");
+      res.status(200).json(unit);
+    } catch (error) {
+      res.status(500).json({ message: error.message });
+    }
+  },
 
-exports.update = async (req, res) => {
-  const result = await Units.findByIdAndUpdate(req.params.id, req.body, { new: true });
-  res.json({ success: true, result });
-};
+  async update(req, res) {
+    try {
+      const unit = await Units.findByIdAndUpdate(req.params.id, req.body, {
+        new: true,
+        runValidators: true,
+      });
+      res.status(200).json(unit);
+    } catch (error) {
+      res.status(500).json({ message: error.message });
+    }
+  },
 
-exports.delete = async (req, res) => {
-  await Units.findByIdAndDelete(req.params.id);
-  res.json({ success: true, result: "deleted" });
+  async delete(req, res) {
+    try {
+      await Units.findByIdAndDelete(req.params.id);
+      res.status(200).json({ message: "Unit deleted" });
+    } catch (error) {
+      res.status(500).json({ message: error.message });
+    }
+  },
+
+  async list(req, res) {
+    try {
+      const units = await Units.find().populate("projectId", "name");
+      res.status(200).json(units);
+    } catch (error) {
+      res.status(500).json({ message: error.message });
+    }
+  },
+
+  async listAll(req, res) {
+    try {
+      const units = await Units.find().populate("projectId", "name"); // ✅ FIXED
+      res.status(200).json(units);
+    } catch (error) {
+      res.status(500).json({ message: error.message });
+    }
+  },
 };

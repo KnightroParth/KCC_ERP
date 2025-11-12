@@ -36,3 +36,4 @@ const appControllers = () => {
 };
 
 module.exports = appControllers();
+module.exports.unitsController = require('@/controllers/unitsController');

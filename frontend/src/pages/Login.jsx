@@ -15,7 +15,7 @@ import AuthModule from '@/modules/AuthModule';
 
 const LoginPage = () => {
   const translate = useLanguage();
-  const { isLoading, isSuccess } = useSelector(selectAuth);
+  const { isLoading, isSuccess } = useSelector((state) => state.auth);
   const navigate = useNavigate();
   // const size = useSize();
 
