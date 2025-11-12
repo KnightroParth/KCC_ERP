@@ -1,25 +1,14 @@
 const mongoose = require("mongoose");
 
-const schema = new mongoose.Schema({
-  projectName: {
-    type: String,
-    required: true,
-  },
-  location: String,
-  startDate: Date,
-  endDate: Date,
+const ProjectSchema = new mongoose.Schema({
+  name: { type: String, required: true },
+  budget: Number,
+  reraId: String,
 
-  createdBy: { type: mongoose.Schema.ObjectId, ref: "Admin" },
-  created: {
-    type: Date,
-    default: Date.now,
-  },
-  updated: {
-    type: Date,
-    default: Date.now,
-  },
+  removed: { type: Boolean, default: false },
+  enabled: { type: Boolean, default: true },
+  created: { type: Date, default: Date.now },
+  updated: { type: Date, default: Date.now }
 });
 
-schema.plugin(require("mongoose-autopopulate"));
-
-module.exports = mongoose.model("Project", schema);
+module.exports = mongoose.model("Project", ProjectSchema);

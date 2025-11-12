@@ -3,14 +3,15 @@ import DynamicForm from '@/forms/DynamicForm';
 import { fields } from './config';
 
 export default function Customer() {
-  const entity = 'client';
+  const entity = 'client'; // ✅ backend model is Client
 
   const searchConfig = {
-    displayLabels: ['project_name'],
-    searchFields: 'project_name',
+    displayLabels: ['name'], // ✅ FIXED
+    searchFields: 'name',    // ✅ FIXED
+    outputValue: 'name',     // ✅ Added safety
   };
 
-  const deleteModalLabels = ['project_name'];
+  const deleteModalLabels = ['name']; // ✅ FIXED
 
   const Labels = {
     PANEL_TITLE: "Projects",

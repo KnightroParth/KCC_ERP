@@ -1,27 +1,25 @@
 import CrudModule from "@/modules/CrudModule/CrudModule";
 import DynamicForm from "@/forms/DynamicForm";
-import { fields } from "./config";
+
+// ✅ Use config we created
+import { fields } from "@/forms/units/config";
 
 export default function Units() {
-  const entity = "units"; // ✅ this must match backend route name
-
-  const searchConfig = {
-    displayLabels: ["unitNumber", "tower", "project"],
-    searchFields: "unitNumber,tower,project",
-    outputValue: "unitNumber",
-  };
-
-  const deleteModalLabels = ["unitNumber"];
+  const entity = "units";
 
   const config = {
-    entity,                  // ✅ required
+    entity,
     PANEL_TITLE: "Units",
     DATATABLE_TITLE: "Units List",
     ADD_NEW_ENTITY: "Add Unit",
     ENTITY_NAME: "Unit",
-    fields,                  // ✅ from config.js
-    searchConfig,            // ✅ FIX
-    deleteModalLabels,       // ✅ FIX
+    fields,
+    searchConfig: {
+      displayLabels: ["unitNumber", "towerOrWing"],
+      searchFields: "unitNumber,towerOrWing",
+      outputValue: "unitNumber",
+    },
+    deleteModalLabels: ["unitNumber"],
   };
 
   return (

@@ -1,8 +1,6 @@
 const express = require('express');
-
 const cors = require('cors');
 const compression = require('compression');
-
 const cookieParser = require('cookie-parser');
 
 const coreAuthRouter = require('./routes/coreRoutes/coreAuth');
@@ -10,12 +8,10 @@ const coreApiRouter = require('./routes/coreRoutes/coreApi');
 const coreDownloadRouter = require('./routes/coreRoutes/coreDownloadRouter');
 const corePublicRouter = require('./routes/coreRoutes/corePublicRouter');
 const adminAuth = require('./controllers/coreControllers/adminAuth');
-
-const errorHandlers = require('./handlers/errorHandlers');
 const erpApiRouter = require('./routes/appRoutes/appApi');
 
 const fileUpload = require('express-fileupload');
-// create our Express app
+
 const app = express();
 
 app.use(
@@ -28,25 +24,26 @@ app.use(
 app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-
 app.use(compression());
 
-// // default options
-// app.use(fileUpload());
-
-// Here our API Routes
-
+// ⛔️ DO NOT MOVE THIS — Auth routes (login/register) must be open
 app.use('/api', coreAuthRouter);
+
+// ✅ Protected core modules (customers, invoices, etc.)
 app.use('/api', adminAuth.isValidAuthToken, coreApiRouter);
+
+// ✅ Protected app modules
 app.use('/api', adminAuth.isValidAuthToken, erpApiRouter);
+
+// ✅ Units routes (new module)
+const unitsRoutes = require("./routes/appRoutes/unitsRoutes");
+app.use('/api/units', adminAuth.isValidAuthToken, unitsRoutes);
+
 app.use('/download', coreDownloadRouter);
 app.use('/public', corePublicRouter);
 
-// If that above routes didnt work, we 404 them and forward to error handler
+const errorHandlers = require('./handlers/errorHandlers');
 app.use(errorHandlers.notFound);
-
-// production error handler
 app.use(errorHandlers.productionErrors);
 
-// done! we export it so we can start the site in start.js
 module.exports = app;

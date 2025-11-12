@@ -30,4 +30,6 @@ routesList.forEach(({ entity, controllerName }) => {
   routerApp(entity, controller);
 });
 
+
 module.exports = router;
+
