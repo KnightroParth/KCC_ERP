@@ -1,0 +1,78 @@
+/* MASTER LAYOUT */
+.auth-premium-container {
+  display: flex;
+  height: 100vh;
+  width: 100%;
+  overflow: hidden;
+}
+
+/* LEFT PANEL */
+.auth-left {
+  flex: 1;
+  background: linear-gradient(135deg, #0e2a47, #1a4f7a);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.side-panel-content {
+  max-width: 420px;
+  padding: 40px;
+}
+
+.side-logo {
+  width: 160px;
+  margin-bottom: 40px;
+}
+
+.side-title {
+  color: white !important;
+  font-size: 36px !important;
+  font-weight: 700 !important;
+}
+
+.side-subtitle {
+  display: block;
+  color: #ffd27f;
+  font-size: 18px;
+  margin-top: 10px;
+  margin-bottom: 20px;
+}
+
+.side-description {
+  font-size: 15px;
+  color: #e6e6e6;
+  line-height: 1.6;
+}
+
+/* RIGHT PANEL */
+.auth-right {
+  flex: 1;
+  background: #f5f7fa;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.auth-form-box {
+  width: 380px;
+  padding: 45px;
+  border-radius: 14px;
+  background: white;
+  box-shadow: 0 10px 35px rgba(0, 0, 0, 0.1);
+}
+
+/* Improve form aesthetics */
+.ant-input,
+.ant-input-password {
+  border-radius: 8px !important;
+  height: 42px !important;
+}
+
+.ant-btn-primary {
+  height: 45px !important;
+  border-radius: 8px !important;
+  background-color: #1a4f7a !important;
+  font-size: 16px;
+}
