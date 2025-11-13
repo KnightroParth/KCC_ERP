@@ -7,108 +7,122 @@
   font-family: "Inter", sans-serif;
 }
 
-/* ===== LEFT PANEL ===== */
+/* ===== LEFT PANEL (SLIM, BLACK PREMIUM) ===== */
 .auth-left {
-  flex: 1;
-  background: linear-gradient(135deg, #0d2845, #1a4368);
-  padding: 80px 60px;
+  flex: 0.7; /* smaller width */
+  background: linear-gradient(135deg, #000000, #111111);
+  padding: 60px 40px;
   color: white;
   display: flex;
-  flex-direction: column;
-  justify-content: center;
+  align-items: center;   /* center vertically */
+  justify-content: center; /* center horizontally */
+  text-align: center;
 }
 
 .side-panel-content {
-  max-width: 480px;
+  max-width: 380px;
 }
 
 .side-logo {
-  width: 180px;
-  margin-bottom: 40px;
+  width: 210px;
+  margin-bottom: 35px;
 }
 
 /* Headline */
 .side-title {
-  font-size: 40px;
+  font-size: 34px;
   font-weight: 700;
   color: #ffffff;
   margin-bottom: 10px;
 }
 
-/* Champagne Gold Tagline */
+/* Gold Tagline */
 .side-tagline {
   font-size: 20px;
   font-weight: 500;
-  color: #e7d9b8;
-  margin-bottom: 30px;
+  color: #d9c79f;
+  margin-bottom: 20px;
 }
 
 /* Subtext */
 .side-description {
-  font-size: 15px;
+  font-size: 14px;
   line-height: 1.6;
-  color: #e6e6e6;
-  margin-bottom: 30px;
+  color: #e2e2e2;
+  margin-bottom: 20px;
 }
 
-/* Bullet Points */
 .side-points {
-  margin-top: 20px;
+  margin-top: 18px;
 }
 
 .side-points li {
   list-style: none;
-  margin-bottom: 10px;
-  font-size: 15px;
+  margin-bottom: 8px;
+  font-size: 14px;
   color: #e8e8e8;
-  display: flex;
-  align-items: center;
 }
 
 .side-points li::before {
   content: "•";
-  color: #e7d9b8;
-  font-size: 22px;
-  margin-right: 10px;
+  color: #d9c79f;
+  font-size: 20px;
+  margin-right: 8px;
 }
 
-/* ===== RIGHT PANEL (WOOD) ===== */
+/* ===== RIGHT PANEL (CINEMATIC BACKGROUND) ===== */
 .auth-right {
-  flex: 1;
-  background-image: url("./images/wood.png");
-  background-size: cover;
-  background-position: center;
+  flex: 1.3;
   position: relative;
   display: flex;
   justify-content: center;
   align-items: center;
+  overflow: hidden;
 }
 
-/* Soft dark overlay */
+/* Each BG layer */
+.bg-layer {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  opacity: 0;
+  transform: scale(1.05) translateY(0px);
+  transition: 
+    opacity 2.2s ease-in-out,
+    transform 6s ease-in-out;
+}
+
+/* Active image visible */
+.bg-layer.active {
+  opacity: 1;
+  transform: scale(1.1) translateY(-6px); /* slight zoom + parallax */
+}
+
+/* Dark soft overlay */
 .auth-right::before {
   content: "";
   position: absolute;
   inset: 0;
-  background: rgba(0, 0, 0, 0.18);
-  backdrop-filter: brightness(0.95);
+  background: rgba(0, 0, 0, 0.22);
+  z-index: 1;
 }
 
-/* ===== MATTE PREMIUM LOGIN CARD ===== */
+/* ===== PREMIUM LOGIN CARD ===== */
 .auth-form-box {
   position: relative;
-  width: 400px;
-  padding: 45px 40px;
-  background: #fdfdfd;
+  width: 380px;
+  padding: 45px 38px;
+  background: rgba(255, 255, 255, 0.94);
   border-radius: 16px;
-  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.18);
-  border: 1px solid rgba(255, 255, 255, 0.55);
+  backdrop-filter: blur(3px);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.25);
   z-index: 5;
 }
 
-/* Headline inside card */
 .auth-form-box h2 {
-  margin-bottom: 25px;
-  font-size: 24px;
+  margin-bottom: 22px;
+  font-size: 22px;
   color: #0d2845;
   font-weight: 600;
 }
