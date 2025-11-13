@@ -1,78 +1,135 @@
-/* MASTER LAYOUT */
+/* ===== MASTER LAYOUT ===== */
 .auth-premium-container {
   display: flex;
   height: 100vh;
   width: 100%;
   overflow: hidden;
+  font-family: "Inter", sans-serif;
 }
 
-/* LEFT PANEL */
+/* ===== LEFT PANEL ===== */
 .auth-left {
   flex: 1;
-  background: linear-gradient(135deg, #0e2a47, #1a4f7a);
+  background: linear-gradient(135deg, #0d2845, #1a4368);
+  padding: 80px 60px;
   color: white;
   display: flex;
-  align-items: center;
+  flex-direction: column;
   justify-content: center;
 }
 
 .side-panel-content {
-  max-width: 420px;
-  padding: 40px;
+  max-width: 480px;
 }
 
 .side-logo {
-  width: 160px;
+  width: 180px;
   margin-bottom: 40px;
 }
 
+/* Headline */
 .side-title {
-  color: white !important;
-  font-size: 36px !important;
-  font-weight: 700 !important;
+  font-size: 40px;
+  font-weight: 700;
+  color: #ffffff;
+  margin-bottom: 10px;
 }
 
-.side-subtitle {
-  display: block;
-  color: #ffd27f;
-  font-size: 18px;
-  margin-top: 10px;
-  margin-bottom: 20px;
+/* Champagne Gold Tagline */
+.side-tagline {
+  font-size: 20px;
+  font-weight: 500;
+  color: #e7d9b8;
+  margin-bottom: 30px;
 }
 
+/* Subtext */
 .side-description {
   font-size: 15px;
-  color: #e6e6e6;
   line-height: 1.6;
+  color: #e6e6e6;
+  margin-bottom: 30px;
 }
 
-/* RIGHT PANEL */
-.auth-right {
-  flex: 1;
-  background: #f5f7fa;
+/* Bullet Points */
+.side-points {
+  margin-top: 20px;
+}
+
+.side-points li {
+  list-style: none;
+  margin-bottom: 10px;
+  font-size: 15px;
+  color: #e8e8e8;
   display: flex;
   align-items: center;
+}
+
+.side-points li::before {
+  content: "•";
+  color: #e7d9b8;
+  font-size: 22px;
+  margin-right: 10px;
+}
+
+/* ===== RIGHT PANEL (WOOD) ===== */
+.auth-right {
+  flex: 1;
+  background-image: url("./images/wood.png");
+  background-size: cover;
+  background-position: center;
+  position: relative;
+  display: flex;
   justify-content: center;
+  align-items: center;
 }
 
+/* Soft dark overlay */
+.auth-right::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.18);
+  backdrop-filter: brightness(0.95);
+}
+
+/* ===== MATTE PREMIUM LOGIN CARD ===== */
 .auth-form-box {
-  width: 380px;
-  padding: 45px;
-  border-radius: 14px;
-  background: white;
-  box-shadow: 0 10px 35px rgba(0, 0, 0, 0.1);
+  position: relative;
+  width: 400px;
+  padding: 45px 40px;
+  background: #fdfdfd;
+  border-radius: 16px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  z-index: 5;
 }
 
-/* Improve form aesthetics */
+/* Headline inside card */
+.auth-form-box h2 {
+  margin-bottom: 25px;
+  font-size: 24px;
+  color: #0d2845;
+  font-weight: 600;
+}
+
+/* Form fields */
 .ant-input,
 .ant-input-password {
-  border-radius: 8px !important;
-  height: 42px !important;
+  border-radius: 10px !important;
+  height: 44px !important;
 }
 
+/* Login Button */
 .ant-btn-primary {
-  height: 45px !important;
-  border-radius: 8px !important;
-  background-color: #1a4f7a !important;
+  height: 48px !important;
+  border-radius: 10px !important;
+  background-color: #1a617d !important;
+  border: none !important;
   font-size: 16px;
+  font-weight: 500;
+}
+
+.ant-btn-primary:hover {
+  background-color: #144c60 !important;
 }
