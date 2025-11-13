@@ -1,28 +1,24 @@
-import CrudModule from '@/modules/CrudModule/CrudModule';
-import DynamicForm from '@/forms/DynamicForm';
-import { fields } from './config';
+import CrudModule from "@/modules/CrudModule/CrudModule";
+import DynamicForm from "@/forms/DynamicForm";
+import { fields } from "./config";
 
 export default function Customer() {
-  const entity = 'client'; // ✅ backend model is Client
+  const entity = "project";
 
   const searchConfig = {
-    displayLabels: ['name'], // ✅ FIXED
-    searchFields: 'name',    // ✅ FIXED
-    outputValue: 'name',     // ✅ Added safety
+    displayLabels: ["name"],
+    searchFields: "name",
+    outputValue: "name",
   };
 
-  const deleteModalLabels = ['name']; // ✅ FIXED
+  const deleteModalLabels = ["name"];
 
-  const Labels = {
+  const config = {
+    entity,
     PANEL_TITLE: "Projects",
     DATATABLE_TITLE: "Project List",
     ADD_NEW_ENTITY: "Add New Project",
     ENTITY_NAME: "Project",
-  };
-
-  const config = {
-    entity,
-    ...Labels,
     fields,
     searchConfig,
     deleteModalLabels,
@@ -30,9 +26,9 @@ export default function Customer() {
 
   return (
     <CrudModule
+      config={config}
       createForm={<DynamicForm fields={fields} />}
       updateForm={<DynamicForm fields={fields} />}
-      config={config}
     />
   );
 }
