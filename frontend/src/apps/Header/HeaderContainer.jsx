@@ -1,23 +1,15 @@
 import { useSelector } from 'react-redux';
 import { Link, useNavigate } from 'react-router-dom';
-import { Avatar, Dropdown, Layout, Badge, Button } from 'antd';
-
-// import Notifications from '@/components/Notification';
-
+import { Avatar, Dropdown, Layout } from 'antd';
 import { LogoutOutlined, ToolOutlined, UserOutlined } from '@ant-design/icons';
 
 import { selectCurrentAdmin } from '@/redux/auth/selectors';
-
 import { FILE_BASE_URL } from '@/config/serverApiConfig';
-
 import useLanguage from '@/locale/useLanguage';
-
-import UpgradeButton from './UpgradeButton';
 
 export default function HeaderContent() {
   const currentAdmin = useSelector(selectCurrentAdmin);
   const { Header } = Layout;
-
   const translate = useLanguage();
 
   const ProfileDropdown = () => {
@@ -47,7 +39,7 @@ export default function HeaderContent() {
   };
 
   const DropdownMenu = ({ text }) => {
-    return <span style={{}}>{text}</span>;
+    return <span>{text}</span>;
   };
 
   const items = [
@@ -55,14 +47,12 @@ export default function HeaderContent() {
       label: <ProfileDropdown className="headerDropDownMenu" />,
       key: 'ProfileDropdown',
     },
-    {
-      type: 'divider',
-    },
+    { type: 'divider' },
     {
       icon: <UserOutlined />,
       key: 'settingProfile',
       label: (
-        <Link to={'/profile'}>
+        <Link to="/profile">
           <DropdownMenu text={translate('profile_settings')} />
         </Link>
       ),
@@ -70,17 +60,13 @@ export default function HeaderContent() {
     {
       icon: <ToolOutlined />,
       key: 'settingApp',
-      label: <Link to={'/settings'}>{translate('app_settings')}</Link>,
+      label: <Link to="/settings">{translate('app_settings')}</Link>,
     },
-
-    {
-      type: 'divider',
-    },
-
+    { type: 'divider' },
     {
       icon: <LogoutOutlined />,
       key: 'logout',
-      label: <Link to={'/logout'}>{translate('logout')}</Link>,
+      label: <Link to="/logout">{translate('logout')}</Link>,
     },
   ];
 
@@ -92,18 +78,14 @@ export default function HeaderContent() {
         display: 'flex',
         flexDirection: 'row-reverse',
         justifyContent: 'flex-start',
-        gap: ' 15px',
+        gap: '15px',
       }}
     >
       <Dropdown
-        menu={{
-          items,
-        }}
+        menu={{ items }}
         trigger={['click']}
         placement="bottomRight"
-        stye={{ width: '280px', float: 'right' }}
       >
-        {/* <Badge dot> */}
         <Avatar
           className="last"
           src={currentAdmin?.photo ? FILE_BASE_URL + currentAdmin?.photo : undefined}
@@ -118,16 +100,7 @@ export default function HeaderContent() {
         >
           {currentAdmin?.name?.charAt(0)?.toUpperCase()}
         </Avatar>
-        {/* </Badge> */}
       </Dropdown>
-
-      {/* <AppsButton /> */}
-
-      <UpgradeButton />
     </Header>
   );
 }
-
-//  console.log(
-//    '🚀 Welcome to IDURAR ERP CRM! Did you know that we also offer commercial customization services? Contact us at hello@idurarapp.com for more information.'
-//  );
