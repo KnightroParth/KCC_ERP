@@ -23,12 +23,20 @@ export default function Customer() {
     ENTITY_NAME: 'Project',
   };
 
+  // 🔥 REQUIRED for showing Edit + Delete buttons in list
+  const tableActions = {
+    showEdit: true,
+    showDelete: true,
+    position: 'right',
+  };
+
   const config = {
     entity,
     ...Labels,
     fields,
     searchConfig,
     deleteModalLabels,
+    tableActions,   // 👈 enables Edit + Delete after refresh
   };
 
   return (

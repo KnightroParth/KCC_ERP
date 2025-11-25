@@ -106,44 +106,32 @@ export default function DataTable({ config, extra = [] }) {
   dataTableColumns = [
     ...dispatchColumns,
     {
-      title: '',
-      key: 'action',
-      fixed: 'right',
-      render: (_, record) => (
-        <Dropdown
-          menu={{
-            items,
-            onClick: ({ key }) => {
-              switch (key) {
-                case 'read':
-                  handleRead(record);
-                  break;
-                case 'edit':
-                  handleEdit(record);
-                  break;
+  title: 'Actions',
+  key: 'actions',
+  fixed: 'right',
+  width: 160,
+  render: (_, record) => (
+    <div style={{ display: 'flex', gap: '8px' }}>
+      <Button
+        size="small"
+        type="default"
+        icon={<EditOutlined />}
+        onClick={() => handleEdit(record)}
+      >
+        Edit
+      </Button>
 
-                case 'delete':
-                  handleDelete(record);
-                  break;
-                case 'updatePassword':
-                  handleUpdatePassword(record);
-                  break;
-
-                default:
-                  break;
-              }
-              // else if (key === '2')handleCloseTask
-            },
-          }}
-          trigger={['click']}
-        >
-          <EllipsisOutlined
-            style={{ cursor: 'pointer', fontSize: '24px' }}
-            onClick={(e) => e.preventDefault()}
-          />
-        </Dropdown>
-      ),
-    },
+      <Button
+        size="small"
+        danger
+        icon={<DeleteOutlined />}
+        onClick={() => handleDelete(record)}
+      >
+        Remove
+      </Button>
+    </div>
+  ),
+},
   ];
 
   const { result: listResult, isLoading: listIsLoading } = useSelector(selectListItems);
