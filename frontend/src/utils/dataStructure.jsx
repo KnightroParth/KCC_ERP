@@ -50,12 +50,10 @@ export function dataForTable({ fields, translate, moneyFormatter, dateFormat }) 
         title: field.label ? translate(field.label) : translate(key),
         dataIndex: keyIndex,
         render: (_, record) => {
-          const date = dayjs(record[key]).format(dateFormat);
-          return (
-            <Tag bordered={false} color={field.color}>
-              {date}
-            </Tag>
-          );
+          const date = dayjs(record[key]).isValid()
+            ? dayjs(record[key]).format(dateFormat)
+            : record[key];
+          return <span className="datatable-date">{date}</span>;
         },
       },
       currency: {

@@ -13,7 +13,7 @@ export default function SidePanel({ config, topContent, bottomContent, fixHeader
 
   const { ADD_NEW_ENTITY } = config;
   const { state, crudContextAction } = useCrudContext();
-  const { isPanelClose, isBoxCollapsed } = state;
+  const { isPanelClose, isBoxCollapsed, isEditBoxOpen } = state;
   const { panel, collapsedBox } = crudContextAction;
   const [isSidePanelClose, setSidePanel] = useState(isPanelClose);
   const [leftSider, setLeftSider] = useState('-1px');
@@ -71,7 +71,7 @@ export default function SidePanel({ config, topContent, bottomContent, fixHeader
       >
         {fixHeaderPanel}
         <CollapseBox
-          buttonTitle={ADD_NEW_ENTITY}
+          buttonTitle={isEditBoxOpen ? null : ADD_NEW_ENTITY}
           isCollapsed={isBoxCollapsed}
           onCollapse={collapsePanelBox}
           topContent={topContent}

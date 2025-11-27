@@ -9,7 +9,7 @@ import {
   ArrowRightOutlined,
   ArrowLeftOutlined,
 } from '@ant-design/icons';
-import { Dropdown, Table, Button, Input } from 'antd';
+import { Dropdown, Table, Button, Input, Space } from 'antd';
 import { PageHeader } from '@ant-design/pro-layout';
 
 import { useSelector, useDispatch } from 'react-redux';
@@ -34,7 +34,7 @@ function AddNewItem({ config }) {
   };
 
   return (
-    <Button onClick={handelClick} type="primary">
+    <Button onClick={handelClick} type="primary" size="middle" shape="round">
       {ADD_NEW_ENTITY}
     </Button>
   );
@@ -106,32 +106,35 @@ export default function DataTable({ config, extra = [] }) {
   dataTableColumns = [
     ...dispatchColumns,
     {
-  title: 'Actions',
-  key: 'actions',
-  fixed: 'right',
-  width: 160,
-  render: (_, record) => (
-    <div style={{ display: 'flex', gap: '8px' }}>
-      <Button
-        size="small"
-        type="default"
-        icon={<EditOutlined />}
-        onClick={() => handleEdit(record)}
-      >
-        Edit
-      </Button>
+      title: 'Actions',
+      key: 'actions',
+      fixed: 'right',
+      width: 190,
+      render: (_, record) => (
+        <Space size="small" wrap>
+          <Button
+            size="small"
+            type="primary"
+            icon={<EditOutlined />}
+            onClick={() => handleEdit(record)}
+            shape="round"
+          >
+            Edit
+          </Button>
 
-      <Button
-        size="small"
-        danger
-        icon={<DeleteOutlined />}
-        onClick={() => handleDelete(record)}
-      >
-        Remove
-      </Button>
-    </div>
-  ),
-},
+          <Button
+            size="small"
+            danger
+            type="primary"
+            icon={<DeleteOutlined />}
+            onClick={() => handleDelete(record)}
+            shape="round"
+          >
+            Remove
+          </Button>
+        </Space>
+      ),
+    },
   ];
 
   const { result: listResult, isLoading: listIsLoading } = useSelector(selectListItems);
@@ -176,8 +179,14 @@ export default function DataTable({ config, extra = [] }) {
             onChange={filterTable}
             placeholder={translate('search')}
             allowClear
+            className="datatable-search"
           />,
-          <Button onClick={handelDataTableLoad} key={`${uniqueId()}`} icon={<RedoOutlined />}>
+          <Button
+            onClick={handelDataTableLoad}
+            key={`${uniqueId()}`}
+            icon={<RedoOutlined />}
+            shape="round"
+          >
             {translate('Refresh')}
           </Button>,
 

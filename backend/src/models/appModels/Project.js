@@ -20,6 +20,10 @@ const ProjectSchema = new mongoose.Schema(
       type: String,
       unique: true,
     },
+    projectCode: {
+      type: String,
+      trim: true,
+    },
 
     // Main project name (used in UI & search)
     name: {
@@ -35,6 +39,15 @@ const ProjectSchema = new mongoose.Schema(
     projectManagerId: {
       type: String,
       required: true,
+    },
+    projectSanctionStatus: {
+      type: String,
+      default: 'Pending',
+      trim: true,
+    },
+    reraRegistration: {
+      type: String,
+      trim: true,
     },
     scopeDescription: {
       type: String,
@@ -71,6 +84,10 @@ const ProjectSchema = new mongoose.Schema(
       type: String,
       enum: ['Red', 'Amber', 'Green'],
       default: 'Amber',
+    },
+    address: {
+      type: String,
+      trim: true,
     },
 
     // Idurar-style timestamps

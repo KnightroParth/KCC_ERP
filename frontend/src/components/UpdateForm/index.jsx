@@ -45,36 +45,25 @@ export default function UpdateForm({ config, formElements, withUpload = false })
   useEffect(() => {
     if (current) {
       let newValues = { ...current };
-      if (newValues.birthday) {
-        newValues = {
-          ...newValues,
-          birthday: dayjs(newValues['birthday']).format('YYYY-MM-DDTHH:mm:ss.SSSZ'),
-        };
-      }
-      if (newValues.date) {
-        newValues = {
-          ...newValues,
-          date: dayjs(newValues['date']).format('YYYY-MM-DDTHH:mm:ss.SSSZ'),
-        };
-      }
-      if (newValues.expiredDate) {
-        newValues = {
-          ...newValues,
-          expiredDate: dayjs(newValues['expiredDate']).format('YYYY-MM-DDTHH:mm:ss.SSSZ'),
-        };
-      }
-      if (newValues.created) {
-        newValues = {
-          ...newValues,
-          created: dayjs(newValues['created']).format('YYYY-MM-DDTHH:mm:ss.SSSZ'),
-        };
-      }
-      if (newValues.updated) {
-        newValues = {
-          ...newValues,
-          updated: dayjs(newValues['updated']).format('YYYY-MM-DDTHH:mm:ss.SSSZ'),
-        };
-      }
+
+      // Ant Design v5 DatePicker expects dayjs() objects, not formatted strings.
+      // Normalize all known date fields (including Project dates) into dayjs().
+      const dateFields = [
+        'birthday',
+        'date',
+        'expiredDate',
+        'created',
+        'updated',
+        'plannedStartDate',
+        'targetEndDate',
+      ];
+
+      dateFields.forEach((key) => {
+        if (newValues[key]) {
+          newValues[key] = dayjs(newValues[key]);
+        }
+      });
+
       form.resetFields();
       form.setFieldsValue(newValues);
     }
@@ -105,7 +94,7 @@ export default function UpdateForm({ config, formElements, withUpload = false })
               paddingRight: '5px',
             }}
           >
-            <Button type="primary" htmlType="submit">
+            <Button type="primary" htmlType="submit" shape="round">
               {translate('Save')}
             </Button>
           </Form.Item>
@@ -115,7 +104,9 @@ export default function UpdateForm({ config, formElements, withUpload = false })
               paddingLeft: '5px',
             }}
           >
-            <Button onClick={showCurrentRecord}>{translate('Cancel')}</Button>
+            <Button shape="round" onClick={showCurrentRecord}>
+              {translate('Cancel')}
+            </Button>
           </Form.Item>
         </Form>
       </Loading>

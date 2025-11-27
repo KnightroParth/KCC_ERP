@@ -21,3 +21,17 @@
   margin: 0 !important;
   padding: 0 !important;
 }
+
+.datatable-date {
+  font-family: inherit;
+  font-size: 14px;
+  color: #1f1f1f;
+}
+
+.datatable-search .ant-input {
+  border-radius: 999px;
+}
+
+.datatable-search {
+  border-radius: 999px !important;
+}
