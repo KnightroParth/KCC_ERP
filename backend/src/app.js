@@ -35,10 +35,6 @@ app.use('/api', adminAuth.isValidAuthToken, coreApiRouter);
 // ✅ Protected app modules
 app.use('/api', adminAuth.isValidAuthToken, erpApiRouter);
 
-// ✅ Units routes (new module)
-const unitsRoutes = require("./routes/appRoutes/unitsRoutes");
-app.use('/api/units', adminAuth.isValidAuthToken, unitsRoutes);
-
 app.use('/download', coreDownloadRouter);
 app.use('/public', corePublicRouter);
 

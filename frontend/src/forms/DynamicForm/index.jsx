@@ -16,11 +16,82 @@ export default function DynamicForm({ fields, isUpdateForm = false }) {
   return (
     <div>
       {Object.keys(fields).map((key) => {
-        let field = fields[key];
+        // Create a copy to avoid mutating the original field object
+        let field = { ...fields[key] };
 
         if ((isUpdateForm && !field.disableForUpdate) || !field.disableForForm) {
           field.name = key;
           if (!field.label) field.label = key;
+          
+          // Handle conditional fields
+          if (field.showWhen) {
+            const { field: watchField, value: watchValue } = field.showWhen;
+            return (
+              <Form.Item 
+                key={key}
+                noStyle 
+                shouldUpdate={(prevValues, currentValues) => {
+                  try {
+                    const prev = prevValues?.[watchField];
+                    const curr = currentValues?.[watchField];
+                    return prev !== curr;
+                  } catch (err) {
+                    console.warn('Error in shouldUpdate:', err);
+                    return false;
+                  }
+                }}
+              >
+                {({ getFieldValue }) => {
+                  try {
+                    const watchedValue = getFieldValue(watchField);
+                    const shouldShow = Array.isArray(watchValue) 
+                      ? watchValue.includes(watchedValue)
+                      : watchedValue === watchValue;
+                    
+                    if (!shouldShow) return null;
+                    return <FormElement key={key} field={field} feedback={feedback} setFeedback={setFeedback} />;
+                  } catch (error) {
+                    // Fallback: show field if there's an error
+                    console.warn('Error in conditional field rendering:', error);
+                    return <FormElement key={key} field={field} feedback={feedback} setFeedback={setFeedback} />;
+                  }
+                }}
+              </Form.Item>
+            );
+          }
+          
+          // Handle hideWhen (opposite of showWhen)
+          if (field.hideWhen) {
+            const { field: watchField, value: watchValue } = field.hideWhen;
+            return (
+              <Form.Item 
+                key={key}
+                noStyle 
+                shouldUpdate={(prevValues, currentValues) => {
+                  const prev = prevValues?.[watchField];
+                  const curr = currentValues?.[watchField];
+                  return prev !== curr;
+                }}
+              >
+                {({ getFieldValue }) => {
+                  try {
+                    const watchedValue = getFieldValue(watchField);
+                    const shouldHide = Array.isArray(watchValue) 
+                      ? watchValue.includes(watchedValue)
+                      : watchedValue === watchValue;
+                    
+                    if (shouldHide) return null;
+                    return <FormElement field={field} feedback={feedback} setFeedback={setFeedback} />;
+                  } catch (error) {
+                    // Fallback: show field if there's an error
+                    console.warn('Error in conditional field rendering:', error);
+                    return <FormElement field={field} feedback={feedback} setFeedback={setFeedback} />;
+                  }
+                }}
+              </Form.Item>
+            );
+          }
+          
           if (field.hasFeedback)
             return (
               <FormElement feedback={feedback} setFeedback={setFeedback} key={key} field={field} />
@@ -280,6 +351,32 @@ function FormElement({ field, feedback, setFeedback }) {
     );
   };
 
+  const AsyncComponent = () => {
+    return (
+      <Form.Item
+        label={translate(field.label)}
+        name={field.name}
+        rules={[
+          {
+            required: field.required || false,
+            type: filedType[field.type] ?? 'any',
+          },
+        ]}
+      >
+        <SelectAsync
+          entity={field.entity}
+          displayLabels={field.displayLabels}
+          outputValue={field.outputValue}
+          loadDefault={field.loadDefault}
+          withRedirect={field.withRedirect}
+          urlToRedirect={field.urlToRedirect}
+          redirectLabel={field.redirectLabel}
+          placeholder={field.placeholder || 'Select...'}
+        ></SelectAsync>
+      </Form.Item>
+    );
+  };
+
   const formItemComponent = {
     select: <SelectComponent />,
     selectWithTranslation: <SelectWithTranslationComponent />,
@@ -292,6 +389,7 @@ function FormElement({ field, feedback, setFeedback }) {
     array: <ArrayComponent />,
     country: <CountryComponent />,
     search: <SearchComponent />,
+    async: <AsyncComponent />,
   };
 
   const compunedComponent = {
@@ -316,17 +414,6 @@ function FormElement({ field, feedback, setFeedback }) {
         style={{ width: '100%' }}
         format={dateFormat}
       />
-    ),
-    async: (
-      <SelectAsync
-        entity={field.entity}
-        displayLabels={field.displayLabels}
-        outputValue={field.outputValue}
-        loadDefault={field.loadDefault}
-        withRedirect={field.withRedirect}
-        urlToRedirect={field.urlToRedirect}
-        redirectLabel={field.redirectLabel}
-      ></SelectAsync>
     ),
 
     currency: (

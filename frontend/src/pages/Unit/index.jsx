@@ -1,26 +1,25 @@
-// frontend/src/pages/Customer/index.jsx
-// This page = Projects Module
+// frontend/src/pages/Unit/index.jsx
 
 import CrudModule from '@/modules/CrudModule/CrudModule';
 import DynamicForm from '@/forms/DynamicForm';
 import { fields } from './config';
 
-export default function Customer() {
-  // IMPORTANT: use "project" (matches backend model name Project)
-  const entity = 'project';
+export default function Unit() {
+  // IMPORTANT: use "unit" (matches backend model name Unit)
+  const entity = 'unit';
 
   const searchConfig = {
-    displayLabels: ['name', 'projectId'],
-    searchFields: 'name,projectId,stakeholderName',
+    displayLabels: ['unitNumber', 'buildingName'],
+    searchFields: 'unitNumber,buildingName,floorNumber,unitType',
   };
 
-  const deleteModalLabels = ['name', 'projectId'];
+  const deleteModalLabels = ['unitNumber', 'buildingName'];
 
   const Labels = {
-    PANEL_TITLE: 'Projects',
-    DATATABLE_TITLE: 'Project List',
-    ADD_NEW_ENTITY: 'Add New Project',
-    ENTITY_NAME: 'Project',
+    PANEL_TITLE: 'Units',
+    DATATABLE_TITLE: 'Units List',
+    ADD_NEW_ENTITY: 'Add New Unit',
+    ENTITY_NAME: 'Unit',
   };
 
   // 🔥 REQUIRED for showing Edit + Delete buttons in list
@@ -47,3 +46,4 @@ export default function Customer() {
     />
   );
 }
+

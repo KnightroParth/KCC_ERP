@@ -6,12 +6,18 @@ export default function ProjectModule() {
   const entity = "project"; // ✅ backend model name must match
 
   const searchConfig = {
-    displayLabels: ["name"],
-    searchFields: "name",
-    outputValue: "name",
+    displayLabels: ["name", "projectId"],
+    searchFields: "name,projectId,stakeholderName",
   };
 
-  const deleteModalLabels = ["name"];
+  const deleteModalLabels = ["name", "projectId"];
+
+  // 🔥 REQUIRED for showing Edit + Delete buttons in list
+  const tableActions = {
+    showEdit: true,
+    showDelete: true,
+    position: 'right',
+  };
 
   const config = {
     entity,
@@ -22,13 +28,14 @@ export default function ProjectModule() {
     fields,
     searchConfig,
     deleteModalLabels,
+    tableActions,   // 👈 enables Edit + Delete after refresh
   };
 
   return (
     <CrudModule
       config={config}
       createForm={<DynamicForm fields={fields} />}
-      updateForm={<DynamicForm fields={fields} />}
+      updateForm={<DynamicForm fields={fields} isUpdateForm={true} />}
     />
   );
 }

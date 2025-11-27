@@ -1,26 +1,43 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 
 function useFetchData(fetchFunction) {
   const [data, setData] = useState(null);
   const [isLoading, setLoading] = useState(true);
   const [isSuccess, setSuccess] = useState(false);
   const [error, setError] = useState(null);
+  const fetchFunctionRef = useRef(fetchFunction);
 
   useEffect(() => {
+    // Update ref when fetchFunction changes
+    fetchFunctionRef.current = fetchFunction;
+    
     async function fetchData() {
+      if (!fetchFunctionRef.current) {
+        setLoading(false);
+        return;
+      }
+      
       try {
-        const data = await fetchFunction();
-        setData(data.result);
+        setLoading(true);
+        setError(null);
+        setSuccess(false);
+        const response = await fetchFunctionRef.current();
+        // Handle both { result: [...] } and direct array responses
+        const result = response?.result || response || [];
+        setData(Array.isArray(result) ? result : []);
         setSuccess(true);
-      } catch (error) {
-        setError(error);
+      } catch (err) {
+        console.error('useFetch error:', err);
+        setError(err);
+        setData([]);
+        setSuccess(false);
       } finally {
         setLoading(false);
       }
     }
 
     fetchData();
-  }, [isLoading]);
+  }, [fetchFunction]);
 
   return { data, isLoading, isSuccess, error };
 }

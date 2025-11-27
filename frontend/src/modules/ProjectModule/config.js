@@ -1,15 +1,53 @@
 export const fields = {
+  projectCode: {
+    label: 'Project Code',
+    type: 'string',
+  },
   name: {
-    label: "Project Name",
-    type: "text",
+    label: 'Project Name',
+    type: 'string',
+    required: true,
+  },
+  stakeholderName: {
+    label: 'Client / Stakeholder',
+    type: 'string',
+    required: true,
+  },
+  projectSanctionStatus: {
+    label: 'Project Sanction Status',
+    type: 'string',
+  },
+  reraRegistration: {
+    label: 'RERA Registration',
+    type: 'string',
+  },
+  projectManagerId: {
+    label: 'Project Manager (User ID)',
+    type: 'string',
+    required: true,
+  },
+  address: {
+    label: 'Project Address',
+    type: 'textarea',
+  },
+  plannedStartDate: {
+    label: 'Planned Start Date',
+    type: 'date',
+    required: true,
+  },
+  targetEndDate: {
+    label: 'Target End Date',
+    type: 'date',
     required: true,
   },
   budget: {
-    label: "Budget",
-    type: "number",
+    label: 'Total Approved Budget',
+    type: 'number',
+    required: true,
   },
-  reraId: {
-    label: "RERA ID",
-    type: "text",
-  }
+  scopeDescription: {
+    label: 'Scope / Description',
+    type: 'textarea',
+    required: true,
+  },
 };

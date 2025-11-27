@@ -3,29 +3,29 @@
 export const fields = {
   projectCode: {
     label: 'Project Code',
-    type: 'text',
+    type: 'string',
   },
   name: {
     label: 'Project Name',
-    type: 'text',
+    type: 'string',
     required: true,
   },
   stakeholderName: {
     label: 'Client / Stakeholder',
-    type: 'text',
+    type: 'string',
     required: true,
   },
   projectSanctionStatus: {
     label: 'Project Sanction Status',
-    type: 'text',
+    type: 'string',
   },
   reraRegistration: {
     label: 'RERA Registration',
-    type: 'text',
+    type: 'string',
   },
   projectManagerId: {
     label: 'Project Manager (User ID)',
-    type: 'text',
+    type: 'string',
     required: true,
   },
   address: {

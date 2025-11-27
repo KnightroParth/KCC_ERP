@@ -27,7 +27,11 @@ const routerApp = (entity, controller) => {
 
 routesList.forEach(({ entity, controllerName }) => {
   const controller = appControllers[controllerName];
-  routerApp(entity, controller);
+  if (controller) {
+    routerApp(entity, controller);
+  } else {
+    console.warn(`Controller ${controllerName} not found for entity ${entity}`);
+  }
 });
 
 

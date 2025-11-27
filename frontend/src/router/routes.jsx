@@ -29,7 +29,7 @@ const Profile = lazy(() => import('@/pages/Profile'));
 
 const About = lazy(() => import('@/pages/About'));
 
-const Units = lazy(() => import('@/pages/units'));
+const Unit = lazy(() => import('@/pages/Unit'));
 
 const Project = lazy(() => import("@/modules/ProjectModule"));
 
@@ -61,7 +61,7 @@ let routes = {
     },
     {
       path: '/units',
-      element: <Units />,
+      element: <Unit />,
     },
 
     {
