@@ -23,6 +23,7 @@ const ProjectSchema = new mongoose.Schema(
     projectCode: {
       type: String,
       trim: true,
+      unique: true,
     },
 
     // Main project name (used in UI & search)
@@ -107,11 +108,10 @@ const ProjectSchema = new mongoose.Schema(
 
 // ===== Auto-generate projectId & keep updated timestamp =====
 ProjectSchema.pre('save', async function (next) {
-  // Auto projectId only on first creation
-  if (!this.projectId) {
+  const needsCode = !this.projectId || !this.projectCode;
+  if (needsCode) {
     const now = new Date();
     const year = now.getFullYear();
-
     const startOfYear = new Date(`${year}-01-01T00:00:00.000Z`);
     const endOfYear = new Date(`${year}-12-31T23:59:59.999Z`);
 
@@ -119,8 +119,13 @@ ProjectSchema.pre('save', async function (next) {
       created: { $gte: startOfYear, $lte: endOfYear },
     });
 
-    // KCC-2025-001 style
-    this.projectId = `KCC-${year}-${String(count + 1).padStart(3, '0')}`;
+    const generatedCode = `KCC-${year}-${String(count + 1).padStart(3, '0')}`;
+    if (!this.projectId) {
+      this.projectId = generatedCode;
+    }
+    if (!this.projectCode) {
+      this.projectCode = generatedCode;
+    }
   }
 
   this.updated = new Date();

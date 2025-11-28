@@ -67,20 +67,21 @@ function Sidebar({ collapsible, isMobile = false }) {
       style={{
         overflow: 'auto',
         height: '100vh',
-        position: isMobile ? 'absolute' : 'relative',
-        bottom: '20px',
-        ...(!isMobile && { left: '20px', top: '20px' }),
+        position: 'fixed',
+        left: 0,
+        top: 0,
+        bottom: 0,
       }}
       theme="light"
     >
 
       {/* ✅ Brand Logo */}
-      <div className="kcc-logo-container" onClick={() => navigate('/')}>
+      < div className="kcc-logo-container" onClick={() => navigate('/')}>
         <img src={logoText} alt="KCC Logo" className="kcc-logo" />
-      </div>
+      </div >
 
       {/* ✅ Menu */}
-      <Menu
+      < Menu
         items={items}
         mode="inline"
         theme="light"
@@ -88,7 +89,7 @@ function Sidebar({ collapsible, isMobile = false }) {
         style={{ width: 256 }}
       />
 
-    </Sider>
+    </Sider >
   );
 }
 

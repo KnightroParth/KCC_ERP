@@ -4,6 +4,8 @@ export const fields = {
   projectCode: {
     label: 'Project Code',
     type: 'string',
+    disableForForm: true,
+    disableForUpdate: true,
   },
   name: {
     label: 'Project Name',
@@ -17,7 +19,14 @@ export const fields = {
   },
   projectSanctionStatus: {
     label: 'Project Sanction Status',
-    type: 'string',
+    type: 'select',
+    options: [
+      { label: 'Pending', value: 'Pending', color: 'gold' },
+      { label: 'Approved', value: 'Approved', color: 'green' },
+      { label: 'N/A', value: 'N/A', color: 'blue' },
+      { label: 'Other', value: 'Other', color: 'purple' },
+    ],
+    renderAsTag: true,
   },
   reraRegistration: {
     label: 'RERA Registration',
