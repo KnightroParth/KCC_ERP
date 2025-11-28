@@ -13,7 +13,11 @@ const listAll = require('./listAll');
 const paginatedList = require('./paginatedList');
 
 const createCRUDController = (modelName) => {
-  if (!modelsFiles.includes(modelName)) {
+  // Check if model exists (case-insensitive check against filenames)
+  const modelExists = modelsFiles.some(
+    (fileName) => fileName.toLowerCase() === modelName.toLowerCase()
+  );
+  if (!modelExists) {
     throw new Error(`Model ${modelName} does not exist`);
   }
 
