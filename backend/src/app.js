@@ -9,6 +9,7 @@ const coreDownloadRouter = require('./routes/coreRoutes/coreDownloadRouter');
 const corePublicRouter = require('./routes/coreRoutes/corePublicRouter');
 const adminAuth = require('./controllers/coreControllers/adminAuth');
 const erpApiRouter = require('./routes/appRoutes/appApi');
+const unitsRouter = require('./routes/appRoutes/unitsRoutes');
 
 const fileUpload = require('express-fileupload');
 
@@ -34,6 +35,9 @@ app.use('/api', adminAuth.isValidAuthToken, coreApiRouter);
 
 // ✅ Protected app modules
 app.use('/api', adminAuth.isValidAuthToken, erpApiRouter);
+
+// ✅ Units custom routes
+app.use('/api/units', adminAuth.isValidAuthToken, unitsRouter);
 
 app.use('/download', coreDownloadRouter);
 app.use('/public', corePublicRouter);

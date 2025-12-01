@@ -6,6 +6,7 @@ import useLanguage from '@/locale/useLanguage';
 import { useMoney, useDate } from '@/settings';
 import AutoCompleteAsync from '@/components/AutoCompleteAsync';
 import SelectAsync from '@/components/SelectAsync';
+import SelectAsyncByProject from '@/components/SelectAsyncByProject';
 import { generate as uniqueId } from 'shortid';
 
 import { countryList } from '@/utils/countryList';
@@ -377,6 +378,39 @@ function FormElement({ field, feedback, setFeedback }) {
     );
   };
 
+  const AsyncDependentComponent = () => {
+    return (
+      <Form.Item
+        noStyle
+        shouldUpdate={(prevValues, currentValues) => {
+          const dependsOn = field.dependsOn;
+          return prevValues?.[dependsOn] !== currentValues?.[dependsOn];
+        }}
+      >
+        {({ getFieldValue }) => {
+          const dependentValue = getFieldValue(field.dependsOn);
+          return (
+            <Form.Item
+              label={translate(field.label)}
+              name={field.name}
+              rules={[
+                {
+                  required: field.required || false,
+                  type: filedType[field.type] ?? 'any',
+                },
+              ]}
+            >
+              <SelectAsyncByProject
+                projectId={dependentValue}
+                placeholder={field.placeholder || 'Select...'}
+              />
+            </Form.Item>
+          );
+        }}
+      </Form.Item>
+    );
+  };
+
   const formItemComponent = {
     select: <SelectComponent />,
     selectWithTranslation: <SelectWithTranslationComponent />,
@@ -390,6 +424,7 @@ function FormElement({ field, feedback, setFeedback }) {
     country: <CountryComponent />,
     search: <SearchComponent />,
     async: <AsyncComponent />,
+    asyncDependent: <AsyncDependentComponent />,
   };
 
   const compunedComponent = {

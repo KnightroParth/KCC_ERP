@@ -14,6 +14,18 @@ const ActivitySchema = new mongoose.Schema(
       default: true,
     },
 
+    // Project and Unit linkage
+    projectId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Project',
+      required: true,
+    },
+    unitId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Units',
+      required: true,
+    },
+
     // Activity identification
     activityCode: {
       type: String,

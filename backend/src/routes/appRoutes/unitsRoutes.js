@@ -14,6 +14,28 @@ router.get("/listAll", async (req, res) => {
   }
 });
 
+// ✅ GET units by project ID
+router.get("/byProject/:projectId", async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const units = await Units.find({ projectId, removed: { $ne: true } })
+      .populate("projectId", "name projectCode")
+      .sort({ unitNumber: 1 });
+    
+    res.status(200).json({
+      success: true,
+      result: units,
+      message: "Successfully found units for project",
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      result: null,
+      message: error.message,
+    });
+  }
+});
+
 // ✅ Create unit
 router.post("/create", async (req, res) => {
   try {

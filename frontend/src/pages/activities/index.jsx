@@ -29,6 +29,55 @@ export default function Activities() {
     position: 'right',
   };
 
+  // Custom dataTableColumns to display Project and Unit
+  const dataTableColumns = [
+    {
+      title: 'Project',
+      dataIndex: ['projectId', 'name'],
+      key: 'project',
+      render: (text, record) => {
+        return record?.projectId?.name || record?.projectId?.projectCode || '-';
+      },
+    },
+    {
+      title: 'Unit',
+      dataIndex: ['unitId', 'unitNumber'],
+      key: 'unit',
+      render: (text, record) => {
+        const unitNumber = record?.unitId?.unitNumber || '-';
+        const towerOrWing = record?.unitId?.towerOrWing;
+        return towerOrWing ? `${unitNumber} - ${towerOrWing}` : unitNumber;
+      },
+    },
+    {
+      title: 'Activity Code',
+      dataIndex: 'activityCode',
+      key: 'activityCode',
+    },
+    {
+      title: 'Activity Name',
+      dataIndex: 'activityName',
+      key: 'activityName',
+    },
+    {
+      title: 'Unit of Measurement',
+      dataIndex: 'unit',
+      key: 'unit',
+    },
+    {
+      title: 'Default Rate',
+      dataIndex: 'defaultRate',
+      key: 'defaultRate',
+      render: (text) => (text ? `₹${text.toLocaleString()}` : '-'),
+    },
+    {
+      title: 'Category',
+      dataIndex: 'category',
+      key: 'category',
+      render: (text) => text || '-',
+    },
+  ];
+
   const config = {
     entity,
     ...Labels,
@@ -36,6 +85,7 @@ export default function Activities() {
     searchConfig,
     deleteModalLabels,
     tableActions,   // 👈 enables Edit + Delete after refresh
+    dataTableColumns, // 👈 custom columns with Project and Unit
   };
 
   return (

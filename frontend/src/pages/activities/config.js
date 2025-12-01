@@ -1,6 +1,22 @@
 // frontend/src/pages/activities/config.js
 
 export const fields = {
+  projectId: {
+    label: 'Project',
+    type: 'async',
+    entity: 'project',
+    displayLabels: ['name', 'projectCode'],
+    outputValue: '_id',
+    required: true,
+    placeholder: 'Select Project',
+  },
+  unitId: {
+    label: 'Unit',
+    type: 'asyncDependent', // Custom type for dependent select
+    dependsOn: 'projectId',
+    required: true,
+    placeholder: 'Select Unit',
+  },
   activityCode: {
     label: 'Activity Code',
     type: 'string',
@@ -14,7 +30,7 @@ export const fields = {
     placeholder: 'e.g., Excavation',
   },
   unit: {
-    label: 'Unit',
+    label: 'Unit of Measurement',
     type: 'string',
     required: true,
     placeholder: 'e.g., Cubic Meter, Square Meter, Hour',
