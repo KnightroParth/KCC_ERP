@@ -1,194 +1,147 @@
 // frontend/src/pages/activities/index.jsx
+import React from "react";
+import { Form } from "antd";
+import CrudModule from "@/modules/CrudModule/CrudModule";
+import DynamicForm from "@/forms/DynamicForm";
+import SelectAsync from "@/components/SelectAsync";
+import SelectAsyncByProject from "@/components/SelectAsyncByProject";
+import useLanguage from "@/locale/useLanguage";
+import { fields } from "./config";
 
-import React from 'react';
-import { Form } from 'antd';
-import CrudModule from '@/modules/CrudModule/CrudModule';
-import DynamicForm from '@/forms/DynamicForm';
-import SelectAsync from '@/components/SelectAsync';
-import SelectAsyncByProject from '@/components/SelectAsyncByProject';
-import useLanguage from '@/locale/useLanguage';
-import { fields } from './config';
-
-// Custom SelectAsync wrapper that captures both _id and projectCode
-function ProjectSelectWithId({ value, onChange, form, ...props }) {
+function ProjectSelect({ value, onChange, form, ...props }) {
   const [projects, setProjects] = React.useState([]);
-  
-  // Fetch projects
+
   React.useEffect(() => {
-    const fetchProjects = async () => {
-      try {
-        const { request } = await import('@/request');
-        const response = await request.list({ entity: 'project' });
-        if (response?.result) {
-          setProjects(response.result);
-        }
-      } catch (error) {
-        console.error('Error fetching projects:', error);
-      }
-    };
-    fetchProjects();
+    (async () => {
+      const { request } = await import("@/request");
+      const res = await request.list({ entity: "project" });
+      if (res?.result) setProjects(res.result);
+    })();
   }, []);
-  
+
   const handleChange = (projectCode) => {
-    // Find the project by projectCode to get its _id
-    const selectedProject = projects.find(p => p.projectCode === projectCode);
-    if (selectedProject && form) {
-      // Store the _id in projectId field for backend
-      form.setFieldValue('projectId', selectedProject._id);
-    }
+    const selected = projects.find((p) => p.projectCode === projectCode);
+    if (selected) form.setFieldValue("projectId", selected._id);
     onChange?.(projectCode);
   };
-  
+
   return (
     <SelectAsync
       entity="project"
-      displayLabels={['name', 'projectCode']}
+      displayLabels={["name", "projectCode"]}
       outputValue="projectCode"
       placeholder="Select Project"
-      onChange={handleChange}
       value={value}
+      onChange={handleChange}
       {...props}
     />
   );
 }
 
-// Custom form wrapper to handle projectCode and projectId
-function ActivitiesForm({ fields: fieldConfig, isUpdateForm = false, ...formProps }) {
+function ActivitiesForm({ fields: fieldConfig, isUpdateForm = false }) {
   const translate = useLanguage();
   const form = Form.useFormInstance();
-  
+
   return (
     <>
-      {/* Hidden field for projectId (_id) - for backend submission */}
       <Form.Item name="projectId" hidden>
         <input type="hidden" />
       </Form.Item>
 
-      {/* Project Selection - stores projectCode */}
       <Form.Item
-        label={translate('Project')}
+        label={translate("Project")}
         name="projectCode"
-        rules={[{ required: true, message: 'Please select a project' }]}
+        rules={[{ required: true, message: "Please select a project" }]}
       >
-        <ProjectSelectWithId form={form} />
+        <ProjectSelect form={form} />
       </Form.Item>
 
-      {/* Unit Selection - depends on projectCode */}
-      <Form.Item noStyle shouldUpdate={(prev, curr) => prev.projectCode !== curr.projectCode}>
-        {({ getFieldValue }) => {
-          const projectCode = getFieldValue('projectCode');
-          return (
-            <Form.Item
-              label={translate('Unit')}
-              name="unitId"
-              rules={[{ required: true, message: 'Please select a unit' }]}
-            >
-              <SelectAsyncByProject
-                projectCode={projectCode}
-                placeholder="Select Unit"
-              />
-            </Form.Item>
-          );
-        }}
+      <Form.Item noStyle shouldUpdate={(p, c) => p.projectCode !== c.projectCode}>
+        {({ getFieldValue }) => (
+          <Form.Item
+            label={translate("Unit")}
+            name="unitId"
+            rules={[{ required: true, message: "Please select a unit" }]}
+          >
+            <SelectAsyncByProject projectCode={getFieldValue("projectCode")} />
+          </Form.Item>
+        )}
       </Form.Item>
 
-      {/* Render remaining fields using DynamicForm */}
       <DynamicForm fields={fieldConfig} isUpdateForm={isUpdateForm} />
     </>
   );
 }
 
 export default function Activities() {
-  // IMPORTANT: use "activities" (matches backend entity name)
-  const entity = 'activities';
-
-  const searchConfig = {
-    displayLabels: ['activityCode', 'activityName'],
-    searchFields: 'activityCode,activityName,category',
-  };
-
-  const deleteModalLabels = ['activityCode', 'activityName'];
+  const entity = "activities";
 
   const Labels = {
-    PANEL_TITLE: 'Activities',
-    DATATABLE_TITLE: 'Activities List',
-    ADD_NEW_ENTITY: 'Add New Activity',
-    ENTITY_NAME: 'Activity',
+    PANEL_TITLE: "Activities",
+    DATATABLE_TITLE: "Activities List",
+    ADD_NEW_ENTITY: "Add New Activity",
+    ENTITY_NAME: "Activity",
   };
 
-  // 🔥 REQUIRED for showing Edit + Delete buttons in list
+  const searchConfig = {
+    displayLabels: ["activityCode", "activityName"],
+    searchFields: "activityCode,activityName,category",
+  };
+
+  const deleteModalLabels = ["activityCode", "activityName"];
+
   const tableActions = {
     showEdit: true,
     showDelete: true,
-    position: 'right',
+    position: "right",
   };
 
-  // Custom dataTableColumns to display Project and Unit
   const dataTableColumns = [
     {
-      title: 'Project',
-      dataIndex: ['projectId', 'name'],
-      key: 'project',
-      render: (text, record) => {
-        return record?.projectId?.name || record?.projectId?.projectCode || '-';
+      title: "Project",
+      key: "project",
+      render: (_, record) => {
+        const p = record?.projectId;
+        if (!p) return "-";
+        return p.name && p.projectCode ? `${p.name} (${p.projectCode})` : p.name || p.projectCode || "-";
       },
     },
     {
-      title: 'Unit',
-      dataIndex: ['unitId', 'unitNumber'],
-      key: 'unit',
-      render: (text, record) => {
-        const unitNumber = record?.unitId?.unitNumber || '-';
-        const towerOrWing = record?.unitId?.towerOrWing;
-        return towerOrWing ? `${unitNumber} - ${towerOrWing}` : unitNumber;
+      title: "Unit",
+      key: "unit",
+      render: (_, record) => {
+        const u = record?.unitId;
+        if (!u) return "-";
+        return u.towerOrWing ? `${u.unitNumber} - ${u.towerOrWing}` : u.unitNumber;
       },
     },
+    { title: "Activity Code", dataIndex: "activityCode" },
+    { title: "Activity Name", dataIndex: "activityName" },
+    { title: "Unit Of Measurement", dataIndex: "unit" },
     {
-      title: 'Activity Code',
-      dataIndex: 'activityCode',
-      key: 'activityCode',
+      title: "Default Rate",
+      dataIndex: "defaultRate",
+      render: (v) => (v ? `₹${v}` : "-"),
     },
-    {
-      title: 'Activity Name',
-      dataIndex: 'activityName',
-      key: 'activityName',
-    },
-    {
-      title: 'Unit of Measurement',
-      dataIndex: 'unit',
-      key: 'unit',
-    },
-    {
-      title: 'Default Rate',
-      dataIndex: 'defaultRate',
-      key: 'defaultRate',
-      render: (text) => (text ? `₹${text.toLocaleString()}` : '-'),
-    },
-    {
-      title: 'Category',
-      dataIndex: 'category',
-      key: 'category',
-      render: (text) => text || '-',
-    },
+    { title: "Category", dataIndex: "category" },
   ];
 
-  // Remove projectCode and unitId from fields for DynamicForm rendering
-  const { projectCode: _pc, unitId: _uid, ...remainingFields } = fields;
+  const { projectCode: _1, unitId: _2, ...remainingFields } = fields;
 
   const config = {
     entity,
     ...Labels,
-    fields,
+    fields: remainingFields,
     searchConfig,
     deleteModalLabels,
-    tableActions,   // 👈 enables Edit + Delete after refresh
-    dataTableColumns, // 👈 custom columns with Project and Unit
+    tableActions,
+    dataTableColumns,
   };
 
   return (
     <CrudModule
       createForm={<ActivitiesForm fields={remainingFields} />}
-      updateForm={<ActivitiesForm fields={remainingFields} isUpdateForm={true} />}
+      updateForm={<ActivitiesForm fields={remainingFields} isUpdateForm />}
       config={config}
     />
   );

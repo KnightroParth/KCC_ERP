@@ -1,19 +1,32 @@
 // frontend/src/pages/activities/config.js
 
 export const fields = {
-  // Project and Unit fields are handled by custom form in index.jsx
+  // These two are ONLY for the table view
+  projectDisplay: {
+    label: 'Project',
+    type: 'string',
+    disableForForm: true,
+  },
+  unitDisplay: {
+    label: 'Unit',
+    type: 'string',
+    disableForForm: true,
+  },
+
+  // Real linkage fields – handled manually in index.jsx
   projectCode: {
-    disableForForm: true, // Handled by custom form
+    disableForForm: true,
     disableForTable: true,
   },
   projectId: {
-    disableForForm: true, // Handled by custom form
+    disableForForm: true,
     disableForTable: true,
   },
   unitId: {
-    disableForForm: true, // Handled by custom form
+    disableForForm: true,
     disableForTable: true,
   },
+
   activityCode: {
     label: 'Activity Code',
     type: 'string',
@@ -27,7 +40,7 @@ export const fields = {
     placeholder: 'e.g., Excavation',
   },
   unit: {
-    label: 'Unit of Measurement',
+    label: 'Unit Of Measurement',
     type: 'string',
     required: true,
     placeholder: 'e.g., Cubic Meter, Square Meter, Hour',
