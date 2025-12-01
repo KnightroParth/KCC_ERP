@@ -1,25 +1,23 @@
-// backend/src/models/appModels/Units.js
-
 const mongoose = require("mongoose");
 
 const UnitsSchema = new mongoose.Schema(
   {
+    // Store projectCode directly — NOT ObjectId
     projectId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Client",   // ✅ REUSE CLIENT AS PROJECT
+      type: String,      // 🔥 critical fix
       required: true,
     },
 
-    unitNumber: { type: String, required: true },          // A-502, Shop-3
-    towerOrWing: { type: String },                          // Tower A / Wing B
+    unitNumber: { type: String, required: true },
+    towerOrWing: { type: String },
     floor: { type: Number },
 
-    unitType: { type: String },                             // 2BHK | 3BHK | Shop
+    unitType: { type: String },
     carpetArea: { type: Number },
     saleableArea: { type: Number },
 
     ratePerSqft: { type: Number, required: true },
-    totalAmount: { type: Number },                          // auto-calculated
+    totalAmount: { type: Number },
 
     status: {
       type: String,
@@ -27,27 +25,27 @@ const UnitsSchema = new mongoose.Schema(
       default: "Available",
     },
 
-    ownerName: { type: String },                            // only if Sold
+    ownerName: { type: String },
+    removed: { type: Boolean, default: false },
+    enabled: { type: Boolean, default: true },
   },
   { timestamps: true }
 );
 
-// ✅ AUTO TOTAL CALCULATION
+// Auto-calculation on save
 UnitsSchema.pre("save", function (next) {
-  if (this.ratePerSqft && this.saleableArea) {
-    this.totalAmount = this.ratePerSqft * this.saleableArea;
+  if (this.saleableArea && this.ratePerSqft) {
+    this.totalAmount = this.saleableArea * this.ratePerSqft;
   }
   next();
 });
 
-// ✅ AUTO TOTAL CALCULATION ON UPDATE
+// Auto-calculation on update
 UnitsSchema.pre("findOneAndUpdate", function (next) {
   const update = this.getUpdate();
-
   if (update.saleableArea && update.ratePerSqft) {
     update.totalAmount = update.saleableArea * update.ratePerSqft;
   }
-
   next();
 });
 
