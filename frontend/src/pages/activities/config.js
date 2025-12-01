@@ -1,21 +1,18 @@
 // frontend/src/pages/activities/config.js
 
 export const fields = {
+  // Project and Unit fields are handled by custom form in index.jsx
+  projectCode: {
+    disableForForm: true, // Handled by custom form
+    disableForTable: true,
+  },
   projectId: {
-    label: 'Project',
-    type: 'async',
-    entity: 'project',
-    displayLabels: ['name', 'projectCode'],
-    outputValue: '_id',
-    required: true,
-    placeholder: 'Select Project',
+    disableForForm: true, // Handled by custom form
+    disableForTable: true,
   },
   unitId: {
-    label: 'Unit',
-    type: 'asyncDependent', // Custom type for dependent select
-    dependsOn: 'projectId',
-    required: true,
-    placeholder: 'Select Unit',
+    disableForForm: true, // Handled by custom form
+    disableForTable: true,
   },
   activityCode: {
     label: 'Activity Code',
