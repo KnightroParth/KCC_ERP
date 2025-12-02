@@ -1,15 +1,13 @@
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 import {
   EyeOutlined,
   EditOutlined,
   DeleteOutlined,
-  EllipsisOutlined,
   RedoOutlined,
-  ArrowRightOutlined,
   ArrowLeftOutlined,
 } from '@ant-design/icons';
-import { Dropdown, Table, Button, Input, Space } from 'antd';
+import { Table, Button, Input, Space } from 'antd';
 import { PageHeader } from '@ant-design/pro-layout';
 
 import { useSelector, useDispatch } from 'react-redux';
@@ -158,13 +156,17 @@ export default function DataTable({ config, extra = [] }) {
     dispatch(crud.list({ entity }));
   };
 
+  const [isReady, setIsReady] = useState(false);
+
   useEffect(() => {
     const controller = new AbortController();
     dispatcher();
+    setIsReady(true);
     return () => {
       controller.abort();
+      dispatch(crud.resetState());
     };
-  }, []);
+  }, [entity]);
 
   return (
     <>
@@ -200,7 +202,7 @@ export default function DataTable({ config, extra = [] }) {
       <Table
         columns={dataTableColumns}
         rowKey={(item) => item._id}
-        dataSource={dataSource}
+        dataSource={isReady ? dataSource : []}
         pagination={pagination}
         loading={listIsLoading}
         onChange={handelDataTableLoad}

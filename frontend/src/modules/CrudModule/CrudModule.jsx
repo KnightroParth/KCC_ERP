@@ -111,7 +111,7 @@ function CrudModule({ config, createForm, updateForm, withUpload = false }) {
 
   useLayoutEffect(() => {
     dispatch(crud.resetState());
-  }, []);
+  }, [dispatch, config.entity]);
 
   return (
     <CrudLayout
@@ -124,7 +124,7 @@ function CrudModule({ config, createForm, updateForm, withUpload = false }) {
         <SidePanelTopContent config={config} formElements={updateForm} withUpload={withUpload} />
       }
     >
-      <DataTable config={config} />
+      <DataTable config={config} key={config.entity} />
       <DeleteModal config={config} />
     </CrudLayout>
   );
