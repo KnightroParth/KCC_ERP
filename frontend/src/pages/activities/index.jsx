@@ -38,9 +38,29 @@ function ProjectSelect({ value, onChange, form, ...props }) {
   );
 }
 
+import { useSelector } from 'react-redux';
+import { selectUpdatedItem } from '@/redux/crud/selectors';
+
 function ActivitiesForm({ fields: fieldConfig, isUpdateForm = false }) {
   const translate = useLanguage();
   const form = Form.useFormInstance();
+  const { current } = useSelector(selectUpdatedItem);
+
+  React.useEffect(() => {
+    if (isUpdateForm && current) {
+      const updates = {};
+      if (current.projectId && typeof current.projectId === 'object') {
+        updates.projectCode = current.projectId.projectCode;
+        updates.projectId = current.projectId._id;
+      }
+      if (current.unitId && typeof current.unitId === 'object') {
+        updates.unitId = current.unitId._id;
+      }
+      if (Object.keys(updates).length > 0) {
+        form.setFieldsValue(updates);
+      }
+    }
+  }, [current, isUpdateForm, form]);
 
   return (
     <>
@@ -127,6 +147,7 @@ export default function Activities() {
   ];
 
   const { projectCode: _1, unitId: _2, ...remainingFields } = fields;
+  const { projectDisplay: _3, unitDisplay: _4, projectId: _5, ...formFields } = remainingFields;
 
   const config = {
     entity,
@@ -140,8 +161,8 @@ export default function Activities() {
 
   return (
     <CrudModule
-      createForm={<ActivitiesForm fields={remainingFields} />}
-      updateForm={<ActivitiesForm fields={remainingFields} isUpdateForm />}
+      createForm={<ActivitiesForm fields={formFields} />}
+      updateForm={<ActivitiesForm fields={formFields} isUpdateForm />}
       config={config}
     />
   );

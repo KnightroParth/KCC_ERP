@@ -34,6 +34,7 @@ const Unit = lazy(() => import('@/pages/Unit'));
 const Project = lazy(() => import("@/modules/ProjectModule"));
 
 const Activities = lazy(() => import('@/pages/activities'));
+const AssignWork = lazy(() => import('@/pages/AssignWork'));
 
 
 
@@ -138,6 +139,10 @@ let routes = {
     {
       path: '/activities',
       element: <Activities />,
+    },
+    {
+      path: '/assign-work',
+      element: <AssignWork />,
     },
 
     {
