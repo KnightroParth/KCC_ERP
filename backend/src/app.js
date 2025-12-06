@@ -10,8 +10,10 @@ const corePublicRouter = require('./routes/coreRoutes/corePublicRouter');
 const adminAuth = require('./controllers/coreControllers/adminAuth');
 const erpApiRouter = require('./routes/appRoutes/appApi');
 const unitsRouter = require('./routes/appRoutes/unitsRoutes');
+const attendanceRouter = require('./routes/appRoutes/attendanceRoutes');
 
-const fileUpload = require('express-fileupload');
+// Load Labour Router
+const labourRouter = require('./routes/appRoutes/labourRoutes');
 
 const app = express();
 
@@ -38,6 +40,12 @@ app.use('/api', adminAuth.isValidAuthToken, erpApiRouter);
 
 // ✅ Units custom routes
 app.use('/api/units', adminAuth.isValidAuthToken, unitsRouter);
+
+// ✅ Attendance custom routes
+app.use('/api/attendance', adminAuth.isValidAuthToken, attendanceRouter);
+
+// ✅ Labour custom routes
+app.use('/api/labour', adminAuth.isValidAuthToken, labourRouter);
 
 app.use('/download', coreDownloadRouter);
 app.use('/public', corePublicRouter);

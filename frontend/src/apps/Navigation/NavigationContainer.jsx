@@ -21,6 +21,7 @@ import {
   WalletOutlined,
   ReconciliationOutlined,
   ToolOutlined,
+  UserOutlined,
 } from '@ant-design/icons';
 
 const { Sider } = Layout;
@@ -46,6 +47,9 @@ function Sidebar({ collapsible, isMobile = false }) {
     { key: 'units', icon: <ContainerOutlined />, label: <Link to="/units">Units</Link> },
     { key: 'assign-work', icon: <FileSyncOutlined />, label: <Link to="/assign-work">Assign Work Titles</Link> },
     { key: 'activities', icon: <ToolOutlined />, label: <Link to="/activities">Activities</Link> },
+    { key: 'attendance', icon: <UserOutlined />, label: <Link to="/attendance">Attendance</Link> },
+    // ✅ Ensure this is present and correct:
+    { key: 'labour', icon: <UserOutlined />, label: <Link to="/labour">Labour Master</Link> },
     { key: 'invoice', icon: <FileSyncOutlined />, label: <Link to="/invoice">Billing</Link> },
     { key: 'quote', icon: <CreditCardOutlined />, label: <Link to="/quote">Work Progress</Link> },
     { key: 'payment', icon: <WalletOutlined />, label: <Link to="/payment">Contractor Payments</Link> },
