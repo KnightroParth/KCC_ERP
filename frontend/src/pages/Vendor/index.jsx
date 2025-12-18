@@ -1,6 +1,6 @@
 // frontend/src/pages/Vendor/index.jsx
-
 import React from 'react';
+import { Tag } from 'antd'; // <--- THIS WAS MISSING
 import CrudModule from '@/modules/CrudModule/CrudModule';
 import VendorForm from './VendorForm';
 import { fields } from './config';
@@ -52,24 +52,21 @@ export default function Vendor() {
         if (!record.labourSupplyDetails || record.labourSupplyDetails.length === 0) {
           return '0';
         }
-        const total = record.labourSupplyDetails.reduce((sum, item) => {
-          return sum + (item.count || 0);
-        }, 0);
-        return total.toString();
+        return record.labourSupplyDetails.reduce((sum, item) => sum + (item.count || 0), 0);
       },
     },
     {
-      title: 'Labour Capacity',
+      title: 'Details',
       key: 'labourCapacity',
       render: (_, record) => {
         if (!record.labourSupplyDetails || record.labourSupplyDetails.length === 0) {
-          return <span style={{ color: '#999' }}>No capacity defined</span>;
+          return <span style={{ color: '#999' }}>-</span>;
         }
         return (
-          <div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
             {record.labourSupplyDetails.map((item, index) => (
-              <Tag key={index} color="blue" style={{ marginBottom: 4 }}>
-                {item.labourType || 'N/A'}: {item.count || 0}
+              <Tag key={index} color="blue">
+                {item.labourType}: {item.count}
               </Tag>
             ))}
           </div>
