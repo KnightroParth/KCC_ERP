@@ -42,18 +42,23 @@ export default function Dashboard() {
 
     return (
         <Layout style={{ minHeight: '100vh' }}>
-            <Content style={{ margin: '24px 16px', padding: 24, background: '#fff', minHeight: 280 }}>
-                <h2 style={{ marginBottom: 24, fontWeight: 'bold', color: '#333' }}>Dashboard</h2>
+            <Content style={{ background: '#fafafa', minHeight: '100vh' }}>
+                <div className="page-content-inner" style={{ paddingTop: 32 }}>
+                    <div style={{ marginBottom: 32 }}>
+                        <h1 className="page-title">Dashboard</h1>
+                        <p style={{ color: '#8c8c8c', marginBottom: 0 }}>Overview of your project metrics and activities</p>
+                    </div>
 
-                <DashboardMetrics data={data} loading={loading} />
+                    <DashboardMetrics data={data} loading={loading} />
 
-                <div style={{ marginTop: 32 }}>
-                    <DashboardCharts data={data} loading={loading} />
+                    <div style={{ marginTop: 32 }}>
+                        <DashboardCharts data={data} loading={loading} />
+                    </div>
+
+                    <DashboardCalendar />
+
+                    <DashboardRecent data={data} loading={loading} />
                 </div>
-
-                <DashboardCalendar />
-
-                <DashboardRecent data={data} loading={loading} />
             </Content>
         </Layout>
     );

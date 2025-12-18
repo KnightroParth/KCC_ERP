@@ -107,7 +107,7 @@ export default function DataTable({ config, extra = [] }) {
       title: 'Actions',
       key: 'actions',
       fixed: 'right',
-      width: 190,
+      width: 100,
       render: (_, record) => (
         <Space size="small" wrap>
           <Button
@@ -115,10 +115,7 @@ export default function DataTable({ config, extra = [] }) {
             type="primary"
             icon={<EditOutlined />}
             onClick={() => handleEdit(record)}
-            shape="round"
-          >
-            Edit
-          </Button>
+          />
 
           <Button
             size="small"
@@ -126,10 +123,8 @@ export default function DataTable({ config, extra = [] }) {
             type="primary"
             icon={<DeleteOutlined />}
             onClick={() => handleDelete(record)}
-            shape="round"
-          >
-            Remove
-          </Button>
+            style={{ backgroundColor: '#ff4d4f', borderColor: '#ff4d4f' }}
+          />
         </Space>
       ),
     },
@@ -206,7 +201,7 @@ export default function DataTable({ config, extra = [] }) {
         pagination={pagination}
         loading={listIsLoading}
         onChange={handelDataTableLoad}
-        scroll={{ x: true }}
+        scroll={{ x: 'max-content' }}
       />
     </>
   );

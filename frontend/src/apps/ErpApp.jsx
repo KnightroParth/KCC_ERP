@@ -76,8 +76,8 @@ export default function ErpCrmApp() {
                 margin: '10px auto 30px',
                 overflow: 'initial',
                 width: '100%',
-                padding: '0 50px',
-                maxWidth: 1400,
+                padding: '0 10px',
+                maxWidth: 'none',
               }}
             >
               <AppRouter />

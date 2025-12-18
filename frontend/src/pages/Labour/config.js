@@ -14,30 +14,10 @@ export const fields = {
       placeholder: 'e.g., Electrician, Mason, Helper',
     },
     labourType: {
-      label: 'Labour Type',
-      type: 'select',
+      label: 'Designation / Labour Type',
+      type: 'string',
       required: true,
-      options: [
-        { label: 'Skilled', value: 'Skilled' },
-        { label: 'Semi-Skilled', value: 'Semi-Skilled' },
-        { label: 'Unskilled', value: 'Unskilled' },
-      ],
-    },
-    vendorType: {
-      label: 'Vendor Type',
-      type: 'select',
-      required: true,
-      options: [
-        { label: 'My Labour', value: 'My Labour' },
-        { label: 'Vendor Labour', value: 'Vendor Labour' },
-      ],
-    },
-    helpersCount: {
-      label: 'Helpers Count',
-      type: 'number',
-      required: false,
-      defaultValue: 0,
-      placeholder: 'Number of helpers',
+      placeholder: 'e.g., Senior Engineer, Site Supervisor, Electrician',
     },
     status: {
       label: 'Status',

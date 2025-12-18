@@ -111,14 +111,9 @@ export default function Labour() {
       key: 'trade',
     },
     {
-      title: 'Labour Type',
+      title: 'Designation / Labour Type',
       dataIndex: 'labourType',
       key: 'labourType',
-    },
-    {
-      title: 'Vendor Type',
-      dataIndex: 'vendorType',
-      key: 'vendorType',
     },
     {
       title: 'Project',

@@ -5,12 +5,14 @@
 .moneyInput input {
   text-align: right;
 }
+
 /* REMOVE DEFAULT WHITE BOX / PADDING FROM OLD LAYOUT */
 .whiteBox,
 .layoutPadding,
 .whiteBox.shadow {
   background: transparent !important;
   box-shadow: none !important;
+  border: none !important;
   max-width: 100% !important;
   width: 100% !important;
   margin: 0 !important;

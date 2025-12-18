@@ -1,9 +1,11 @@
 .ant-layout {
   background: #ffffff !important;
 }
+
 .site-layout .site-layout-background {
   background: #fff;
 }
+
 [data-theme='dark'] .site-layout .site-layout-background {
   background: #141414;
 }
@@ -14,6 +16,7 @@
   padding: 0;
   box-shadow: none;
 }
+
 .headerIcon .ant-dropdown-menu-item:hover,
 .headerIcon .ant-dropdown-menu-item.ant-dropdown-menu-item-active {
   background: none;
@@ -31,6 +34,7 @@
 .login-form button[type='submit'] {
   margin-bottom: 20px;
 }
+
 .login-form-forgot {
   float: right;
 }
@@ -39,12 +43,14 @@
   width: 100%;
 }
 
-.ant-table-thead > tr > th {
+.ant-table-thead>tr>th {
   font-weight: 700;
 }
+
 .ant-typography strong {
   font-weight: 700;
 }
+
 h1,
 h2,
 h3,
@@ -58,36 +64,168 @@ h6 {
   padding-bottom: 70px;
 }
 
-.tabContent .ant-tabs-right > .ant-tabs-content-holder,
-.tabContent .ant-tabs-right > div > .ant-tabs-content-holder {
+.tabContent .ant-tabs-right>.ant-tabs-content-holder,
+.tabContent .ant-tabs-right>div>.ant-tabs-content-holder {
   border-right: none;
 }
 
-.tabContent .ant-tabs .ant-tabs-tab + .ant-tabs-tab {
+.tabContent .ant-tabs .ant-tabs-tab+.ant-tabs-tab {
   margin: 0;
 }
 
-.ant-select-show-search:where(.css-dev-only-do-not-override-2q8sxy).ant-select:not(
-    .ant-select-customize-input
-  )
-  .ant-select-selector {
+.ant-select-show-search:where(.css-dev-only-do-not-override-2q8sxy).ant-select:not(.ant-select-customize-input) .ant-select-selector {
   cursor: pointer;
 }
 
 .ant-menu-item {
   height: 36px !important;
 }
+
 @media (max-width: 768px) {
-  .tabContent .ant-tabs-right > .ant-tabs-content-holder > .ant-tabs-content > .ant-tabs-tabpane {
+  .tabContent .ant-tabs-right>.ant-tabs-content-holder>.ant-tabs-content>.ant-tabs-tabpane {
     padding-right: 0;
     margin-top: 30px;
   }
+
   .tabContent .ant-tabs {
     display: block;
   }
 }
+
 @media (prefers-reduced-motion: no-preference) {
   .App-logo {
     animation: App-logo-spin infinite 20s linear;
   }
+}
+
+/* Table Standardization */
+.ant-table-thead>tr>th,
+.ant-table-tbody>tr>td {
+  padding: 12px 16px !important;
+}
+
+.ant-table-thead>tr>th {
+  background-color: #fafafa !important;
+  font-weight: 600;
+  color: #262626;
+  border-bottom: 2px solid #f0f0f0 !important;
+}
+
+.ant-table-tbody>tr>td {
+  border-bottom: 1px solid #f0f0f0 !important;
+}
+
+.ant-table-tbody>tr:nth-child(odd)>td {
+  background-color: #ffffff !important;
+}
+
+/* Slight background for alternating rows */
+.ant-table-tbody>tr:nth-child(even)>td {
+  background-color: #fafafa !important;
+}
+
+.ant-table-tbody>tr:hover>td {
+  background-color: #f5f5f5 !important;
+}
+
+/* Form Label Enhancement */
+.ant-form-item-label > label {
+  font-weight: 500;
+  color: #262626 !important;
+  height: auto;
+  padding-bottom: 8px;
+}
+
+.ant-form-item-label > label.ant-form-item-required::before {
+  display: inline-block;
+  margin-inline-end: 4px;
+  color: #ff4d4f;
+  font-size: 14px;
+  font-weight: bold;
+  line-height: 1;
+  content: '*';
+}
+
+/* Modal Enhancement */
+.ant-modal-header {
+  padding: 16px 24px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.ant-modal-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #262626;
+}
+
+.ant-modal-body {
+  padding: 24px;
+}
+
+.ant-modal-footer {
+  padding: 16px 24px;
+  border-top: 1px solid #f0f0f0;
+}
+
+/* Drawer Enhancement */
+.ant-drawer-header {
+  padding: 16px 24px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.ant-drawer-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #262626;
+}
+
+/* Select Dropdown Enhancement */
+.ant-select-dropdown {
+  border-radius: 6px;
+  box-shadow: 0 3px 6px -4px rgba(0, 0, 0, 0.08), 0 6px 16px 0 rgba(0, 0, 0, 0.08), 0 9px 28px 8px rgba(0, 0, 0, 0.05);
+}
+
+.ant-select-item-option:hover {
+  background-color: #f5f5f5;
+}
+
+.ant-select-item-option-selected {
+  background-color: #e6f7ff;
+}
+
+/* Dropdown Menu Enhancement */
+.ant-dropdown-menu {
+  border-radius: 6px;
+  box-shadow: 0 3px 6px -4px rgba(0, 0, 0, 0.08), 0 6px 16px 0 rgba(0, 0, 0, 0.08), 0 9px 28px 8px rgba(0, 0, 0, 0.05) !important;
+}
+
+.ant-dropdown-menu-item:hover {
+  color: #22075e;
+  background-color: #f5f5f5;
+}
+
+/* Button Consistency */
+.ant-btn-primary {
+  background-color: #22075e;
+  border-color: #22075e;
+}
+
+.ant-btn-primary:hover,
+.ant-btn-primary:focus {
+  background-color: #2e0a7a;
+  border-color: #2e0a7a;
+}
+
+/* Spacing and Layout Refinement */
+.ant-row {
+  margin-bottom: 0;
+}
+
+/* Remove excessive spacing from Ant Design */
+.ant-form-item {
+  margin-bottom: 24px;
+}
+
+.ant-form-item:last-child {
+  margin-bottom: 0;
 }

@@ -22,6 +22,7 @@ import {
   ReconciliationOutlined,
   ToolOutlined,
   UserOutlined,
+  TeamOutlined,
 } from '@ant-design/icons';
 
 const { Sider } = Layout;
@@ -50,6 +51,7 @@ function Sidebar({ collapsible, isMobile = false }) {
     { key: 'attendance', icon: <UserOutlined />, label: <Link to="/attendance">Attendance</Link> },
     // ✅ Ensure this is present and correct:
     { key: 'labour', icon: <UserOutlined />, label: <Link to="/labour">Labour Master</Link> },
+    { key: 'vendor', icon: <TeamOutlined />, label: <Link to="/vendor">Vendor Master</Link> },
     { key: 'invoice', icon: <FileSyncOutlined />, label: <Link to="/invoice">Billing</Link> },
     { key: 'quote', icon: <CreditCardOutlined />, label: <Link to="/quote">Work Progress</Link> },
     { key: 'payment', icon: <WalletOutlined />, label: <Link to="/payment">Contractor Payments</Link> },

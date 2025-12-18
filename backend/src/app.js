@@ -15,6 +15,9 @@ const attendanceRouter = require('./routes/appRoutes/attendanceRoutes');
 // Load Labour Router
 const labourRouter = require('./routes/appRoutes/labourRoutes');
 
+// Load Vendor Router
+const vendorRouter = require('./routes/appRoutes/vendorRoutes');
+
 const app = express();
 
 app.use(
@@ -46,6 +49,9 @@ app.use('/api/attendance', adminAuth.isValidAuthToken, attendanceRouter);
 
 // ✅ Labour custom routes
 app.use('/api/labour', adminAuth.isValidAuthToken, labourRouter);
+
+// ✅ Vendor custom routes
+app.use('/api/vendor', adminAuth.isValidAuthToken, vendorRouter);
 
 app.use('/download', coreDownloadRouter);
 app.use('/public', corePublicRouter);

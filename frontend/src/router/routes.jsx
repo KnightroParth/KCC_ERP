@@ -37,6 +37,7 @@ const Activities = lazy(() => import('@/pages/activities'));
 const AssignWork = lazy(() => import('@/pages/AssignWork'));
 const Attendance = lazy(() => import('@/pages/Attendance'));
 const Labour = lazy(() => import('@/pages/Labour'));
+const Vendor = lazy(() => import('@/pages/Vendor'));
 
 
 
@@ -152,6 +153,10 @@ let routes = {
     {
       path: '/labour',
       element: <Labour />,
+    },
+    {
+      path: '/vendor',
+      element: <Vendor />,
     },
     {
       path: '/profile',

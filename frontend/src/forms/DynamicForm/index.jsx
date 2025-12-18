@@ -119,6 +119,7 @@ function FormElement({ field, feedback, setFeedback }) {
     <Form.Item
       label={translate(field.label)}
       name={field.name}
+      initialValue={field.initialValue || field.defaultValue}
       rules={[
         {
           required: field.required || false,
@@ -128,7 +129,6 @@ function FormElement({ field, feedback, setFeedback }) {
     >
       <Select
         showSearch={field.showSearch}
-        defaultValue={field.defaultValue}
         style={{
           width: '100%',
         }}
@@ -148,6 +148,7 @@ function FormElement({ field, feedback, setFeedback }) {
     <Form.Item
       label={translate(field.label)}
       name={field.name}
+      initialValue={field.initialValue || field.defaultValue}
       rules={[
         {
           required: field.required || false,
@@ -156,7 +157,6 @@ function FormElement({ field, feedback, setFeedback }) {
       ]}
     >
       <Select
-        defaultValue={field.defaultValue}
         style={{
           width: '100%',
         }}
@@ -177,6 +177,7 @@ function FormElement({ field, feedback, setFeedback }) {
     <Form.Item
       label={translate(field.label)}
       name={field.name}
+      initialValue={field.initialValue || field.defaultValue}
       rules={[
         {
           required: field.required || false,

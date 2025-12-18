@@ -10,6 +10,8 @@ const UnitsSchema = new mongoose.Schema(
 
     unitNumber: { type: String, required: true },
     towerOrWing: { type: String },
+    // Also support buildingName for consistency with Unit model
+    buildingName: { type: String },
     floor: { type: Number },
 
     unitType: { type: String },

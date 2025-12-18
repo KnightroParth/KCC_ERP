@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 
-const LabourMasterSchema = new mongoose.Schema(
+const VendorSchema = new mongoose.Schema(
   {
     removed: {
       type: Boolean,
@@ -15,27 +15,36 @@ const LabourMasterSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
-    trade: {
+    email: {
+      type: String,
+      trim: true,
+    },
+    phone: {
       type: String,
       required: true,
       trim: true,
     },
-    labourType: {
+    address: {
       type: String,
-      required: true,
       trim: true,
     },
-    projectId: {
+    labourSupplyDetails: [
+      {
+        labourType: {
+          type: String,
+          required: true,
+          trim: true,
+        },
+        count: {
+          type: Number,
+          default: 0,
+        },
+      },
+    ],
+    userId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'Project',
-      required: true,
+      ref: 'Admin',
     },
-    status: {
-      type: String,
-      enum: ['Active', 'Inactive'],
-      default: 'Active',
-    },
-    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'Admin' },
     created: {
       type: Date,
       default: Date.now,
@@ -50,9 +59,9 @@ const LabourMasterSchema = new mongoose.Schema(
   }
 );
 
-LabourMasterSchema.pre('save', async function (next) {
+VendorSchema.pre('save', async function (next) {
   this.updated = new Date();
   next();
 });
 
-module.exports = mongoose.model('LabourMaster', LabourMasterSchema);
+module.exports = mongoose.model('Vendor', VendorSchema);

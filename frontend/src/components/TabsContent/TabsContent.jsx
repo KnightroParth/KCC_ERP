@@ -3,8 +3,8 @@ import { Tabs, Row, Col } from 'antd';
 const SettingsLayout = ({ children }) => {
   return (
     <Col className="gutter-row" order={0}>
-      <div className="whiteBox shadow" style={{ minHeight: '480px' }}>
-        <div className="pad40">{children}</div>
+      <div className="card-section" style={{ minHeight: '480px' }}>
+        <div style={{ padding: '24px' }}>{children}</div>
       </div>
     </Col>
   );
@@ -13,18 +13,17 @@ const SettingsLayout = ({ children }) => {
 const TopCard = ({ pageTitle }) => {
   return (
     <div
-      className="whiteBox shadow"
+      className="card-section"
       style={{
-        color: '#595959',
-        fontSize: 13,
         height: '70px',
         minHeight: 'auto',
         marginBottom: '24px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
       }}
     >
-      <div className="pad20 strong" style={{ textAlign: 'center', justifyContent: 'center' }}>
-        <h2 style={{ color: '#22075e', marginBottom: 0, marginTop: 0 }}>{pageTitle}</h2>
-      </div>
+      <h2 className="page-title" style={{ marginBottom: 0, textAlign: 'center' }}>{pageTitle}</h2>
     </div>
   );
 };
@@ -40,8 +39,8 @@ const RightMenu = ({ children, pageTitle }) => {
       order={1}
     >
       <TopCard pageTitle={pageTitle} />
-      <div className="whiteBox shadow">
-        <div className="pad25" style={{ width: '100%', paddingBottom: 0 }}>
+      <div className="card-section">
+        <div style={{ padding: '24px' }}>
           {children}
         </div>
       </div>

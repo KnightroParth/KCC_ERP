@@ -8,22 +8,16 @@ const { Content } = Layout;
 const TopCard = ({ title, cardContent }) => {
   return (
     <div
-      className="whiteBox shadow"
+      className="card-section"
       style={{
-        color: '#595959',
-        fontSize: 13,
         height: '70px',
         minHeight: 'auto',
-        marginBottom: '24px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
       }}
     >
-      <div className="pad20 strong" style={{ textAlign: 'center', justifyContent: 'center' }}>
-        <h2 style={{ color: '#22075e', marginBottom: 0, marginTop: 0 }}>{title}</h2>
-      </div>
-      {/* <Divider style={{ padding: 0, margin: 0 }}></Divider>
-      <div className="pad15" style={{ textAlign: 'center', justifyContent: 'center' }}>
-        {cardContent}
-      </div> */}
+      <h2 className="page-title" style={{ marginBottom: 0, textAlign: 'center' }}>{title}</h2>
     </div>
   );
 };
@@ -35,10 +29,10 @@ export default function SettingsLayout({
   bottomCardContent,
 }) {
   return (
-    <Layout className="site-layout">
+    <Layout className="site-layout" style={{ background: '#fafafa', minHeight: '100vh' }}>
       <Content
         style={{
-          padding: '30px 40px',
+          padding: '32px 24px',
           margin: '0px auto',
           width: '100%',
           maxWidth: '1100px',
@@ -52,10 +46,10 @@ export default function SettingsLayout({
             md={{ span: 17 }}
             lg={{ span: 18 }}
           >
-            <div className="whiteBox shadow" style={{ minHeight: '480px', maxWidth: '800px' }}>
-              <Row className="pad40" gutter={[0, 0]}>
-                <Col span={24}>{children}</Col>
-              </Row>
+            <div className="card-section" style={{ minHeight: '480px' }}>
+              <div style={{ padding: '24px' }}>
+                {children}
+              </div>
             </div>
           </Col>
           <Col
@@ -66,8 +60,10 @@ export default function SettingsLayout({
             lg={{ span: 6 }}
           >
             <TopCard title={topCardTitle} cardContent={topCardContent} />
-            <div className="whiteBox shadow" style={{ minHeight: '280px' }}>
-              <Row gutter={[0, 0]}>{bottomCardContent}</Row>
+            <div className="card-section" style={{ minHeight: '280px', marginTop: '24px' }}>
+              <div style={{ padding: '24px' }}>
+                <Row gutter={[0, 0]}>{bottomCardContent}</Row>
+              </div>
             </div>
           </Col>
         </Row>

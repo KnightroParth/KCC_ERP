@@ -1,75 +1,94 @@
 import React from 'react';
-import { Table, Button, Popconfirm, Tag, Tooltip } from 'antd';
-import { DeleteOutlined, EditOutlined } from '@ant-design/icons';
-import { WORK_CATEGORIES } from './config';
+import { Table, Button, Popconfirm, Tooltip, Checkbox } from 'antd';
+import { DeleteOutlined } from '@ant-design/icons';
 
-export default function WorkTable({ data, onDelete, onEdit, loading, projects = [] }) {
+export default function WorkTable({
+    data,
+    selectedCategory,
+    onTaskChange,
+    onDelete,
+    loading
+}) {
+    // Return early if no category selected (though index.jsx handles this)
+    if (!selectedCategory) return null;
+
+    // Define columns
+    // Define columns
     const columns = [
         {
-            title: 'Project',
-            dataIndex: 'projectId',
-            key: 'projectId',
-            render: (projectId) => {
-                const project = projects.find((p) => p._id === projectId);
-                return project ? project.name : projectId;
+            title: 'Flat No. / Unit No.',
+            key: 'unitInfo',
+            width: 150,
+            fixed: 'left',
+            render: (_, record) => (
+                <span>
+                    {record.towerOrWing ? `${record.towerOrWing} - ` : ''}{record.unitNumber}
+                </span>
+            ),
+            sorter: (a, b) => {
+                const numA = parseInt(a.unitNumber.replace(/\D/g, '')) || 0;
+                const numB = parseInt(b.unitNumber.replace(/\D/g, '')) || 0;
+                return numA - numB;
             },
         },
-        {
-            title: 'Category Code',
-            dataIndex: 'workCode',
-            key: 'workCode',
-            width: 120,
-        },
-        {
-            title: 'Work',
-            key: 'workLabel',
-            render: (_, record) => {
-                const category = WORK_CATEGORIES.find(c => c.id === record.workCode);
-                return category ? category.label : record.workCode;
-            }
-        },
-        {
-            title: 'Assigned Work',
-            dataIndex: 'values',
-            key: 'values',
-            render: (workItems) => (
-                <>
-                    {Array.isArray(workItems) && workItems.map((item) => (
-                        <Tag color="blue" key={item}>
-                            {item}
-                        </Tag>
-                    ))}
-                </>
-            ),
-        },
-        {
-            title: 'Action',
-            key: 'action',
-            width: 100,
-            render: (_, record) => (
-                <div style={{ display: 'flex', gap: '8px' }}>
-                    <Tooltip title="Edit">
-                        <Button
-                            type="primary"
-                            icon={<EditOutlined />}
-                            size="small"
-                            onClick={() => onEdit(record)}
-                        />
-                    </Tooltip>
-                    <Popconfirm
-                        title="Are you sure delete this record?"
-                        onConfirm={() => onDelete(record._id)}
-                        okText="Yes"
-                        cancelText="No"
-                    >
-                        <Tooltip title="Delete">
-                            <Button type="primary" danger icon={<DeleteOutlined />} size="small" />
-                        </Tooltip>
-                    </Popconfirm>
-                </div>
-            ),
-        },
     ];
+
+    // Add dynamic columns based on selected category fields
+    if (selectedCategory && selectedCategory.fields) {
+        selectedCategory.fields.forEach(task => {
+            columns.push({
+                title: task,
+                dataIndex: 'assignedTasks',
+                key: task,
+                width: 120,
+                align: 'center',
+                render: (assignedTasks, record) => {
+                    const isChecked = Array.isArray(assignedTasks) && assignedTasks.includes(task);
+                    return (
+                        <Checkbox
+                            checked={isChecked}
+                            onChange={(e) => {
+                                // Prevent table row click handlers or parent forms from reacting
+                                if (e && e.stopPropagation) e.stopPropagation();
+                                if (e && e.preventDefault) e.preventDefault();
+                                onTaskChange(record, task, e.target.checked);
+                            }}
+                            onClick={(e) => {
+                                // Extra safety: stop propagation on click
+                                if (e && e.stopPropagation) e.stopPropagation();
+                            }}
+                        />
+                    );
+                },
+            });
+        });
+    }
+
+    // Add Action column at the end
+    columns.push({
+        title: 'Action',
+        key: 'action',
+        width: 80,
+        fixed: 'right',
+        render: (_, record) => (
+            <Popconfirm
+                title="Are you sure to clear all work for this unit?"
+                onConfirm={() => onDelete(record._id)}
+                okText="Yes"
+                cancelText="No"
+                disabled={!record.assignedTasks || record.assignedTasks.length === 0}
+            >
+                <Tooltip title="Clear All">
+                    <Button
+                        danger
+                        icon={<DeleteOutlined />}
+                        size="small"
+                        disabled={!record.assignedTasks || record.assignedTasks.length === 0}
+                    />
+                </Tooltip>
+            </Popconfirm>
+        ),
+    });
 
     return (
         <Table
@@ -77,8 +96,17 @@ export default function WorkTable({ data, onDelete, onEdit, loading, projects = 
             dataSource={data}
             rowKey="_id"
             style={{ marginTop: 20 }}
-            pagination={{ pageSize: 5 }}
+            pagination={{ pageSize: 20 }}
             loading={loading}
+            scroll={{ x: 'max-content', y: 600 }}
+            // Footer shows total count of units displayed
+            footer={() => (
+                <div style={{ textAlign: 'right', fontWeight: 600, paddingRight: 12 }}>
+                    Total Units: {Array.isArray(data) ? data.length : 0}
+                </div>
+            )}
+            size="middle"
+            bordered
         />
     );
 }

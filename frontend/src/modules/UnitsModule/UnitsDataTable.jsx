@@ -3,6 +3,23 @@ import { request } from "@/request";
 
 export default function UnitsDataTable() {
   const [units, setUnits] = useState([]);
+  const [projectsMap, setProjectsMap] = useState({});
+
+  useEffect(() => {
+    // Fetch projects to map IDs to names
+    const fetchProjects = async () => {
+      const { data } = await request.list({ entity: "client" }); // Client = Project
+      const map = {};
+      if (data) {
+        data.forEach((p) => {
+          map[p._id] = p.name;
+        });
+      }
+      setProjectsMap(map);
+    };
+    
+    fetchProjects();
+  }, []);
 
   useEffect(() => {
     request.list({ entity: "units" }).then((res) => {
@@ -18,8 +35,9 @@ export default function UnitsDataTable() {
       <table className="table table-bordered">
         <thead>
           <tr>
-            <th>Project</th>
-            <th>Unit Number</th>
+            <th>Project Name</th>
+            <th>Tower/Wing</th>
+            <th>Units</th>
             <th>Type</th>
             <th>Status</th>
             <th>Total</th>
@@ -28,12 +46,13 @@ export default function UnitsDataTable() {
 
         <tbody>
           {units.length === 0 && (
-            <tr><td colSpan="5">No Units Found</td></tr>
+            <tr><td colSpan="6">No Units Found</td></tr>
           )}
 
           {units.map((u) => (
             <tr key={u._id}>
-              <td>{u.projectId?.name}</td>
+              <td>{projectsMap[u.projectId] || u.projectId}</td>
+              <td>{u.towerOrWing || '-'}</td>
               <td>{u.unitNumber}</td>
               <td>{u.unitType}</td>
               <td>{u.status}</td>

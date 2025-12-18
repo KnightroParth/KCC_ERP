@@ -3,13 +3,23 @@ import { Row, Col, Card, Statistic, Spin } from 'antd';
 import { ProjectOutlined, HomeOutlined, CheckSquareOutlined, ClockCircleOutlined } from '@ant-design/icons';
 
 const MetricCard = ({ title, value, icon, loading, color }) => (
-    <Card bordered={false} className="shadow-sm" style={{ height: '100%' }}>
+    <Card 
+        bordered={false} 
+        className="shadow" 
+        style={{ 
+            height: '100%',
+            borderRadius: '6px',
+            background: '#fff',
+            border: '1px solid #f0f0f0'
+        }}
+        bodyStyle={{ padding: '24px' }}
+    >
         <Spin spinning={loading}>
             <Statistic
-                title={<span style={{ fontSize: '16px', fontWeight: 500, color: '#666' }}>{title}</span>}
+                title={<span style={{ fontSize: '14px', fontWeight: 500, color: '#8c8c8c', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{title}</span>}
                 value={value}
-                valueStyle={{ color: color, fontWeight: 'bold' }}
-                prefix={<span style={{ opacity: 0.8 }}>{icon}</span>}
+                valueStyle={{ color: color, fontWeight: '700', fontSize: '32px' }}
+                prefix={<span style={{ marginRight: '8px', fontSize: '20px' }}>{icon}</span>}
             />
         </Spin>
     </Card>

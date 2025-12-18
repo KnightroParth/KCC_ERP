@@ -15,10 +15,25 @@ const AttendanceRecordSchema = new mongoose.Schema(
       ref: 'Project',
       required: true,
     },
+    attendanceType: {
+      type: String,
+      enum: ['Individual', 'Group'],
+      default: 'Individual',
+      required: true,
+    },
     labourId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'LabourMaster',
-      required: true,
+      required: function() {
+        return this.attendanceType === 'Individual';
+      },
+    },
+    vendorId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Vendor',
+      required: function() {
+        return this.attendanceType === 'Group';
+      },
     },
     date: {
       type: Date,
@@ -27,9 +42,10 @@ const AttendanceRecordSchema = new mongoose.Schema(
     },
     labourType: {
       type: String,
-      // ✅ FIX: Must match LabourMaster enum
-      enum: ['Skilled', 'Semi-Skilled', 'Unskilled', 'Female', 'Helper', 'Mistri'],
-      required: true,
+      // Only required for Individual type
+      required: function() {
+        return this.attendanceType === 'Individual';
+      },
     },
     fullDay: {
       type: Number,
@@ -46,7 +62,24 @@ const AttendanceRecordSchema = new mongoose.Schema(
       type: String,
       enum: ['Present', 'Absent'],
       default: 'Present',
+      // Only required for Individual type
+      required: function() {
+        return this.attendanceType === 'Individual';
+      },
     },
+    labourCounts: [
+      {
+        labourType: {
+          type: String,
+          required: true,
+        },
+        count: {
+          type: Number,
+          required: true,
+          min: 0,
+        },
+      },
+    ],
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Admin',
@@ -66,7 +99,22 @@ const AttendanceRecordSchema = new mongoose.Schema(
   }
 );
 
-AttendanceRecordSchema.index({ labourId: 1, date: 1 }, { unique: true });
+// Partial indexes for unique constraints
+AttendanceRecordSchema.index(
+  { labourId: 1, date: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { attendanceType: 'Individual' },
+  }
+);
+
+AttendanceRecordSchema.index(
+  { vendorId: 1, projectId: 1, date: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { attendanceType: 'Group' },
+  }
+);
 
 AttendanceRecordSchema.pre('save', async function (next) {
   if (this.isNew || this.isModified('date')) {
@@ -76,15 +124,25 @@ AttendanceRecordSchema.pre('save', async function (next) {
     this.date = date;
   }
 
-  if (this.status === 'Absent') {
-    this.fullDay = 0;
-    this.halfDay = 0;
-  } else {
-    if (this.fullDay + this.halfDay <= 0) {
-      return next(new Error('fullDay + halfDay must be greater than 0'));
+  // Validation only for Individual type
+  if (this.attendanceType === 'Individual') {
+    if (this.status === 'Absent') {
+      this.fullDay = 0;
+      this.halfDay = 0;
+    } else {
+      if (this.fullDay + this.halfDay <= 0) {
+        return next(new Error('fullDay + halfDay must be greater than 0'));
+      }
+      if (this.halfDay > 2) {
+        return next(new Error('halfDay cannot be more than 2'));
+      }
     }
-    if (this.halfDay > 2) {
-      return next(new Error('halfDay cannot be more than 2'));
+  }
+
+  // Validation for Group type
+  if (this.attendanceType === 'Group') {
+    if (!this.labourCounts || this.labourCounts.length === 0) {
+      return next(new Error('labourCounts is required for Group attendance'));
     }
   }
 

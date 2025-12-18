@@ -5,7 +5,7 @@ import { request } from "@/request";
 export const fields = {
   projectId: {
     type: "select",
-    label: "Project",
+    label: "Project Name",
     required: true,
     // populating options dynamically via API
     options: async () => {
@@ -19,7 +19,7 @@ export const fields = {
 
   towerOrWing: {
     type: "text",
-    label: "Tower / Wing",
+    label: "Building Name",
     required: false,
   },
 
@@ -27,30 +27,49 @@ export const fields = {
     type: "number",
     label: "Floor No",
     required: false,
+    disableForTable: true,
   },
 
   unitNumber: {
-    type: "text",
-    label: "Unit Number",
+    type: "number",
+    label: "Units",
     required: true,
+    placeholder: "Enter count of units/flats",
+  },
+
+  unitType: {
+    type: "select",
+    label: "Unit Type",
+    required: true,
+    options: [
+      { label: "1BHK", value: "1BHK" },
+      { label: "2BHK", value: "2BHK" },
+      { label: "3BHK", value: "3BHK" },
+      { label: "Duplex", value: "Duplex" },
+      { label: "Warehouse", value: "Warehouse" },
+      { label: "Penthouse", value: "Penthouse" },
+      { label: "Other", value: "Other" },
+    ],
   },
 
   saleableArea: {
     type: "number",
-    label: "Total Area (Sq Ft)",
+    label: "Area (Sq Ft)",
     required: false,
   },
 
   ratePerSqft: {
     type: "number",
-    label: "Rate per Sq Ft",
+    label: "Base Price",
     required: true,
+    disableForTable: true,
   },
 
   status: {
     type: "select",
     label: "Status",
     required: true,
+    initialValue: "Available",
     options: [
       { label: "Available", value: "Available" },
       { label: "Sold", value: "Sold" },
@@ -62,6 +81,13 @@ export const fields = {
     type: "text",
     label: "Owner Name",
     required: false,
-    hideOnCreate: true, // Hide if Available
+    hideOnCreate: true,
+    disableForTable: true,
+  },
+
+  totalAmount: {
+    type: "currency",
+    label: "Total Price",
+    disableForForm: true,
   },
 };

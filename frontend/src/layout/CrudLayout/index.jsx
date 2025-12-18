@@ -38,12 +38,13 @@ const ContentBox = ({ children }) => {
   // }, [isNavMenuClose]);
   return (
     <Content
-      className="whiteBox shadow layoutPadding"
+      className="card-section"
       style={{
-        margin: '30px auto',
+        margin: '24px auto',
         width: '100%',
         maxWidth: '100%',
         flex: 'none',
+        minHeight: '480px',
       }}
     >
       {children}

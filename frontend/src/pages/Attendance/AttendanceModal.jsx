@@ -37,36 +37,36 @@ export default function AttendanceModal({
   const handleSubmit = async (values) => {
     const { fullDay, halfDay, status } = values;
 
-    // Validation: fullDay must be 0 or 1
-    if (fullDay !== 0 && fullDay !== 1) {
-      message.error('Full Day must be 0 or 1');
-      return;
-    }
-
-    // Validation: halfDay must be 0, 0.5, or 1
-    if (![0, 0.5, 1].includes(halfDay)) {
-      message.error('Half Day must be 0, 0.5, or 1');
-      return;
-    }
-
-    // Validation: fullDay + halfDay must be > 0
-    if (fullDay + halfDay <= 0) {
-      message.error('Full Day + Half Day must be greater than 0');
-      return;
-    }
-
-    // Validation: halfDay cannot be more than 2 (total across all half days)
-    if (halfDay > 2) {
-      message.error('Half Day cannot be more than 2');
-      return;
-    }
-
-    // If status is Absent, set fullDay and halfDay to 0
+    // If status is Absent, set fullDay and halfDay to 0 and skip validations
     let finalFullDay = fullDay;
     let finalHalfDay = halfDay;
     if (status === 'Absent') {
       finalFullDay = 0;
       finalHalfDay = 0;
+    } else {
+      // Validation: fullDay must be 0 or 1 (only if status is not Absent)
+      if (fullDay !== 0 && fullDay !== 1) {
+        message.error('Full Day must be 0 or 1');
+        return;
+      }
+
+      // Validation: halfDay must be 0, 0.5, or 1 (only if status is not Absent)
+      if (![0, 0.5, 1].includes(halfDay)) {
+        message.error('Half Day must be 0, 0.5, or 1');
+        return;
+      }
+
+      // Validation: fullDay + halfDay must be > 0 (only if status is not Absent)
+      if (fullDay + halfDay <= 0) {
+        message.error('Full Day + Half Day must be greater than 0');
+        return;
+      }
+
+      // Validation: halfDay cannot be more than 2 (total across all half days) (only if status is not Absent)
+      if (halfDay > 2) {
+        message.error('Half Day cannot be more than 2');
+        return;
+      }
     }
 
     try {

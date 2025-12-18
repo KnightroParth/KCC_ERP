@@ -6,7 +6,7 @@ const { Content } = Layout;
 export default function DefaultLayout({ children }) {
   return (
     <CrudContextProvider>
-      <Layout style={{ minHeight: "100vh" }}>
+      <Layout style={{ minHeight: "100vh", background: '#fafafa' }}>
         <Content style={{ padding: 0 }}>
           {children}
         </Content>

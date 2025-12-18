@@ -22,4 +22,18 @@ export const assignWork = {
     fetchProjects: async () => {
         return await request.listAll({ entity: 'project' });
     },
+    // Helper to fetch units
+    fetchUnits: async () => {
+        return await request.listAll({ entity: 'units' });
+    },
+    // Helper to fetch units by project
+    fetchUnitsByProject: async (projectId) => {
+        return await request.filter({ 
+            entity: 'units', 
+            options: { 
+                filter: 'projectId', 
+                equal: projectId 
+            } 
+        });
+    },
 };

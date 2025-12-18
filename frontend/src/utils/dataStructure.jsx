@@ -31,10 +31,12 @@ export function dataForTable({ fields, translate, moneyFormatter, dateFormat }) 
       boolean: {
         title: field.label ? translate(field.label) : translate(key),
         dataIndex: keyIndex,
+        align: 'center',
         onCell: () => ({
           props: {
             style: {
               width: '60px',
+              textAlign: 'center',
             },
           },
         }),
@@ -49,6 +51,7 @@ export function dataForTable({ fields, translate, moneyFormatter, dateFormat }) 
       date: {
         title: field.label ? translate(field.label) : translate(key),
         dataIndex: keyIndex,
+        align: 'center',
         render: (_, record) => {
           const date = dayjs(record[key]).isValid()
             ? dayjs(record[key]).format(dateFormat)
@@ -59,10 +62,11 @@ export function dataForTable({ fields, translate, moneyFormatter, dateFormat }) 
       currency: {
         title: field.label ? translate(field.label) : translate(key),
         dataIndex: keyIndex,
+        align: 'center',
         onCell: () => {
           return {
             style: {
-              textAlign: 'right',
+              textAlign: 'center',
               whiteSpace: 'nowrap',
             },
           };
@@ -73,6 +77,7 @@ export function dataForTable({ fields, translate, moneyFormatter, dateFormat }) 
       async: {
         title: field.label ? translate(field.label) : translate(key),
         dataIndex: keyIndex,
+        align: 'center',
         render: (text, record) => {
           return (
             <Tag bordered={false} color={field.color || record[key]?.color || record.color}>
@@ -84,6 +89,7 @@ export function dataForTable({ fields, translate, moneyFormatter, dateFormat }) 
       color: {
         title: field.label ? translate(field.label) : translate(key),
         dataIndex: keyIndex,
+        align: 'center',
         render: (text, record) => {
           return (
             <Tag bordered={false} color={text}>
@@ -95,6 +101,7 @@ export function dataForTable({ fields, translate, moneyFormatter, dateFormat }) 
       stringWithColor: {
         title: field.label ? translate(field.label) : translate(key),
         dataIndex: keyIndex,
+        align: 'center',
         render: (text, record) => {
           return (
             <Tag bordered={false} color={record.color || field.color}>
@@ -106,6 +113,7 @@ export function dataForTable({ fields, translate, moneyFormatter, dateFormat }) 
       tag: {
         title: field.label ? translate(field.label) : translate(key),
         dataIndex: keyIndex,
+        align: 'center',
         render: (_, record) => {
           return (
             <Tag bordered={false} color={field.color}>
@@ -117,6 +125,7 @@ export function dataForTable({ fields, translate, moneyFormatter, dateFormat }) 
       selectWithFeedback: {
         title: field.label ? translate(field.label) : translate(key),
         dataIndex: keyIndex,
+        align: 'center',
         render: (text, record) => {
           if (field.renderAsTag) {
             const selectedOption = field.options.find((x) => x.value === record[key]);
@@ -132,6 +141,7 @@ export function dataForTable({ fields, translate, moneyFormatter, dateFormat }) 
       select: {
         title: field.label ? translate(field.label) : translate(key),
         dataIndex: keyIndex,
+        align: 'center',
         render: (_, record) => {
           if (field.renderAsTag) {
             const selectedOption = field.options.find((x) => x.value === record[key]);
@@ -147,6 +157,7 @@ export function dataForTable({ fields, translate, moneyFormatter, dateFormat }) 
       selectWithTranslation: {
         title: field.label ? translate(field.label) : translate(key),
         dataIndex: keyIndex,
+        align: 'center',
         render: (_, record) => {
           if (field.renderAsTag) {
             const selectedOption = field.options.find((x) => x.value === record[key]);
@@ -162,6 +173,7 @@ export function dataForTable({ fields, translate, moneyFormatter, dateFormat }) 
       array: {
         title: field.label ? translate(field.label) : translate(key),
         dataIndex: keyIndex,
+        align: 'center',
         render: (_, record) => {
           return record[key].map((x) => (
             <Tag bordered={false} key={`${uniqueId()}`} color={field.colors[x]}>
@@ -173,6 +185,7 @@ export function dataForTable({ fields, translate, moneyFormatter, dateFormat }) 
       country: {
         title: field.label ? translate(field.label) : translate(key),
         dataIndex: keyIndex,
+        align: 'center',
         render: (_, record) => {
           const selectedCountry = countryList.find((obj) => obj.value === record[key]);
 
@@ -189,14 +202,35 @@ export function dataForTable({ fields, translate, moneyFormatter, dateFormat }) 
     const defaultComponent = {
       title: field.label ? translate(field.label) : translate(key),
       dataIndex: keyIndex,
+      align: 'center',
     };
 
     const type = field.type;
 
-    if (!field.disableForTable) {
-      Object.keys(component).includes(type)
-        ? columns.push(component[type])
-        : columns.push(defaultComponent);
+    if (field.render) {
+      columns.push({
+        title: field.label ? translate(field.label) : translate(key),
+        dataIndex: keyIndex,
+        width: field.width,
+        onCell: field.width ? () => ({ style: { whiteSpace: 'nowrap' } }) : undefined,
+        render: field.render,
+      });
+    } else if (!field.disableForTable) {
+      const columnDef = Object.keys(component).includes(type)
+        ? { ...component[type] }
+        : { ...defaultComponent };
+      
+      // Apply width and prevent wrapping if specified
+      if (field.width) {
+        columnDef.width = field.width;
+        columnDef.onCell = () => ({
+          style: {
+            whiteSpace: 'nowrap',
+          },
+        });
+      }
+      
+      columns.push(columnDef);
     }
   });
 

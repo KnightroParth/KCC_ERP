@@ -2,6 +2,7 @@ export const fields = {
   projectCode: {
     label: 'Project Code',
     type: 'string',
+    width: 220,
   },
   name: {
     label: 'Project Name',
@@ -15,7 +16,9 @@ export const fields = {
   },
   projectSanctionStatus: {
     label: 'Project Sanction Status',
-    type: 'string',
+    type: 'tag',
+    renderAsTag: true,
+    color: 'blue',
   },
   reraRegistration: {
     label: 'RERA Registration',
