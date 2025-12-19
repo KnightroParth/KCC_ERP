@@ -18,6 +18,9 @@ const labourRouter = require('./routes/appRoutes/labourRoutes');
 // Load Vendor Router
 const vendorRouter = require('./routes/appRoutes/vendorRoutes');
 
+// Load Inventory Router
+const inventoryRouter = require('./routes/appRoutes/inventoryRoutes');
+
 const app = express();
 
 app.use(
@@ -52,6 +55,9 @@ app.use('/api/labour', adminAuth.isValidAuthToken, labourRouter);
 
 // ✅ Vendor custom routes
 app.use('/api/vendor', adminAuth.isValidAuthToken, vendorRouter);
+
+// ✅ Inventory custom routes
+app.use('/api/inventory', adminAuth.isValidAuthToken, inventoryRouter);
 
 app.use('/download', coreDownloadRouter);
 app.use('/public', corePublicRouter);

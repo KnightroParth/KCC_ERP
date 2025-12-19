@@ -39,6 +39,14 @@ const Attendance = lazy(() => import('@/pages/Attendance'));
 const Labour = lazy(() => import('@/pages/Labour'));
 const Vendor = lazy(() => import('@/pages/Vendor'));
 
+// Inventory Module
+const InventoryDashboard = lazy(() => import('@/pages/Inventory/Dashboard'));
+const MaterialLibrary = lazy(() => import('@/pages/Inventory/MaterialLibrary'));
+const IndentRequest = lazy(() => import('@/pages/Inventory/IndentRequest'));
+const PurchaseOrder = lazy(() => import('@/pages/Inventory/PurchaseOrder'));
+const GRN = lazy(() => import('@/pages/Inventory/GRN'));
+const Consumption = lazy(() => import('@/pages/Inventory/Consumption'));
+
 
 
 let routes = {
@@ -157,6 +165,30 @@ let routes = {
     {
       path: '/vendor',
       element: <Vendor />,
+    },
+    {
+      path: '/inventory',
+      element: <InventoryDashboard />,
+    },
+    {
+      path: '/inventory/materials',
+      element: <MaterialLibrary />,
+    },
+    {
+      path: '/inventory/indent',
+      element: <IndentRequest />,
+    },
+    {
+      path: '/inventory/purchase-order',
+      element: <PurchaseOrder />,
+    },
+    {
+      path: '/inventory/grn',
+      element: <GRN />,
+    },
+    {
+      path: '/inventory/consumption',
+      element: <Consumption />,
     },
     {
       path: '/profile',
