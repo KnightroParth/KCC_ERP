@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Form, InputNumber, Button, Table, Tag, Badge, message, DatePicker, Select, Input } from 'antd';
 import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
-import { useDispatch, useSelector } from 'react-redux'; // ✅ Import Redux hooks
-import dayjs from 'dayjs'; // ✅ Import Dayjs for Date handling
+import { useDispatch, useSelector } from 'react-redux';
+import dayjs from 'dayjs';
 
 import CrudModule from '@/modules/CrudModule/CrudModule';
 import AutoCompleteAsync from '@/components/AutoCompleteAsync';
 import SelectAsync from '@/components/SelectAsync';
-import { selectCurrentItem } from '@/redux/crud/selectors'; // ✅ Import selector to get edit data
+import { selectCurrentItem } from '@/redux/crud/selectors';
 import useLanguage from '@/locale/useLanguage';
 
 function IndentRequestForm({ isUpdateForm = false }) {
@@ -17,50 +17,49 @@ function IndentRequestForm({ isUpdateForm = false }) {
   const [estimatedCost, setEstimatedCost] = useState(0);
   const [budgetWarning, setBudgetWarning] = useState('');
 
-  // ✅ Get the current item data from Redux (Standard way for this template)
   const { result: currentItem } = useSelector(selectCurrentItem);
 
   useEffect(() => {
-    // Only run this logic if we are in "Edit" mode and have data
     if (isUpdateForm && currentItem) {
-      
-      // 1. POPULATE THE ITEMS TABLE
+      // 1. Populate Items
       if (currentItem.items && currentItem.items.length > 0) {
-        setItems(currentItem.items);
-        updateEstimatedCost(currentItem.items);
+        // Ensure keys exist for table
+        const itemsWithKeys = currentItem.items.map((item, index) => ({
+            ...item,
+            key: item._id || item.key || Date.now() + index 
+        }));
+        setItems(itemsWithKeys);
+        updateEstimatedCost(itemsWithKeys);
       }
 
-      // 2. FIX FORM FIELDS (Dates & Selects)
-      const updates = {};
+      // 2. Populate Form Fields
+      const updates = { ...currentItem };
       
-      // Fix Date: Convert string to Dayjs object
       if (currentItem.requiredDate) {
         updates.requiredDate = dayjs(currentItem.requiredDate);
       }
       
-      // Fix Project: Extract ID if it's an object (populated), otherwise use as is
-      if (currentItem.projectId) {
-        updates.projectId = typeof currentItem.projectId === 'object' 
-          ? currentItem.projectId._id 
-          : currentItem.projectId;
+      if (currentItem.projectId && typeof currentItem.projectId === 'object') {
+        updates.projectId = currentItem.projectId._id;
       }
 
-      // Apply these specific fixes to the form
+      // Sync Items to Form (Important for values inside table inputs)
+      updates.items = items;
+
       form.setFieldsValue(updates);
     }
   }, [isUpdateForm, currentItem, form]);
 
   const addItem = () => {
-    setItems([
-      ...items,
-      {
-        key: Date.now(), // Unique key
-        material: null,
-        quantity: 1,
-        notes: '',
-        estimatedRate: 0,
-      },
-    ]);
+    const newItem = {
+      key: Date.now(),
+      material: null,
+      quantity: 1,
+      notes: '',
+      estimatedRate: 0,
+    };
+    const newItems = [...items, newItem];
+    setItems(newItems);
   };
 
   const removeItem = (key) => {
@@ -211,7 +210,6 @@ function IndentRequestForm({ isUpdateForm = false }) {
       </div>
 
       <Form.Item label="Material List" required>
-        {/* Pass items to dataSource so the table renders the correct number of rows */}
         <Table
           dataSource={items}
           columns={columns}
@@ -273,11 +271,9 @@ export default function IndentRequest() {
       dataIndex: ['projectId', 'name'], 
       key: 'project',
       render: (text, record) => {
-        // Robust check: Ensure we can display the Project Name
         if (record.projectId && record.projectId.name) {
             return <span style={{ fontWeight: 600 }}>{record.projectId.name}</span>;
         }
-        // Fallback if population failed but we have an ID
         if (record.projectId) return <span>{record.projectId}</span>;
         return <span style={{ color: '#ccc' }}>N/A</span>;
       },
@@ -306,8 +302,9 @@ export default function IndentRequest() {
     },
     {
       title: 'Req. Date',
-      dataIndex: 'requestDate',
-      key: 'requestDate',
+      // FIX: Changed from 'requestDate' to 'requiredDate' to match DB
+      dataIndex: 'requiredDate', 
+      key: 'requiredDate',
       render: (date) => date ? dayjs(date).format('DD/MM/YYYY') : '-',
     },
     {

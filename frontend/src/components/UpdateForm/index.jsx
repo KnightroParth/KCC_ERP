@@ -4,7 +4,8 @@ import dayjs from 'dayjs';
 import { useDispatch, useSelector } from 'react-redux';
 import { crud } from '@/redux/crud/actions';
 import { useCrudContext } from '@/context/crud';
-import { selectUpdatedItem } from '@/redux/crud/selectors';
+// FIX: Import selectCurrentItem to get the data loaded by DataTable
+import { selectUpdatedItem, selectCurrentItem } from '@/redux/crud/selectors'; 
 
 import useLanguage from '@/locale/useLanguage';
 
@@ -15,11 +16,12 @@ export default function UpdateForm({ config, formElements, withUpload = false })
   let { entity } = config;
   const translate = useLanguage();
   const dispatch = useDispatch();
-  const { current, isLoading, isSuccess } = useSelector(selectUpdatedItem);
+  
+  // FIX: Get the item loaded by DataTable (result) AND the update status (current/isLoading)
+  const { result: currentItem } = useSelector(selectCurrentItem);
+  const { isLoading, isSuccess } = useSelector(selectUpdatedItem);
 
   const { state, crudContextAction } = useCrudContext();
-
-  /////
 
   const { panel, collapsedBox, readBox } = crudContextAction;
 
@@ -27,27 +29,25 @@ export default function UpdateForm({ config, formElements, withUpload = false })
     readBox.open();
   };
 
-  /////
   const [form] = Form.useForm();
 
   const onSubmit = (fieldsValue) => {
-    const id = current._id;
+    // FIX: Use currentItem._id because that's where the ID lives
+    const id = currentItem._id;
 
     if (fieldsValue.file && withUpload) {
       fieldsValue.file = fieldsValue.file[0].originFileObj;
     }
-    // const trimmedValues = Object.keys(fieldsValue).reduce((acc, key) => {
-    //   acc[key] = typeof fieldsValue[key] === 'string' ? fieldsValue[key].trim() : fieldsValue[key];
-    //   return acc;
-    // }, {});
+    
     dispatch(crud.update({ entity, id, jsonData: fieldsValue, withUpload }));
   };
-  useEffect(() => {
-    if (current) {
-      let newValues = { ...current };
 
-      // Ant Design v5 DatePicker expects dayjs() objects, not formatted strings.
-      // Normalize all known date fields (including Project dates) into dayjs().
+  useEffect(() => {
+    // FIX: Listen to 'currentItem' (from DataTable), not 'current' (from Update response)
+    if (currentItem) {
+      let newValues = { ...currentItem };
+
+      // Normalize dates
       const dateFields = [
         'birthday',
         'date',
@@ -56,6 +56,7 @@ export default function UpdateForm({ config, formElements, withUpload = false })
         'updated',
         'plannedStartDate',
         'targetEndDate',
+        'requiredDate', // Added requiredDate for IndentRequest
       ];
 
       dateFields.forEach((key) => {
@@ -63,11 +64,16 @@ export default function UpdateForm({ config, formElements, withUpload = false })
           newValues[key] = dayjs(newValues[key]);
         }
       });
+      
+      // Special handling for Project if it's an object
+      if (newValues.projectId && typeof newValues.projectId === 'object') {
+          newValues.projectId = newValues.projectId._id;
+      }
 
       form.resetFields();
       form.setFieldsValue(newValues);
     }
-  }, [current]);
+  }, [currentItem]); // Dependency is now currentItem
 
   useEffect(() => {
     if (isSuccess) {
@@ -83,6 +89,7 @@ export default function UpdateForm({ config, formElements, withUpload = false })
   const { isEditBoxOpen } = state;
 
   const show = isEditBoxOpen ? { display: 'block', opacity: 1 } : { display: 'none', opacity: 0 };
+  
   return (
     <div style={show}>
       <Loading isLoading={isLoading}>

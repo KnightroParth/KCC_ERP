@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState } from 'react';
-
 import {
   EyeOutlined,
   EditOutlined,
@@ -9,16 +8,13 @@ import {
 } from '@ant-design/icons';
 import { Table, Button, Input, Space } from 'antd';
 import { PageHeader } from '@ant-design/pro-layout';
-
 import { useSelector, useDispatch } from 'react-redux';
 import { crud } from '@/redux/crud/actions';
 import { selectListItems } from '@/redux/crud/selectors';
 import useLanguage from '@/locale/useLanguage';
 import { dataForTable } from '@/utils/dataStructure';
 import { useMoney, useDate } from '@/settings';
-
 import { generate as uniqueId } from 'shortid';
-
 import { useCrudContext } from '@/context/crud';
 
 function AddNewItem({ config }) {
@@ -37,74 +33,60 @@ function AddNewItem({ config }) {
     </Button>
   );
 }
+
 export default function DataTable({ config, extra = [] }) {
-  let { entity, dataTableColumns, DATATABLE_TITLE, fields, searchConfig } = config;
+  // --- 1. HOOKS (Moved to Top) ---
+  const dispatch = useDispatch();
   const { crudContextAction } = useCrudContext();
   const { panel, collapsedBox, modal, readBox, editBox, advancedBox } = crudContextAction;
   const translate = useLanguage();
   const { moneyFormatter } = useMoney();
   const { dateFormat } = useDate();
+  
+  // Data Selectors
+  const { result: listResult, isLoading: listIsLoading } = useSelector(selectListItems);
+  const { pagination, items: dataSource } = listResult;
 
-  const items = [
-    {
-      label: translate('Show'),
-      key: 'read',
-      icon: <EyeOutlined />,
-    },
-    {
-      label: translate('Edit'),
-      key: 'edit',
-      icon: <EditOutlined />,
-    },
-    ...extra,
-    {
-      type: 'divider',
-    },
+  let { entity, dataTableColumns, DATATABLE_TITLE, fields, searchConfig } = config;
 
-    {
-      label: translate('Delete'),
-      key: 'delete',
-      icon: <DeleteOutlined />,
-    },
-  ];
-
+  // --- 2. HANDLERS ---
   const handleRead = (record) => {
     dispatch(crud.currentItem({ data: record }));
     panel.open();
     collapsedBox.open();
     readBox.open();
   };
-  function handleEdit(record) {
+
+  const handleEdit = (record) => {
     dispatch(crud.currentItem({ data: record }));
     dispatch(crud.currentAction({ actionType: 'update', data: record }));
     editBox.open();
     panel.open();
     collapsedBox.open();
-  }
-  function handleDelete(record) {
+  };
+
+  const handleDelete = (record) => {
     dispatch(crud.currentAction({ actionType: 'delete', data: record }));
     modal.open();
-  }
+  };
 
-  function handleUpdatePassword(record) {
+  const handleUpdatePassword = (record) => {
     dispatch(crud.currentItem({ data: record }));
     dispatch(crud.currentAction({ actionType: 'update', data: record }));
     advancedBox.open();
     panel.open();
     collapsedBox.open();
-  }
+  };
 
+  // --- 3. COLUMNS ---
   let dispatchColumns = [];
-  // FIX: Only use 'fields' if it actually contains keys. 
-  // Otherwise, fallback to 'dataTableColumns' (important for IndentRequest).
   if (fields && Object.keys(fields).length > 0) {
     dispatchColumns = [...dataForTable({ fields, translate, moneyFormatter, dateFormat })];
   } else {
-    // Added safety check (|| []) to prevent crashes if dataTableColumns is undefined
     dispatchColumns = [...(dataTableColumns || [])];
   }
 
-  dataTableColumns = [
+  const columns = [
     ...dispatchColumns,
     {
       title: 'Actions',
@@ -119,7 +101,6 @@ export default function DataTable({ config, extra = [] }) {
             icon={<EditOutlined />}
             onClick={() => handleEdit(record)}
           />
-
           <Button
             size="small"
             danger
@@ -133,16 +114,11 @@ export default function DataTable({ config, extra = [] }) {
     },
   ];
 
-  const { result: listResult, isLoading: listIsLoading } = useSelector(selectListItems);
-
-  const { pagination, items: dataSource } = listResult;
-
-  const dispatch = useDispatch();
-
+  // --- 4. DATA LOADING ---
   const handelDataTableLoad = useCallback((pagination) => {
     const options = { page: pagination.current || 1, items: pagination.pageSize || 10 };
     dispatch(crud.list({ entity, options }));
-  }, []);
+  }, [dispatch, entity]);
 
   const filterTable = (e) => {
     const value = e.target.value;
@@ -164,7 +140,7 @@ export default function DataTable({ config, extra = [] }) {
       controller.abort();
       dispatch(crud.resetState());
     };
-  }, [entity]);
+  }, [entity]); // Removed 'dispatch' from dependency to prevent loop, 'entity' is enough
 
   return (
     <>
@@ -189,16 +165,13 @@ export default function DataTable({ config, extra = [] }) {
           >
             {translate('Refresh')}
           </Button>,
-
           <AddNewItem key={`${uniqueId()}`} config={config} />,
         ]}
-        style={{
-          padding: '20px 0px',
-        }}
+        style={{ padding: '20px 0px' }}
       ></PageHeader>
 
       <Table
-        columns={dataTableColumns}
+        columns={columns}
         rowKey={(item) => item._id}
         dataSource={isReady ? dataSource : []}
         pagination={pagination}
