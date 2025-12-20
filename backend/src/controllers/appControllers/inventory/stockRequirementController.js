@@ -13,6 +13,17 @@ const stockRequirementController = () => {
   // Override create to add budget validation
   methods.create = async (req, res) => {
     try {
+      // 1. GET CURRENT USER ID (Fix for "requestedBy is required" error)
+      const requestedBy = req.admin ? req.admin._id : null;
+
+      if (!requestedBy) {
+        return res.status(401).json({
+          success: false,
+          result: null,
+          message: 'User authentication failed. Cannot identify requester.',
+        });
+      }
+
       const { projectId, items } = req.body;
 
       // Get project budget
@@ -25,15 +36,12 @@ const stockRequirementController = () => {
         });
       }
 
-      // Calculate estimated cost (if items have rates, use them; otherwise set to 0)
+      // Calculate estimated cost
       let estimatedCost = 0;
       let budgetExceeded = false;
       let budgetWarning = '';
 
-      // For now, we'll set estimatedCost to 0 if rates aren't provided
-      // In a real scenario, you might fetch average rates from Material or PurchaseOrder history
       if (items && items.length > 0) {
-        // If items have estimatedRate field, use it
         estimatedCost = items.reduce((sum, item) => {
           return sum + (item.estimatedRate || 0) * (item.quantity || 0);
         }, 0);
@@ -53,6 +61,7 @@ const stockRequirementController = () => {
       // Create the requirement
       const requirement = await StockRequirement.create({
         ...req.body,
+        requestedBy, // ✅ ADDED THIS FIELD
         estimatedCost,
         budgetExceeded,
         budgetWarning: budgetWarning || undefined,
@@ -161,11 +170,10 @@ const stockRequirementController = () => {
       }
 
       // Create PO items from requirement items
-      // Note: Rates need to be provided or fetched from vendor quotes
       const poItems = requirement.items.map(item => ({
         material: item.material._id || item.material,
         quantity: item.quantity,
-        rate: item.estimatedRate || 0, // Should be provided or fetched
+        rate: item.estimatedRate || 0,
         amount: (item.estimatedRate || 0) * item.quantity,
         receivedQuantity: 0,
       }));

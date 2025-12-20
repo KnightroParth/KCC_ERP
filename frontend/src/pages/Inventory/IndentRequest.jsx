@@ -1,12 +1,13 @@
-// frontend/src/pages/Inventory/IndentRequest.jsx
-
 import React, { useState, useEffect } from 'react';
 import { Form, InputNumber, Button, Table, Tag, Badge, message, DatePicker, Select, Input } from 'antd';
 import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
+import { useDispatch, useSelector } from 'react-redux'; // ✅ Import Redux hooks
+import dayjs from 'dayjs'; // ✅ Import Dayjs for Date handling
+
 import CrudModule from '@/modules/CrudModule/CrudModule';
 import AutoCompleteAsync from '@/components/AutoCompleteAsync';
 import SelectAsync from '@/components/SelectAsync';
-import { request } from '@/request';
+import { selectCurrentItem } from '@/redux/crud/selectors'; // ✅ Import selector to get edit data
 import useLanguage from '@/locale/useLanguage';
 
 function IndentRequestForm({ isUpdateForm = false }) {
@@ -16,21 +17,44 @@ function IndentRequestForm({ isUpdateForm = false }) {
   const [estimatedCost, setEstimatedCost] = useState(0);
   const [budgetWarning, setBudgetWarning] = useState('');
 
+  // ✅ Get the current item data from Redux (Standard way for this template)
+  const { result: currentItem } = useSelector(selectCurrentItem);
+
   useEffect(() => {
-    if (isUpdateForm) {
-      // Load existing items if updating
-      const formValues = form.getFieldsValue();
-      if (formValues.items) {
-        setItems(formValues.items);
+    // Only run this logic if we are in "Edit" mode and have data
+    if (isUpdateForm && currentItem) {
+      
+      // 1. POPULATE THE ITEMS TABLE
+      if (currentItem.items && currentItem.items.length > 0) {
+        setItems(currentItem.items);
+        updateEstimatedCost(currentItem.items);
       }
+
+      // 2. FIX FORM FIELDS (Dates & Selects)
+      const updates = {};
+      
+      // Fix Date: Convert string to Dayjs object
+      if (currentItem.requiredDate) {
+        updates.requiredDate = dayjs(currentItem.requiredDate);
+      }
+      
+      // Fix Project: Extract ID if it's an object (populated), otherwise use as is
+      if (currentItem.projectId) {
+        updates.projectId = typeof currentItem.projectId === 'object' 
+          ? currentItem.projectId._id 
+          : currentItem.projectId;
+      }
+
+      // Apply these specific fixes to the form
+      form.setFieldsValue(updates);
     }
-  }, [isUpdateForm, form]);
+  }, [isUpdateForm, currentItem, form]);
 
   const addItem = () => {
     setItems([
       ...items,
       {
-        key: Date.now(),
+        key: Date.now(), // Unique key
         material: null,
         quantity: 1,
         notes: '',
@@ -40,8 +64,9 @@ function IndentRequestForm({ isUpdateForm = false }) {
   };
 
   const removeItem = (key) => {
-    setItems(items.filter((item) => item.key !== key));
-    updateEstimatedCost(items.filter((item) => item.key !== key));
+    const newItems = items.filter((item) => item.key !== key);
+    setItems(newItems);
+    updateEstimatedCost(newItems);
   };
 
   const updateItem = (key, field, value) => {
@@ -61,15 +86,10 @@ function IndentRequestForm({ isUpdateForm = false }) {
     }, 0);
     setEstimatedCost(total);
 
-    // Check budget (this would need projectId from form)
-    const projectId = form.getFieldValue('projectId');
-    if (projectId && total > 0) {
-      // Budget check would be done on backend, but we can show a warning
-      if (total > 100000) {
-        setBudgetWarning('High value request - may require approval');
-      } else {
-        setBudgetWarning('');
-      }
+    if (total > 100000) {
+      setBudgetWarning('High value request - may require approval');
+    } else {
+      setBudgetWarning('');
     }
   };
 
@@ -77,11 +97,11 @@ function IndentRequestForm({ isUpdateForm = false }) {
     {
       title: 'Material',
       key: 'material',
-      width: '40%',
+      width: 250,
       render: (_, record, index) => (
         <Form.Item
           name={['items', index, 'material']}
-          rules={[{ required: true, message: 'Select material' }]}
+          rules={[{ required: true, message: 'Required' }]}
           style={{ margin: 0 }}
         >
           <AutoCompleteAsync
@@ -89,25 +109,25 @@ function IndentRequestForm({ isUpdateForm = false }) {
             displayLabels={['name', 'category']}
             searchFields="name,category"
             outputValue="_id"
-            placeholder="Search material..."
+            placeholder="Search Material"
             onChange={(value) => updateItem(record.key, 'material', value)}
           />
         </Form.Item>
       ),
     },
     {
-      title: 'Quantity',
+      title: 'Qty',
       key: 'quantity',
-      width: '15%',
+      width: 100,
       render: (_, record, index) => (
         <Form.Item
           name={['items', index, 'quantity']}
-          rules={[{ required: true, message: 'Enter quantity' }]}
+          rules={[{ required: true }]}
           style={{ margin: 0 }}
         >
           <InputNumber
             min={0.01}
-            step={0.01}
+            placeholder="Qty"
             style={{ width: '100%' }}
             onChange={(value) => updateItem(record.key, 'quantity', value)}
           />
@@ -115,9 +135,9 @@ function IndentRequestForm({ isUpdateForm = false }) {
       ),
     },
     {
-      title: 'Est. Rate',
+      title: 'Rate',
       key: 'estimatedRate',
-      width: '15%',
+      width: 120,
       render: (_, record, index) => (
         <Form.Item
           name={['items', index, 'estimatedRate']}
@@ -125,7 +145,8 @@ function IndentRequestForm({ isUpdateForm = false }) {
         >
           <InputNumber
             min={0}
-            step={0.01}
+            placeholder="Rate"
+            prefix="₹"
             style={{ width: '100%' }}
             onChange={(value) => updateItem(record.key, 'estimatedRate', value)}
           />
@@ -133,37 +154,23 @@ function IndentRequestForm({ isUpdateForm = false }) {
       ),
     },
     {
-      title: 'Notes',
-      key: 'notes',
-      width: '20%',
-      render: (_, record, index) => (
-        <Form.Item
-          name={['items', index, 'notes']}
-          style={{ margin: 0 }}
-        >
-          <Input placeholder="Optional notes" />
-        </Form.Item>
-      ),
-    },
-    {
       title: 'Action',
       key: 'action',
-      width: '10%',
+      width: 80,
+      fixed: 'right',
       render: (_, record) => (
         <Button
-          type="link"
+          type="text"
           danger
           icon={<DeleteOutlined />}
           onClick={() => removeItem(record.key)}
-        >
-          Remove
-        </Button>
+        />
       ),
     },
   ];
 
   return (
-    <>
+    <div style={{ paddingRight: 10 }}>
       <Form.Item
         label="Project"
         name="projectId"
@@ -177,59 +184,64 @@ function IndentRequestForm({ isUpdateForm = false }) {
         />
       </Form.Item>
 
-      <Form.Item
-        label="Required Date"
-        name="requiredDate"
-        rules={[{ required: true, message: 'Please select required date' }]}
-      >
-        <DatePicker style={{ width: '100%' }} />
-      </Form.Item>
-
-      <Form.Item
-        label="Priority"
-        name="priority"
-        rules={[{ required: true }]}
-        initialValue="Medium"
-      >
-        <Select>
-          <Select.Option value="Low">Low</Select.Option>
-          <Select.Option value="Medium">Medium</Select.Option>
-          <Select.Option value="High">High</Select.Option>
-          <Select.Option value="Urgent">Urgent</Select.Option>
-        </Select>
-      </Form.Item>
-
-      <Form.Item label="Items" required>
-        <Button
-          type="dashed"
-          onClick={addItem}
-          icon={<PlusOutlined />}
-          style={{ width: '100%', marginBottom: 16 }}
+      <div style={{ display: 'flex', gap: '15px' }}>
+        <Form.Item
+          label="Required Date"
+          name="requiredDate"
+          rules={[{ required: true }]}
+          style={{ flex: 1 }}
         >
-          Add Material
-        </Button>
-        <Form.Item name="items" rules={[{ required: true, message: 'Add at least one item' }]}>
-          <Table
-            dataSource={items}
-            columns={columns}
-            pagination={false}
-            size="small"
-          />
+          <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
         </Form.Item>
+
+        <Form.Item
+          label="Priority"
+          name="priority"
+          rules={[{ required: true }]}
+          initialValue="Medium"
+          style={{ flex: 1 }}
+        >
+          <Select>
+            <Select.Option value="Low">Low</Select.Option>
+            <Select.Option value="Medium">Medium</Select.Option>
+            <Select.Option value="High">High</Select.Option>
+            <Select.Option value="Urgent">Urgent</Select.Option>
+          </Select>
+        </Form.Item>
+      </div>
+
+      <Form.Item label="Material List" required>
+        {/* Pass items to dataSource so the table renders the correct number of rows */}
+        <Table
+          dataSource={items}
+          columns={columns}
+          pagination={false}
+          size="small"
+          scroll={{ x: 'max-content' }}
+          footer={() => (
+            <Button type="dashed" onClick={addItem} block icon={<PlusOutlined />}>
+              Add Material
+            </Button>
+          )}
+        />
       </Form.Item>
 
       {estimatedCost > 0 && (
-        <div style={{ marginBottom: 16 }}>
-          <strong>Estimated Cost: </strong>
-          <span style={{ fontSize: '16px', fontWeight: 'bold' }}>
+        <div style={{ 
+            marginBottom: 20, 
+            padding: '10px', 
+            background: '#f6ffed', 
+            border: '1px solid #b7eb8f', 
+            borderRadius: '6px' 
+        }}>
+          <strong>Total Est. Cost: </strong>
+          <span style={{ fontSize: '16px', fontWeight: 'bold', color: '#389e0d' }}>
             ₹{estimatedCost.toLocaleString('en-IN')}
           </span>
           {budgetWarning && (
-            <Badge
-              status="warning"
-              text={budgetWarning}
-              style={{ marginLeft: 16 }}
-            />
+            <div style={{ color: '#faad14', marginTop: 5, fontSize: '12px' }}>
+              ⚠️ {budgetWarning}
+            </div>
           )}
         </div>
       )}
@@ -237,19 +249,17 @@ function IndentRequestForm({ isUpdateForm = false }) {
       <Form.Item label="Notes" name="notes">
         <Input.TextArea rows={3} placeholder="Additional notes..." />
       </Form.Item>
-    </>
+    </div>
   );
 }
 
 export default function IndentRequest() {
-  const entity = 'inventory/requirement';
-
   const searchConfig = {
-    displayLabels: ['requestDate', 'priority'],
+    displayLabels: ['priority'],
     searchFields: 'notes',
   };
 
-  const deleteModalLabels = ['requestDate'];
+  const deleteModalLabels = ['priority'];
 
   const tableActions = {
     showEdit: true,
@@ -260,40 +270,27 @@ export default function IndentRequest() {
   const dataTableColumns = [
     {
       title: 'Project',
+      dataIndex: ['projectId', 'name'], 
       key: 'project',
-      render: (_, record) => {
-        const project = record.projectId;
-        if (!project) return '-';
-        if (typeof project === 'object' && project.name) {
-          return project.projectCode ? `${project.name} (${project.projectCode})` : project.name;
+      render: (text, record) => {
+        // Robust check: Ensure we can display the Project Name
+        if (record.projectId && record.projectId.name) {
+            return <span style={{ fontWeight: 600 }}>{record.projectId.name}</span>;
         }
-        return '-';
+        // Fallback if population failed but we have an ID
+        if (record.projectId) return <span>{record.projectId}</span>;
+        return <span style={{ color: '#ccc' }}>N/A</span>;
       },
-    },
-    {
-      title: 'Request Date',
-      dataIndex: 'requestDate',
-      key: 'requestDate',
-      render: (date) => (date ? new Date(date).toLocaleDateString() : '-'),
-    },
-    {
-      title: 'Required Date',
-      dataIndex: 'requiredDate',
-      key: 'requiredDate',
-      render: (date) => (date ? new Date(date).toLocaleDateString() : '-'),
     },
     {
       title: 'Priority',
       dataIndex: 'priority',
       key: 'priority',
       render: (priority) => {
-        const colors = {
-          Low: 'default',
-          Medium: 'processing',
-          High: 'warning',
-          Urgent: 'error',
-        };
-        return <Tag color={colors[priority]}>{priority}</Tag>;
+        let color = 'blue';
+        if (priority === 'High') color = 'orange';
+        if (priority === 'Urgent') color = 'red';
+        return <Tag color={color}>{priority || 'Medium'}</Tag>;
       },
     },
     {
@@ -301,27 +298,32 @@ export default function IndentRequest() {
       dataIndex: 'status',
       key: 'status',
       render: (status) => {
-        const colors = {
-          Pending: 'default',
-          Approved: 'success',
-          Rejected: 'error',
-          Fulfilled: 'processing',
-        };
-        return <Tag color={colors[status]}>{status}</Tag>;
+        let color = 'default';
+        if (status === 'Approved') color = 'green';
+        if (status === 'Pending') color = 'gold';
+        return <Tag color={color}>{status || 'Pending'}</Tag>;
       },
     },
     {
-      title: 'Items Count',
-      key: 'itemsCount',
-      render: (_, record) => record.items?.length || 0,
+      title: 'Req. Date',
+      dataIndex: 'requestDate',
+      key: 'requestDate',
+      render: (date) => date ? dayjs(date).format('DD/MM/YYYY') : '-',
+    },
+    {
+      title: 'Items',
+      key: 'items',
+      render: (_, record) => (
+        <Badge count={record.items?.length || 0} style={{ backgroundColor: '#52c41a' }} />
+      ),
     },
   ];
 
   const config = {
     entity: 'inventory/requirement',
-    PANEL_TITLE: 'Indent Request (Site Indent)',
-    DATATABLE_TITLE: 'Indent Request List',
-    ADD_NEW_ENTITY: 'Create New Indent Request',
+    PANEL_TITLE: 'Indent Request',
+    DATATABLE_TITLE: 'Requests List',
+    ADD_NEW_ENTITY: 'Create Request',
     ENTITY_NAME: 'Indent Request',
     fields: {},
     searchConfig,

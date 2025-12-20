@@ -106,3 +106,34 @@ html, body {
 .inventory-submenu:hover > .ant-menu-submenu-title {
     background-color: rgba(201,165,103,0.1) !important;
 }
+
+/* ==== DRAWER & MODAL FIXES ==== */
+
+/* 1. Enable Scrolling in the Right Pane (Drawer) */
+.ant-drawer-body {
+  overflow-y: auto !important;
+  padding-bottom: 80px !important; /* Make space for bottom buttons */
+  scrollbar-width: thin;
+}
+
+/* 2. Fix Horizontal Overflow for Tables inside the Form */
+.ant-drawer-body .ant-table-wrapper {
+  overflow-x: auto;
+}
+
+/* 3. Ensure Text Color in Tables is Visible (Fix for "Empty" looking rows) */
+.ant-table-cell {
+  color: #1f1f1f !important; /* Force Dark Text */
+}
+.ant-table-cell a {
+  color: #1677ff !important; /* Force Blue Links */
+}
+
+/* 4. Fix Form Field Widths in Drawer */
+.ant-drawer-body .ant-form-item {
+  margin-bottom: 24px;
+}
+.ant-drawer-body .ant-picker, 
+.ant-drawer-body .ant-select {
+  width: 100% !important;
+}

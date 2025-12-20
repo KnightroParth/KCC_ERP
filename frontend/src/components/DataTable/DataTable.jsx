@@ -95,10 +95,13 @@ export default function DataTable({ config, extra = [] }) {
   }
 
   let dispatchColumns = [];
-  if (fields) {
+  // FIX: Only use 'fields' if it actually contains keys. 
+  // Otherwise, fallback to 'dataTableColumns' (important for IndentRequest).
+  if (fields && Object.keys(fields).length > 0) {
     dispatchColumns = [...dataForTable({ fields, translate, moneyFormatter, dateFormat })];
   } else {
-    dispatchColumns = [...dataTableColumns];
+    // Added safety check (|| []) to prevent crashes if dataTableColumns is undefined
+    dispatchColumns = [...(dataTableColumns || [])];
   }
 
   dataTableColumns = [
