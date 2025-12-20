@@ -70,40 +70,44 @@ function Sidebar({ collapsible, isMobile = false }) {
     { key: 'labour', icon: <UserOutlined style={iconStyle} />, label: <Link to="/labour" style={parentLabelStyle}>Labour Master</Link> },
     { key: 'vendor', icon: <TeamOutlined style={iconStyle} />, label: <Link to="/vendor" style={parentLabelStyle}>Vendor Master</Link> },
     
-    // ✅ CONSTRUCTION INVENTORY MODULE
-    {
-      key: 'inventory-module',
-      // GOLDEN ICON Logic: If active, use Gold color. Else use inherit.
-      icon: <AppstoreAddOutlined style={{ fontSize: '20px', color: isInventoryActive ? '#faad14' : 'inherit' }} />, 
-      // PARENT: Bigger Text
-      label: <span style={parentLabelStyle}>Inventory</span>,
-      children: [
-        { 
-          key: 'inventory', 
-          label: <Link to="/inventory" style={subLinkStyle}>Stock Overview</Link> 
-        },
-        { 
-          key: 'inventory/materials', 
-          label: <Link to="/inventory/materials" style={subLinkStyle}>Material Library</Link> 
-        },
-        { 
-          key: 'inventory/indent', 
-          label: <Link to="/inventory/indent" style={subLinkStyle}>Indent Request</Link> 
-        },
-        { 
-          key: 'inventory/purchase-order', 
-          label: <Link to="/inventory/purchase-order" style={subLinkStyle}>Purchase Orders</Link> 
-        },
-        { 
-          key: 'inventory/grn', 
-          label: <Link to="/inventory/grn" style={subLinkStyle}>Receive Stock (GRN)</Link> 
-        },
-        { 
-          key: 'inventory/consumption', 
-          label: <Link to="/inventory/consumption" style={subLinkStyle}>Issue Stock</Link> 
-        },
-      ],
+// ✅ CONSTRUCTION INVENTORY MODULE
+{
+  key: 'inventory-module',
+  
+  // 1. Add this ID so we can target it in CSS
+  className: 'inventory-submenu', 
+
+  // 2. Icon & Label: ALWAYS WHITE
+  icon: <AppstoreAddOutlined style={{ fontSize: '20px', color: '#ffffff' }} />,
+  label: <span style={{ ...parentLabelStyle, color: '#ffffff' }}>Inventory</span>,
+  
+  children: [
+    { 
+      key: 'inventory', 
+      label: <Link to="/inventory" style={{...subLinkStyle, color: currentPath === 'inventory' ? '#ffffff' : '#1677ff'}}>Stock Overview</Link> 
     },
+    { 
+      key: 'inventory/materials', 
+      label: <Link to="/inventory/materials" style={{...subLinkStyle, color: currentPath === 'inventory/materials' ? '#ffffff' : '#1677ff'}}>Material Library</Link> 
+    },
+    { 
+      key: 'inventory/indent', 
+      label: <Link to="/inventory/indent" style={{...subLinkStyle, color: currentPath === 'inventory/indent' ? '#ffffff' : '#1677ff'}}>Indent Request</Link> 
+    },
+    { 
+      key: 'inventory/purchase-order', 
+      label: <Link to="/inventory/purchase-order" style={{...subLinkStyle, color: currentPath === 'inventory/purchase-order' ? '#ffffff' : '#1677ff'}}>Purchase Orders</Link> 
+    },
+    { 
+      key: 'inventory/grn', 
+      label: <Link to="/inventory/grn" style={{...subLinkStyle, color: currentPath === 'inventory/grn' ? '#ffffff' : '#1677ff'}}>Receive Stock (GRN)</Link> 
+    },
+    { 
+      key: 'inventory/consumption', 
+      label: <Link to="/inventory/consumption" style={{...subLinkStyle, color: currentPath === 'inventory/consumption' ? '#ffffff' : '#1677ff'}}>Issue Stock</Link> 
+    },
+  ],
+},
 
     { key: 'invoice', icon: <FileSyncOutlined style={iconStyle} />, label: <Link to="/invoice" style={parentLabelStyle}>Billing</Link> },
     { key: 'quote', icon: <CreditCardOutlined style={iconStyle} />, label: <Link to="/quote" style={parentLabelStyle}>Work Progress</Link> },

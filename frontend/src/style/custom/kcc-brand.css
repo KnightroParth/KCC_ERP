@@ -85,3 +85,24 @@ html, body {
 .ant-menu-item:hover {
   color: #C9A567 !important;
 }
+
+/* ==== INVENTORY MODULE STYLES ==== */
+
+/* 1. SELECTION & OPEN BACKGROUND (Gold) */
+/* This applies the gold bar if the item is Selected OR just Open (Dropdown active) */
+.inventory-submenu.ant-menu-submenu-selected > .ant-menu-submenu-title,
+.inventory-submenu.ant-menu-submenu-open > .ant-menu-submenu-title {
+    background-color: rgba(201,165,103,0.24) !important; /* Gold Background */
+    border-radius: 8px;
+}
+
+/* 2. ARROW COLOR (White) */
+/* Ensure arrow is white in both states */
+.inventory-submenu .ant-menu-submenu-arrow {
+    color: #ffffff !important;
+}
+
+/* 3. HOVER STATE */
+.inventory-submenu:hover > .ant-menu-submenu-title {
+    background-color: rgba(201,165,103,0.1) !important;
+}
