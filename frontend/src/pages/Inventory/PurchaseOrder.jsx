@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Form, InputNumber, Button, Table, Tag, message, Select, Input } from 'antd';
-import { PlusOutlined, DeleteOutlined, CheckOutlined } from '@ant-design/icons';
+import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
 import CrudModule from '@/modules/CrudModule/CrudModule';
 import AutoCompleteAsync from '@/components/AutoCompleteAsync';
 import SelectAsync from '@/components/SelectAsync';
@@ -30,23 +30,42 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
     })();
   }, []);
 
+  useEffect(() => {
+    // On Edit: Sync items from form to local state to ensure table renders
+    if (isUpdateForm) {
+      const currentItems = form.getFieldValue('items') || [];
+      setItems(currentItems);
+      updateTotalAmount(currentItems);
+    }
+  }, [isUpdateForm, form]);
+
   const convertFromRequirement = async (requirementId) => {
     try {
       const res = await request.read({ entity: 'inventory/requirement', id: requirementId });
       if (res?.result) {
         const requirement = res.result;
+        
+        // Map requirement items to PO items structure
         const poItems = requirement.items.map((item, idx) => ({
-          key: Date.now() + idx,
-          material: item.material?._id || item.material,
+          key: Date.now() + idx, 
+          // FIX: Pass the full material OBJECT. This ensures AutoComplete can display the name.
+          material: item.material, 
           quantity: item.quantity,
-          rate: 0, // User needs to enter rates
+          rate: 0, 
           amount: 0,
         }));
+
+        // 1. Update Local State (Renders the rows)
         setItems(poItems);
+
+        // 2. Update Form State (Populates the inputs inside the rows)
         form.setFieldsValue({
+          items: poItems, 
           referenceRequirement: requirementId,
-          vendor: null, // User needs to select vendor
+          vendor: null, 
         });
+
+        updateTotalAmount(poItems);
         message.success('Items loaded from requirement');
       }
     } catch (error) {
@@ -55,21 +74,24 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
   };
 
   const addItem = () => {
-    setItems([
-      ...items,
-      {
-        key: Date.now(),
-        material: null,
-        quantity: 1,
-        rate: 0,
-        amount: 0,
-      },
-    ]);
+    const newItem = {
+      key: Date.now(),
+      material: null,
+      quantity: 1,
+      rate: 0,
+      amount: 0,
+    };
+    const newItems = [...items, newItem];
+    setItems(newItems);
+    // Important: Sync with form to ensure array integrity
+    form.setFieldsValue({ items: newItems });
   };
 
   const removeItem = (key) => {
-    setItems(items.filter((item) => item.key !== key));
-    updateTotalAmount(items.filter((item) => item.key !== key));
+    const newItems = items.filter((item) => item.key !== key);
+    setItems(newItems);
+    form.setFieldsValue({ items: newItems });
+    updateTotalAmount(newItems);
   };
 
   const updateItem = (key, field, value) => {
@@ -84,6 +106,7 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
       return item;
     });
     setItems(newItems);
+    // Note: Form fields update automatically via onChange, but we sync state for calculations
     updateTotalAmount(newItems);
   };
 
@@ -191,23 +214,24 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
           >
             {pendingRequirements.map((req) => (
               <Select.Option key={req._id} value={req._id}>
-                {req.projectId?.name} - {new Date(req.requestDate).toLocaleDateString()} ({req.items?.length || 0} items)
+                {req.projectId?.name || 'Unknown Project'} - {req.requestDate ? new Date(req.requestDate).toLocaleDateString() : 'No Date'} ({req.items?.length || 0} items)
               </Select.Option>
             ))}
           </Select>
         </Form.Item>
       )}
 
+      {/* Renamed Label to Supplier as requested */}
       <Form.Item
-        label="Vendor"
+        label="Supplier"
         name="vendor"
-        rules={[{ required: true, message: 'Please select a vendor' }]}
+        rules={[{ required: true, message: 'Please select a supplier' }]}
       >
         <SelectAsync
           entity="vendor"
           displayLabels={['name', 'phone']}
           outputValue="_id"
-          placeholder="Select Vendor"
+          placeholder="Select Supplier"
         />
       </Form.Item>
 
@@ -220,14 +244,13 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
         >
           Add Material
         </Button>
-        <Form.Item name="items" rules={[{ required: true, message: 'Add at least one item' }]}>
-          <Table
-            dataSource={items}
-            columns={columns}
-            pagination={false}
-            size="small"
-          />
-        </Form.Item>
+        {/* Pass items to Table dataSource */}
+        <Table
+          dataSource={items}
+          columns={columns}
+          pagination={false}
+          size="small"
+        />
       </Form.Item>
 
       {totalAmount > 0 && (
@@ -273,7 +296,7 @@ export default function PurchaseOrder() {
       render: (_, record) => `PO-${record.year}-${String(record.number).padStart(4, '0')}`,
     },
     {
-      title: 'Vendor',
+      title: 'Supplier', // Renamed from Vendor
       key: 'vendor',
       render: (_, record) => {
         const vendor = record.vendor;

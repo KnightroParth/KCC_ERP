@@ -1,5 +1,3 @@
-// backend/src/models/appModels/PurchaseOrder.js
-
 const mongoose = require('mongoose');
 
 const PurchaseOrderSchema = new mongoose.Schema(
@@ -14,13 +12,12 @@ const PurchaseOrderSchema = new mongoose.Schema(
     },
     number: {
       type: Number,
-      unique: true,
-      required: true,
+      // required: true, // REMOVED: Auto-generated in pre-save
       index: true,
     },
     year: {
       type: Number,
-      required: true,
+      // required: true, // REMOVED: Auto-generated in pre-save
       index: true,
     },
     vendor: {
@@ -62,7 +59,7 @@ const PurchaseOrderSchema = new mongoose.Schema(
         },
         amount: {
           type: Number,
-          required: true,
+          // required: true, // REMOVED: Calculated in pre-save
           min: 0,
         },
         receivedQuantity: {
@@ -99,7 +96,7 @@ const PurchaseOrderSchema = new mongoose.Schema(
 );
 
 PurchaseOrderSchema.pre('save', async function (next) {
-  // Auto-generate PO number if not provided
+  // 1. Auto-generate PO number if not provided
   if (!this.number || !this.year) {
     const now = new Date();
     const year = now.getFullYear();
@@ -116,11 +113,19 @@ PurchaseOrderSchema.pre('save', async function (next) {
     this.number = count + 1;
   }
 
-  // Calculate total amount from items
+  // 2. Calculate Item Amounts & Total Amount
   if (this.items && this.items.length > 0) {
-    this.totalAmount = this.items.reduce((sum, item) => {
-      return sum + (item.amount || 0);
-    }, 0);
+    let total = 0;
+    
+    this.items.forEach((item) => {
+      // Calculate item amount automatically
+      item.amount = (item.quantity || 0) * (item.rate || 0);
+      total += item.amount;
+    });
+
+    this.totalAmount = total;
+  } else {
+    this.totalAmount = 0;
   }
 
   this.updated = new Date();

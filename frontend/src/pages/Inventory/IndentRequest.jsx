@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { Form, InputNumber, Button, Table, Tag, Badge, message, DatePicker, Select, Input } from 'antd';
+import React, { useEffect } from 'react';
+import { Form, InputNumber, Button, Table, Tag, Badge, DatePicker, Select, Input } from 'antd';
 import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
-import { useDispatch, useSelector } from 'react-redux';
+import { useSelector } from 'react-redux';
 import dayjs from 'dayjs';
 
 import CrudModule from '@/modules/CrudModule/CrudModule';
@@ -13,177 +13,80 @@ import useLanguage from '@/locale/useLanguage';
 function IndentRequestForm({ isUpdateForm = false }) {
   const translate = useLanguage();
   const form = Form.useFormInstance();
-  const [items, setItems] = useState([]);
-  const [estimatedCost, setEstimatedCost] = useState(0);
-  const [budgetWarning, setBudgetWarning] = useState('');
+  
+  // --- 1. LIVE CALCULATIONS ---
+  // Watch 'items' to trigger updates
+  const items = Form.useWatch('items', form) || [];
 
+  // Calculate Total Cost
+  const estimatedCost = items.reduce((sum, item) => {
+    if (!item) return sum;
+    const qty = parseFloat(item.quantity) || 0;
+    const rate = parseFloat(item.estimatedRate) || 0;
+    return sum + (qty * rate);
+  }, 0);
+
+  const budgetWarning = estimatedCost > 100000 ? 'High value request - may require approval' : '';
+
+  // --- 2. DATA LOADING ---
   const { result: currentItem } = useSelector(selectCurrentItem);
 
   useEffect(() => {
     if (isUpdateForm && currentItem) {
-      // 1. Populate Items
-      if (currentItem.items && currentItem.items.length > 0) {
-        // Ensure keys exist for table
-        const itemsWithKeys = currentItem.items.map((item, index) => ({
-            ...item,
-            key: item._id || item.key || Date.now() + index 
-        }));
-        setItems(itemsWithKeys);
-        updateEstimatedCost(itemsWithKeys);
-      }
+      try {
+        const formattedData = { ...currentItem };
 
-      // 2. Populate Form Fields
-      const updates = { ...currentItem };
-      
-      if (currentItem.requiredDate) {
-        updates.requiredDate = dayjs(currentItem.requiredDate);
-      }
-      
-      if (currentItem.projectId && typeof currentItem.projectId === 'object') {
-        updates.projectId = currentItem.projectId._id;
-      }
+        // Fix Date
+        if (formattedData.requiredDate) {
+          formattedData.requiredDate = dayjs(formattedData.requiredDate);
+        } else {
+          formattedData.requiredDate = null;
+        }
 
-      // Sync Items to Form (Important for values inside table inputs)
-      updates.items = items;
+        // Fix Project ID
+        if (formattedData.projectId && typeof formattedData.projectId === 'object') {
+          formattedData.projectId = formattedData.projectId._id;
+        }
 
-      form.setFieldsValue(updates);
+        // Fix Items: Keep the FULL OBJECT for material to ensure display label works
+        if (Array.isArray(formattedData.items)) {
+          formattedData.items = formattedData.items.map(item => ({
+             ...item,
+             // KEY FIX: Do NOT extract ._id here. Keep the object.
+             material: item.material 
+          }));
+        } else {
+          formattedData.items = [];
+        }
+
+        form.resetFields(); 
+        form.setFieldsValue(formattedData);
+      } catch (error) {
+        console.error("Error populating form:", error);
+      }
+    } else if (!isUpdateForm) {
+      form.resetFields();
+      form.setFieldsValue({ items: [] });
     }
   }, [isUpdateForm, currentItem, form]);
 
-  const addItem = () => {
-    const newItem = {
-      key: Date.now(),
-      material: null,
-      quantity: 1,
-      notes: '',
-      estimatedRate: 0,
-    };
-    const newItems = [...items, newItem];
-    setItems(newItems);
-  };
-
-  const removeItem = (key) => {
-    const newItems = items.filter((item) => item.key !== key);
-    setItems(newItems);
-    updateEstimatedCost(newItems);
-  };
-
-  const updateItem = (key, field, value) => {
-    const newItems = items.map((item) => {
-      if (item.key === key) {
-        return { ...item, [field]: value };
-      }
-      return item;
-    });
-    setItems(newItems);
-    updateEstimatedCost(newItems);
-  };
-
-  const updateEstimatedCost = (currentItems) => {
-    const total = currentItems.reduce((sum, item) => {
-      return sum + (item.estimatedRate || 0) * (item.quantity || 0);
-    }, 0);
-    setEstimatedCost(total);
-
-    if (total > 100000) {
-      setBudgetWarning('High value request - may require approval');
-    } else {
-      setBudgetWarning('');
-    }
-  };
-
-  const columns = [
-    {
-      title: 'Material',
-      key: 'material',
-      width: 250,
-      render: (_, record, index) => (
-        <Form.Item
-          name={['items', index, 'material']}
-          rules={[{ required: true, message: 'Required' }]}
-          style={{ margin: 0 }}
-        >
-          <AutoCompleteAsync
-            entity="material"
-            displayLabels={['name', 'category']}
-            searchFields="name,category"
-            outputValue="_id"
-            placeholder="Search Material"
-            onChange={(value) => updateItem(record.key, 'material', value)}
-          />
-        </Form.Item>
-      ),
-    },
-    {
-      title: 'Qty',
-      key: 'quantity',
-      width: 100,
-      render: (_, record, index) => (
-        <Form.Item
-          name={['items', index, 'quantity']}
-          rules={[{ required: true }]}
-          style={{ margin: 0 }}
-        >
-          <InputNumber
-            min={0.01}
-            placeholder="Qty"
-            style={{ width: '100%' }}
-            onChange={(value) => updateItem(record.key, 'quantity', value)}
-          />
-        </Form.Item>
-      ),
-    },
-    {
-      title: 'Rate',
-      key: 'estimatedRate',
-      width: 120,
-      render: (_, record, index) => (
-        <Form.Item
-          name={['items', index, 'estimatedRate']}
-          style={{ margin: 0 }}
-        >
-          <InputNumber
-            min={0}
-            placeholder="Rate"
-            prefix="₹"
-            style={{ width: '100%' }}
-            onChange={(value) => updateItem(record.key, 'estimatedRate', value)}
-          />
-        </Form.Item>
-      ),
-    },
-    {
-      title: 'Action',
-      key: 'action',
-      width: 80,
-      fixed: 'right',
-      render: (_, record) => (
-        <Button
-          type="text"
-          danger
-          icon={<DeleteOutlined />}
-          onClick={() => removeItem(record.key)}
-        />
-      ),
-    },
-  ];
-
   return (
     <div style={{ paddingRight: 10 }}>
-      <Form.Item
-        label="Project"
-        name="projectId"
-        rules={[{ required: true, message: 'Please select a project' }]}
-      >
-        <SelectAsync
-          entity="project"
-          displayLabels={['name', 'projectCode']}
-          outputValue="_id"
-          placeholder="Select Project"
-        />
-      </Form.Item>
-
       <div style={{ display: 'flex', gap: '15px' }}>
+        <Form.Item
+          label="Project"
+          name="projectId"
+          rules={[{ required: true, message: 'Please select a project' }]}
+          style={{ flex: 1 }}
+        >
+          <SelectAsync
+            entity="project"
+            displayLabels={['name', 'projectCode']}
+            outputValue="_id"
+            placeholder="Select Project"
+          />
+        </Form.Item>
+
         <Form.Item
           label="Required Date"
           name="requiredDate"
@@ -192,45 +95,136 @@ function IndentRequestForm({ isUpdateForm = false }) {
         >
           <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
         </Form.Item>
-
-        <Form.Item
-          label="Priority"
-          name="priority"
-          rules={[{ required: true }]}
-          initialValue="Medium"
-          style={{ flex: 1 }}
-        >
-          <Select>
-            <Select.Option value="Low">Low</Select.Option>
-            <Select.Option value="Medium">Medium</Select.Option>
-            <Select.Option value="High">High</Select.Option>
-            <Select.Option value="Urgent">Urgent</Select.Option>
-          </Select>
-        </Form.Item>
       </div>
 
-      <Form.Item label="Material List" required>
-        <Table
-          dataSource={items}
-          columns={columns}
-          pagination={false}
-          size="small"
-          scroll={{ x: 'max-content' }}
-          footer={() => (
-            <Button type="dashed" onClick={addItem} block icon={<PlusOutlined />}>
-              Add Material
-            </Button>
-          )}
-        />
+      <Form.Item
+        label="Priority"
+        name="priority"
+        rules={[{ required: true }]}
+        initialValue="Medium"
+      >
+        <Select>
+          <Select.Option value="Low">Low</Select.Option>
+          <Select.Option value="Medium">Medium</Select.Option>
+          <Select.Option value="High">High</Select.Option>
+          <Select.Option value="Urgent">Urgent</Select.Option>
+        </Select>
       </Form.Item>
+
+      <Form.List name="items">
+        {(fields, { add, remove }) => (
+          <Form.Item label="Material List" required>
+            <Table
+              // FIX: Merge 'fields' with 'items' to ensure row re-renders on value change
+              dataSource={fields.map(field => ({
+                ...field,
+                ...(items[field.name] || {})
+              }))}
+              pagination={false}
+              size="small"
+              rowKey="key" 
+              scroll={{ x: 'max-content' }}
+              columns={[
+                {
+                  title: 'Material',
+                  dataIndex: 'material',
+                  width: 250,
+                  render: (_, field) => {
+                    // Get the current material value (Object or ID)
+                    const currentMaterial = items[field.name]?.material;
+                    // Generate a unique key to force re-render when material changes
+                    const uniqueKey = currentMaterial?._id || currentMaterial || 'empty';
+
+                    return (
+                      <Form.Item
+                        {...field}
+                        name={[field.name, 'material']} 
+                        rules={[{ required: true, message: 'Required' }]}
+                        style={{ margin: 0 }}
+                      >
+                        <AutoCompleteAsync
+                          key={uniqueKey} // FIX: Force component reset on change
+                          entity="material"
+                          displayLabels={['name', 'category']}
+                          searchFields="name,category"
+                          // FIX: Remove outputValue="_id". We store the full Object now.
+                          // outputValue="_id" 
+                          placeholder="Search Material"
+                          onChange={(val) => {
+                             // Set the full object value to the form
+                             form.setFieldValue(['items', field.name, 'material'], val);
+                          }}
+                          value={currentMaterial}
+                        />
+                      </Form.Item>
+                    );
+                  },
+                },
+                {
+                  title: 'Qty',
+                  dataIndex: 'quantity',
+                  width: 100,
+                  render: (_, field) => (
+                    <Form.Item
+                      {...field}
+                      name={[field.name, 'quantity']}
+                      rules={[{ required: true }]}
+                      style={{ margin: 0 }}
+                    >
+                      <InputNumber min={0.01} placeholder="Qty" style={{ width: '100%' }} />
+                    </Form.Item>
+                  ),
+                },
+                {
+                  title: 'Rate',
+                  dataIndex: 'estimatedRate',
+                  width: 120,
+                  render: (_, field) => (
+                    <Form.Item
+                      {...field}
+                      name={[field.name, 'estimatedRate']}
+                      style={{ margin: 0 }}
+                    >
+                      <InputNumber min={0} prefix="₹" placeholder="Rate" style={{ width: '100%' }} />
+                    </Form.Item>
+                  ),
+                },
+                {
+                  title: '',
+                  width: 50,
+                  fixed: 'right',
+                  render: (_, field) => (
+                    <Button
+                      type="text"
+                      danger
+                      icon={<DeleteOutlined />}
+                      onClick={() => remove(field.name)}
+                    />
+                  ),
+                },
+              ]}
+              footer={() => (
+                <Button 
+                  type="dashed" 
+                  onClick={() => add({ quantity: 1, estimatedRate: 0 })} 
+                  block 
+                  icon={<PlusOutlined />}
+                >
+                  Add Material
+                </Button>
+              )}
+            />
+          </Form.Item>
+        )}
+      </Form.List>
 
       {estimatedCost > 0 && (
         <div style={{ 
-            marginBottom: 20, 
-            padding: '10px', 
-            background: '#f6ffed', 
-            border: '1px solid #b7eb8f', 
-            borderRadius: '6px' 
+          marginBottom: 20, 
+          padding: '10px', 
+          background: '#f6ffed', 
+          border: '1px solid #b7eb8f', 
+          borderRadius: '6px' 
         }}>
           <strong>Total Est. Cost: </strong>
           <span style={{ fontSize: '16px', fontWeight: 'bold', color: '#389e0d' }}>
@@ -274,7 +268,9 @@ export default function IndentRequest() {
         if (record.projectId && record.projectId.name) {
             return <span style={{ fontWeight: 600 }}>{record.projectId.name}</span>;
         }
-        if (record.projectId) return <span>{record.projectId}</span>;
+        if (record.projectId && typeof record.projectId === 'string') {
+           return <span>{record.projectId}</span>; 
+        }
         return <span style={{ color: '#ccc' }}>N/A</span>;
       },
     },
@@ -302,7 +298,6 @@ export default function IndentRequest() {
     },
     {
       title: 'Req. Date',
-      // FIX: Changed from 'requestDate' to 'requiredDate' to match DB
       dataIndex: 'requiredDate', 
       key: 'requiredDate',
       render: (date) => date ? dayjs(date).format('DD/MM/YYYY') : '-',
