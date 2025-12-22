@@ -38,6 +38,7 @@ const AssignWork = lazy(() => import('@/pages/AssignWork'));
 const Attendance = lazy(() => import('@/pages/Attendance'));
 const Labour = lazy(() => import('@/pages/Labour'));
 const Vendor = lazy(() => import('@/pages/Vendor'));
+const Supplier = lazy(() => import('@/pages/Supplier'));
 
 // Inventory Module
 const InventoryDashboard = lazy(() => import('@/pages/Inventory/Dashboard'));
@@ -165,6 +166,10 @@ let routes = {
     {
       path: '/vendor',
       element: <Vendor />,
+    },
+    {
+      path: '/supplier',
+      element: <Supplier />,
     },
     {
       path: '/inventory',

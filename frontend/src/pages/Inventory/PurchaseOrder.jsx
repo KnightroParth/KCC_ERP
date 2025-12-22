@@ -3,17 +3,9 @@ import { Form, InputNumber, Button, Table, Tag, message, Select, Input } from 'a
 import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
 import CrudModule from '@/modules/CrudModule/CrudModule';
 import AutoCompleteAsync from '@/components/AutoCompleteAsync';
+import SelectAsync from '@/components/SelectAsync';
 import { request } from '@/request';
 import useLanguage from '@/locale/useLanguage';
-
-// --- Temporary Mock Suppliers for Testing ---
-const MOCK_SUPPLIERS = [
-  { value: 'Test Supplier 1', label: 'Test Supplier 1' },
-  { value: 'Test Supplier 2', label: 'Test Supplier 2' },
-  { value: 'Local Hardware Store', label: 'Local Hardware Store' },
-  { value: 'Cement Factory Direct', label: 'Cement Factory Direct' },
-  { value: 'Steel Authority', label: 'Steel Authority' },
-];
 
 function PurchaseOrderForm({ isUpdateForm = false }) {
   const form = Form.useFormInstance();
@@ -22,7 +14,6 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
   const [pendingRequirements, setPendingRequirements] = useState([]);
 
   useEffect(() => {
-    // Load pending requirements
     (async () => {
       try {
         const res = await request.list({ entity: 'inventory/requirement', options: { status: 'Pending' } });
@@ -36,7 +27,6 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
   }, []);
 
   useEffect(() => {
-    // Sync form items to local state on edit to ensure table renders
     if (isUpdateForm) {
       const currentItems = form.getFieldValue('items') || [];
       setItems(currentItems);
@@ -52,22 +42,20 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
         const requirement = res.result;
         
         const poItems = requirement.items.map((item, idx) => {
-          // --- ROBUST MATERIAL CHECK ---
-          // 1. If it's a full object (populated), use it.
-          // 2. If it's just a string (ID), create a placeholder object.
-          // 3. If null, show 'Unknown'.
-          let materialObj = { _id: 'unknown', name: 'Unknown/Deleted Material' };
+          // --- FIX IS HERE ---
+          // Do NOT wrap the ID in a fake object. Pass it as is.
+          let materialVal = item.material;
           
-          if (item.material && typeof item.material === 'object') {
-            materialObj = item.material;
-          } else if (item.material && typeof item.material === 'string') {
-            // Fallback: Create an object with the ID so AutoComplete has something to show
-            materialObj = { _id: item.material, name: `Item ID: ${item.material}` };
+          // Only use a fallback if it is strictly null/undefined
+          if (!materialVal) {
+             materialVal = { _id: 'unknown', name: 'Unknown Material' };
           }
+          // If it is a string (ID), we leave it as a string. 
+          // AutoCompleteAsync will see the string and fetch the details automatically.
 
           return {
             key: Date.now() + idx, 
-            material: materialObj, 
+            material: materialVal, 
             quantity: item.quantity,
             rate: 0, 
             amount: 0,
@@ -78,7 +66,7 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
         form.setFieldsValue({
           items: poItems, 
           referenceRequirement: requirementId,
-          vendor: null, 
+          supplier: null, 
         });
 
         updateTotalAmount(poItems);
@@ -142,16 +130,14 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
           style={{ margin: 0 }}
         >
           <AutoCompleteAsync
-            // Force re-render if key changes (helps with "empty" issues on load)
+            // Force re-render if key changes to prevent stale data
             key={record.material?._id || record.key} 
             entity="material"
             displayLabels={['name', 'category']}
             searchFields="name,category"
             outputValue="_id"
             placeholder="Search material..."
-            // Pass FULL OBJECT to updateItem so state knows the Name for calculations/display
             onChange={(val, fullOption) => updateItem(record.key, 'material', fullOption || val)}
-            // Ensure the component gets the full object currently in state
             value={items[index]?.material}
           />
         </Form.Item>
@@ -241,17 +227,19 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
         </Form.Item>
       )}
 
-      {/* --- MOCK SUPPLIER SELECTION (Testing Mode) --- */}
       <Form.Item
-        label="Supplier (Testing)"
-        name="vendor"
+        label="Supplier"
+        name="supplier"
         rules={[{ required: true, message: 'Please select a supplier' }]}
       >
-        <Select 
-          placeholder="Select Supplier (Test Mode)"
-          options={MOCK_SUPPLIERS}
-          allowClear
-          showSearch
+        <SelectAsync
+          entity="inventory/supplier"
+          displayLabels={['name', 'phone']}
+          outputValue="_id"
+          placeholder="Select Supplier"
+          withRedirect={true}
+          redirectLabel="Add New Supplier"
+          urlToRedirect="/supplier"
         />
       </Form.Item>
 
@@ -306,10 +294,10 @@ export default function PurchaseOrder() {
     tableActions: { showEdit: true, showDelete: true },
     dataTableColumns: [
         { title: 'PO Number', key: 'number', render: (_, record) => `PO-${record.year}-${String(record.number).padStart(4, '0')}` },
-        { title: 'Supplier', key: 'vendor', render: (_, r) => {
-            // Handle both object (future) and string (current test) formats
-            if (typeof r.vendor === 'object') return r.vendor?.name || '-';
-            return r.vendor || '-';
+        { title: 'Supplier', key: 'supplier', render: (_, r) => {
+            // Support both object and simple string display
+            if (typeof r.supplier === 'object') return r.supplier?.name || '-';
+            return r.supplier || '-';
         }},
         { title: 'Date', dataIndex: 'date', render: (date) => (date ? new Date(date).toLocaleDateString() : '-') },
         { title: 'Status', dataIndex: 'status', render: (status) => <Tag>{status}</Tag> },

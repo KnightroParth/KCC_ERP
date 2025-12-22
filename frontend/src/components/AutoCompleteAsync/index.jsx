@@ -39,7 +39,6 @@ export default function AutoCompleteAsync({
     const selectedOption = selectOptions.find(opt => (opt[outputValue] || opt) === val);
     
     if (onChange) {
-      // Pass the ID and the Full Object back to the form
       onChange(val, selectedOption);
     }
     if (val === 'redirectURL' && withRedirect) {
@@ -90,24 +89,19 @@ export default function AutoCompleteAsync({
     }
   }, [isSuccess, result]);
 
-  // --- CRITICAL FIX: Handle Value Updates Properly ---
+  // --- FIX: Correctly handle Object vs ID values ---
   useEffect(() => {
     if (value) {
-      // 1. Extract the actual ID string for the Select component
-      const val = (typeof value === 'object' && value[outputValue]) ? value[outputValue] : value;
-      setCurrentValue(val);
+      const isObject = typeof value === 'object';
+      const actualValue = (isObject && value[outputValue]) ? value[outputValue] : value;
+      
+      setCurrentValue(actualValue);
 
-      // 2. If 'value' is an object (contains name, etc.), ensure it's in the options list
-      // This fixes the "Blank" display issue when loading data.
-      if (typeof value === 'object') {
+      // If it's an object, we have the label data. Add it to options immediately.
+      if (isObject) {
         setOptions((prevOptions) => {
-          // Prevent duplicates
-          const exists = prevOptions.some(opt => 
-             (opt[outputValue] || opt) === (value[outputValue] || value)
-          );
-          if (!exists) {
-            return [value, ...prevOptions];
-          }
+          const exists = prevOptions.some(opt => (opt[outputValue] || opt) === actualValue);
+          if (!exists) return [value, ...prevOptions];
           return prevOptions;
         });
       }
@@ -116,9 +110,31 @@ export default function AutoCompleteAsync({
     }
   }, [value, outputValue]);
 
+  // --- FIX: Auto-Fetch Data if only ID is provided ---
+  useEffect(() => {
+    let isActive = true;
+    // Only fetch if value is a string/number (ID) AND we don't have it in our options list
+    if (value && typeof value !== 'object' && !selectOptions.some(opt => opt[outputValue] === value)) {
+      setSearching(true);
+      request.read({ entity, id: value }).then(response => {
+        if (isActive && response.success && response.result) {
+          setOptions(prev => {
+             // Add the fetched item to options so the Label appears
+             if(!prev.find(opt => opt[outputValue] === response.result[outputValue])) {
+               return [response.result, ...prev];
+             }
+             return prev;
+          });
+        }
+        if(isActive) setSearching(false);
+      });
+    }
+    return () => { isActive = false; };
+  }, [value, entity, outputValue]);
+
   return (
     <Select
-      loading={isLoading}
+      loading={isLoading || searching}
       showSearch
       allowClear
       placeholder={translate('Search')}
@@ -132,7 +148,7 @@ export default function AutoCompleteAsync({
         setValToSearch(''); 
       }}
       onChange={handleSelectChange}
-      style={{ minWidth: '180px', width: '100%' }}
+      style={{ minWidth: '100%' }}
     >
       {selectOptions.map((optionField) => (
         <Select.Option

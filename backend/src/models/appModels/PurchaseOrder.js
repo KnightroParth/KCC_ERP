@@ -20,9 +20,9 @@ const PurchaseOrderSchema = new mongoose.Schema(
       // required: true, // REMOVED: Auto-generated in pre-save
       index: true,
     },
-    vendor: {
+    supplier: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'Vendor',
+      ref: 'Supplier',
       required: true,
     },
     referenceRequirement: {
@@ -133,7 +133,7 @@ PurchaseOrderSchema.pre('save', async function (next) {
 });
 
 // Indexes
-PurchaseOrderSchema.index({ vendor: 1, status: 1 });
+PurchaseOrderSchema.index({ supplier: 1, status: 1 });
 PurchaseOrderSchema.index({ status: 1, date: -1 });
 PurchaseOrderSchema.index({ number: 1, year: 1 });
 

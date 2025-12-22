@@ -37,7 +37,7 @@ function IndentRequestForm({ isUpdateForm = false }) {
           formattedData.projectId = formattedData.projectId._id;
         }
         
-        // Ensure we pass full material objects to the form
+        // Pass objects if available, else IDs. AutoCompleteAsync will now fetch missing names.
         if (Array.isArray(formattedData.items)) {
           formattedData.items = formattedData.items.map(item => ({
              ...item,
@@ -135,7 +135,6 @@ function IndentRequestForm({ isUpdateForm = false }) {
                           outputValue="_id"
                           placeholder="Search Material"
                           onChange={(id, fullOption) => {
-                             // This ensures the full object is stored in form state
                              form.setFieldValue(['items', field.name, 'material'], fullOption || id);
                           }}
                           value={currentMaterial}

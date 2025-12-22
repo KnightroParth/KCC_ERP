@@ -11,6 +11,7 @@ const {
   stockTransactionController,
   projectInventoryController,
 } = require('@/controllers/appControllers/inventory');
+const supplierController = require('@/controllers/appControllers/supplierController')();
 
 // Material routes
 router.route('/material/create').post(catchErrors(materialController.create));
@@ -22,6 +23,17 @@ router.route('/material/listAll').get(catchErrors(materialController.listAll));
 router.route('/material/search').get(catchErrors(materialController.search));
 router.route('/material/filter').get(catchErrors(materialController.filter));
 router.route('/material/summary').get(catchErrors(materialController.summary));
+
+// Supplier routes
+router.route('/supplier/create').post(catchErrors(supplierController.create));
+router.route('/supplier/read/:id').get(catchErrors(supplierController.read));
+router.route('/supplier/update/:id').patch(catchErrors(supplierController.update));
+router.route('/supplier/delete/:id').delete(catchErrors(supplierController.delete));
+router.route('/supplier/list').get(catchErrors(supplierController.list));
+router.route('/supplier/listAll').get(catchErrors(supplierController.listAll));
+router.route('/supplier/search').get(catchErrors(supplierController.search));
+router.route('/supplier/filter').get(catchErrors(supplierController.filter));
+router.route('/supplier/summary').get(catchErrors(supplierController.summary));
 
 // Stock Requirement routes
 router.route('/requirement/create').post(catchErrors(stockRequirementController.create));
