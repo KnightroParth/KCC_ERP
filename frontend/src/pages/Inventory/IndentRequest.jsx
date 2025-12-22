@@ -13,12 +13,8 @@ import useLanguage from '@/locale/useLanguage';
 function IndentRequestForm({ isUpdateForm = false }) {
   const translate = useLanguage();
   const form = Form.useFormInstance();
-  
-  // --- 1. LIVE CALCULATIONS ---
-  // Watch 'items' to trigger updates
   const items = Form.useWatch('items', form) || [];
 
-  // Calculate Total Cost
   const estimatedCost = items.reduce((sum, item) => {
     if (!item) return sum;
     const qty = parseFloat(item.quantity) || 0;
@@ -28,31 +24,23 @@ function IndentRequestForm({ isUpdateForm = false }) {
 
   const budgetWarning = estimatedCost > 100000 ? 'High value request - may require approval' : '';
 
-  // --- 2. DATA LOADING ---
   const { result: currentItem } = useSelector(selectCurrentItem);
 
   useEffect(() => {
     if (isUpdateForm && currentItem) {
       try {
         const formattedData = { ...currentItem };
-
-        // Fix Date
         if (formattedData.requiredDate) {
           formattedData.requiredDate = dayjs(formattedData.requiredDate);
-        } else {
-          formattedData.requiredDate = null;
         }
-
-        // Fix Project ID
         if (formattedData.projectId && typeof formattedData.projectId === 'object') {
           formattedData.projectId = formattedData.projectId._id;
         }
-
-        // Fix Items: Keep the FULL OBJECT for material to ensure display label works
+        
+        // Ensure we pass full material objects to the form
         if (Array.isArray(formattedData.items)) {
           formattedData.items = formattedData.items.map(item => ({
              ...item,
-             // KEY FIX: Do NOT extract ._id here. Keep the object.
              material: item.material 
           }));
         } else {
@@ -115,7 +103,6 @@ function IndentRequestForm({ isUpdateForm = false }) {
         {(fields, { add, remove }) => (
           <Form.Item label="Material List" required>
             <Table
-              // FIX: Merge 'fields' with 'items' to ensure row re-renders on value change
               dataSource={fields.map(field => ({
                 ...field,
                 ...(items[field.name] || {})
@@ -128,12 +115,10 @@ function IndentRequestForm({ isUpdateForm = false }) {
                 {
                   title: 'Material',
                   dataIndex: 'material',
-                  width: 250,
+                  width: 300,
                   render: (_, field) => {
-                    // Get the current material value (Object or ID)
                     const currentMaterial = items[field.name]?.material;
-                    // Generate a unique key to force re-render when material changes
-                    const uniqueKey = currentMaterial?._id || currentMaterial || 'empty';
+                    const key = currentMaterial?._id || field.name;
 
                     return (
                       <Form.Item
@@ -143,16 +128,15 @@ function IndentRequestForm({ isUpdateForm = false }) {
                         style={{ margin: 0 }}
                       >
                         <AutoCompleteAsync
-                          key={uniqueKey} // FIX: Force component reset on change
+                          key={key} 
                           entity="material"
                           displayLabels={['name', 'category']}
                           searchFields="name,category"
-                          // FIX: Remove outputValue="_id". We store the full Object now.
-                          // outputValue="_id" 
+                          outputValue="_id"
                           placeholder="Search Material"
-                          onChange={(val) => {
-                             // Set the full object value to the form
-                             form.setFieldValue(['items', field.name, 'material'], val);
+                          onChange={(id, fullOption) => {
+                             // This ensures the full object is stored in form state
+                             form.setFieldValue(['items', field.name, 'material'], fullOption || id);
                           }}
                           value={currentMaterial}
                         />
@@ -219,26 +203,20 @@ function IndentRequestForm({ isUpdateForm = false }) {
       </Form.List>
 
       {estimatedCost > 0 && (
-        <div style={{ 
-          marginBottom: 20, 
-          padding: '10px', 
-          background: '#f6ffed', 
-          border: '1px solid #b7eb8f', 
-          borderRadius: '6px' 
-        }}>
+        <div style={{ marginTop: 20 }}>
           <strong>Total Est. Cost: </strong>
-          <span style={{ fontSize: '16px', fontWeight: 'bold', color: '#389e0d' }}>
+          <span style={{ fontSize: '16px', fontWeight: 'bold' }}>
             ₹{estimatedCost.toLocaleString('en-IN')}
           </span>
           {budgetWarning && (
-            <div style={{ color: '#faad14', marginTop: 5, fontSize: '12px' }}>
+            <div style={{ color: '#faad14', marginTop: 5 }}>
               ⚠️ {budgetWarning}
             </div>
           )}
         </div>
       )}
-
-      <Form.Item label="Notes" name="notes">
+      
+      <Form.Item label="Notes" name="notes" style={{ marginTop: 20 }}>
         <Input.TextArea rows={3} placeholder="Additional notes..." />
       </Form.Item>
     </div>
@@ -246,71 +224,6 @@ function IndentRequestForm({ isUpdateForm = false }) {
 }
 
 export default function IndentRequest() {
-  const searchConfig = {
-    displayLabels: ['priority'],
-    searchFields: 'notes',
-  };
-
-  const deleteModalLabels = ['priority'];
-
-  const tableActions = {
-    showEdit: true,
-    showDelete: true,
-    position: 'right',
-  };
-
-  const dataTableColumns = [
-    {
-      title: 'Project',
-      dataIndex: ['projectId', 'name'], 
-      key: 'project',
-      render: (text, record) => {
-        if (record.projectId && record.projectId.name) {
-            return <span style={{ fontWeight: 600 }}>{record.projectId.name}</span>;
-        }
-        if (record.projectId && typeof record.projectId === 'string') {
-           return <span>{record.projectId}</span>; 
-        }
-        return <span style={{ color: '#ccc' }}>N/A</span>;
-      },
-    },
-    {
-      title: 'Priority',
-      dataIndex: 'priority',
-      key: 'priority',
-      render: (priority) => {
-        let color = 'blue';
-        if (priority === 'High') color = 'orange';
-        if (priority === 'Urgent') color = 'red';
-        return <Tag color={color}>{priority || 'Medium'}</Tag>;
-      },
-    },
-    {
-      title: 'Status',
-      dataIndex: 'status',
-      key: 'status',
-      render: (status) => {
-        let color = 'default';
-        if (status === 'Approved') color = 'green';
-        if (status === 'Pending') color = 'gold';
-        return <Tag color={color}>{status || 'Pending'}</Tag>;
-      },
-    },
-    {
-      title: 'Req. Date',
-      dataIndex: 'requiredDate', 
-      key: 'requiredDate',
-      render: (date) => date ? dayjs(date).format('DD/MM/YYYY') : '-',
-    },
-    {
-      title: 'Items',
-      key: 'items',
-      render: (_, record) => (
-        <Badge count={record.items?.length || 0} style={{ backgroundColor: '#52c41a' }} />
-      ),
-    },
-  ];
-
   const config = {
     entity: 'inventory/requirement',
     PANEL_TITLE: 'Indent Request',
@@ -318,10 +231,23 @@ export default function IndentRequest() {
     ADD_NEW_ENTITY: 'Create Request',
     ENTITY_NAME: 'Indent Request',
     fields: {},
-    searchConfig,
-    deleteModalLabels,
-    tableActions,
-    dataTableColumns,
+    searchConfig: {
+        displayLabels: ['priority'],
+        searchFields: 'notes',
+    },
+    deleteModalLabels: ['priority'],
+    tableActions: { showEdit: true, showDelete: true },
+    dataTableColumns: [
+        {
+          title: 'Project',
+          dataIndex: ['projectId', 'name'],
+          render: (text, record) => record.projectId?.name || 'N/A'
+        },
+        { title: 'Date', dataIndex: 'requiredDate', render: (d) => d ? dayjs(d).format('DD/MM/YYYY') : '-' },
+        { title: 'Priority', dataIndex: 'priority', render: (val) => <Tag color={val === 'Urgent' ? 'red' : 'blue'}>{val}</Tag> },
+        { title: 'Status', dataIndex: 'status', render: (val) => <Tag>{val}</Tag> },
+        { title: 'Items', render: (_, r) => r.items?.length || 0 }
+    ]
   };
 
   return (

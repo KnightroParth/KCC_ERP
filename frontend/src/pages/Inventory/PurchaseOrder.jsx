@@ -1,23 +1,28 @@
-// frontend/src/pages/Inventory/PurchaseOrder.jsx
-
 import React, { useState, useEffect } from 'react';
 import { Form, InputNumber, Button, Table, Tag, message, Select, Input } from 'antd';
 import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
 import CrudModule from '@/modules/CrudModule/CrudModule';
 import AutoCompleteAsync from '@/components/AutoCompleteAsync';
-import SelectAsync from '@/components/SelectAsync';
 import { request } from '@/request';
 import useLanguage from '@/locale/useLanguage';
 
+// --- Temporary Mock Suppliers for Testing ---
+const MOCK_SUPPLIERS = [
+  { value: 'Test Supplier 1', label: 'Test Supplier 1' },
+  { value: 'Test Supplier 2', label: 'Test Supplier 2' },
+  { value: 'Local Hardware Store', label: 'Local Hardware Store' },
+  { value: 'Cement Factory Direct', label: 'Cement Factory Direct' },
+  { value: 'Steel Authority', label: 'Steel Authority' },
+];
+
 function PurchaseOrderForm({ isUpdateForm = false }) {
-  const translate = useLanguage();
   const form = Form.useFormInstance();
   const [items, setItems] = useState([]);
   const [totalAmount, setTotalAmount] = useState(0);
   const [pendingRequirements, setPendingRequirements] = useState([]);
 
   useEffect(() => {
-    // Load pending requirements for conversion
+    // Load pending requirements
     (async () => {
       try {
         const res = await request.list({ entity: 'inventory/requirement', options: { status: 'Pending' } });
@@ -31,7 +36,7 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
   }, []);
 
   useEffect(() => {
-    // On Edit: Sync items from form to local state to ensure table renders
+    // Sync form items to local state on edit to ensure table renders
     if (isUpdateForm) {
       const currentItems = form.getFieldValue('items') || [];
       setItems(currentItems);
@@ -40,25 +45,36 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
   }, [isUpdateForm, form]);
 
   const convertFromRequirement = async (requirementId) => {
+    if (!requirementId) return;
     try {
       const res = await request.read({ entity: 'inventory/requirement', id: requirementId });
       if (res?.result) {
         const requirement = res.result;
         
-        // Map requirement items to PO items structure
-        const poItems = requirement.items.map((item, idx) => ({
-          key: Date.now() + idx, 
-          // FIX: Pass the full material OBJECT. This ensures AutoComplete can display the name.
-          material: item.material, 
-          quantity: item.quantity,
-          rate: 0, 
-          amount: 0,
-        }));
+        const poItems = requirement.items.map((item, idx) => {
+          // --- ROBUST MATERIAL CHECK ---
+          // 1. If it's a full object (populated), use it.
+          // 2. If it's just a string (ID), create a placeholder object.
+          // 3. If null, show 'Unknown'.
+          let materialObj = { _id: 'unknown', name: 'Unknown/Deleted Material' };
+          
+          if (item.material && typeof item.material === 'object') {
+            materialObj = item.material;
+          } else if (item.material && typeof item.material === 'string') {
+            // Fallback: Create an object with the ID so AutoComplete has something to show
+            materialObj = { _id: item.material, name: `Item ID: ${item.material}` };
+          }
 
-        // 1. Update Local State (Renders the rows)
+          return {
+            key: Date.now() + idx, 
+            material: materialObj, 
+            quantity: item.quantity,
+            rate: 0, 
+            amount: 0,
+          };
+        });
+
         setItems(poItems);
-
-        // 2. Update Form State (Populates the inputs inside the rows)
         form.setFieldsValue({
           items: poItems, 
           referenceRequirement: requirementId,
@@ -83,7 +99,6 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
     };
     const newItems = [...items, newItem];
     setItems(newItems);
-    // Important: Sync with form to ensure array integrity
     form.setFieldsValue({ items: newItems });
   };
 
@@ -106,7 +121,6 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
       return item;
     });
     setItems(newItems);
-    // Note: Form fields update automatically via onChange, but we sync state for calculations
     updateTotalAmount(newItems);
   };
 
@@ -128,12 +142,17 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
           style={{ margin: 0 }}
         >
           <AutoCompleteAsync
+            // Force re-render if key changes (helps with "empty" issues on load)
+            key={record.material?._id || record.key} 
             entity="material"
             displayLabels={['name', 'category']}
             searchFields="name,category"
             outputValue="_id"
             placeholder="Search material..."
-            onChange={(value) => updateItem(record.key, 'material', value)}
+            // Pass FULL OBJECT to updateItem so state knows the Name for calculations/display
+            onChange={(val, fullOption) => updateItem(record.key, 'material', fullOption || val)}
+            // Ensure the component gets the full object currently in state
+            value={items[index]?.material}
           />
         </Form.Item>
       ),
@@ -211,6 +230,7 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
             placeholder="Select a pending requirement to convert"
             onChange={convertFromRequirement}
             allowClear
+            style={{ width: '100%' }}
           >
             {pendingRequirements.map((req) => (
               <Select.Option key={req._id} value={req._id}>
@@ -221,17 +241,17 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
         </Form.Item>
       )}
 
-      {/* Renamed Label to Supplier as requested */}
+      {/* --- MOCK SUPPLIER SELECTION (Testing Mode) --- */}
       <Form.Item
-        label="Supplier"
+        label="Supplier (Testing)"
         name="vendor"
         rules={[{ required: true, message: 'Please select a supplier' }]}
       >
-        <SelectAsync
-          entity="vendor"
-          displayLabels={['name', 'phone']}
-          outputValue="_id"
-          placeholder="Select Supplier"
+        <Select 
+          placeholder="Select Supplier (Test Mode)"
+          options={MOCK_SUPPLIERS}
+          allowClear
+          showSearch
         />
       </Form.Item>
 
@@ -244,17 +264,17 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
         >
           Add Material
         </Button>
-        {/* Pass items to Table dataSource */}
         <Table
           dataSource={items}
           columns={columns}
           pagination={false}
           size="small"
+          rowKey="key"
         />
       </Form.Item>
 
       {totalAmount > 0 && (
-        <div style={{ marginBottom: 16 }}>
+        <div style={{ marginBottom: 16, padding: 10, background: '#f0f5ff', borderRadius: 4 }}>
           <strong>Total Amount: </strong>
           <span style={{ fontSize: '18px', fontWeight: 'bold', color: '#1890ff' }}>
             ₹{totalAmount.toLocaleString('en-IN')}
@@ -274,72 +294,6 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
 }
 
 export default function PurchaseOrder() {
-  const entity = 'inventory/purchase-order';
-
-  const searchConfig = {
-    displayLabels: ['number', 'date'],
-    searchFields: 'notes',
-  };
-
-  const deleteModalLabels = ['number'];
-
-  const tableActions = {
-    showEdit: true,
-    showDelete: true,
-    position: 'right',
-  };
-
-  const dataTableColumns = [
-    {
-      title: 'PO Number',
-      key: 'number',
-      render: (_, record) => `PO-${record.year}-${String(record.number).padStart(4, '0')}`,
-    },
-    {
-      title: 'Supplier', // Renamed from Vendor
-      key: 'vendor',
-      render: (_, record) => {
-        const vendor = record.vendor;
-        if (!vendor) return '-';
-        if (typeof vendor === 'object' && vendor.name) {
-          return vendor.name;
-        }
-        return '-';
-      },
-    },
-    {
-      title: 'Date',
-      dataIndex: 'date',
-      key: 'date',
-      render: (date) => (date ? new Date(date).toLocaleDateString() : '-'),
-    },
-    {
-      title: 'Status',
-      dataIndex: 'status',
-      key: 'status',
-      render: (status) => {
-        const colors = {
-          Draft: 'default',
-          Issued: 'processing',
-          'Partially Received': 'warning',
-          Closed: 'success',
-        };
-        return <Tag color={colors[status]}>{status}</Tag>;
-      },
-    },
-    {
-      title: 'Total Amount',
-      dataIndex: 'totalAmount',
-      key: 'totalAmount',
-      render: (amount) => `₹${(amount || 0).toLocaleString('en-IN')}`,
-    },
-    {
-      title: 'Items',
-      key: 'itemsCount',
-      render: (_, record) => record.items?.length || 0,
-    },
-  ];
-
   const config = {
     entity: 'inventory/purchase-order',
     PANEL_TITLE: 'Purchase Order',
@@ -347,10 +301,20 @@ export default function PurchaseOrder() {
     ADD_NEW_ENTITY: 'Create New Purchase Order',
     ENTITY_NAME: 'Purchase Order',
     fields: {},
-    searchConfig,
-    deleteModalLabels,
-    tableActions,
-    dataTableColumns,
+    searchConfig: { displayLabels: ['number', 'date'], searchFields: 'notes' },
+    deleteModalLabels: ['number'],
+    tableActions: { showEdit: true, showDelete: true },
+    dataTableColumns: [
+        { title: 'PO Number', key: 'number', render: (_, record) => `PO-${record.year}-${String(record.number).padStart(4, '0')}` },
+        { title: 'Supplier', key: 'vendor', render: (_, r) => {
+            // Handle both object (future) and string (current test) formats
+            if (typeof r.vendor === 'object') return r.vendor?.name || '-';
+            return r.vendor || '-';
+        }},
+        { title: 'Date', dataIndex: 'date', render: (date) => (date ? new Date(date).toLocaleDateString() : '-') },
+        { title: 'Status', dataIndex: 'status', render: (status) => <Tag>{status}</Tag> },
+        { title: 'Total', dataIndex: 'totalAmount', render: (val) => `₹${(val || 0).toLocaleString('en-IN')}` },
+    ]
   };
 
   return (

@@ -1,10 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
-
 import { request } from '@/request';
 import useOnFetch from '@/hooks/useOnFetch';
 import useDebounce from '@/hooks/useDebounce';
 import { useNavigate } from 'react-router-dom';
-
 import { Select, Empty } from 'antd';
 import useLanguage from '@/locale/useLanguage';
 
@@ -16,8 +14,8 @@ export default function AutoCompleteAsync({
   redirectLabel = 'Add New',
   withRedirect = false,
   urlToRedirect = '/',
-  value, /// this is for update
-  onChange, /// this is for update
+  value, 
+  onChange, 
 }) {
   const translate = useLanguage();
 
@@ -26,35 +24,31 @@ export default function AutoCompleteAsync({
   const [selectOptions, setOptions] = useState([]);
   const [currentValue, setCurrentValue] = useState(undefined);
 
-  const isUpdating = useRef(true);
   const isSearching = useRef(false);
-
   const [searching, setSearching] = useState(false);
-
   const [valToSearch, setValToSearch] = useState('');
   const [debouncedValue, setDebouncedValue] = useState('');
 
   const navigate = useNavigate();
 
-  const handleSelectChange = (newValue) => {
-    isUpdating.current = false;
-    // setCurrentValue(value[outputValue] || value); // set nested value or value
-    // onChange(newValue[outputValue] || newValue);
+  const labels = (optionField) => {
+    return displayLabels.map((x) => optionField[x]).join(' ');
+  };
+
+  const handleSelectChange = (val) => {
+    const selectedOption = selectOptions.find(opt => (opt[outputValue] || opt) === val);
+    
     if (onChange) {
-      if (newValue) onChange(newValue[outputValue] || newValue);
+      // Pass the ID and the Full Object back to the form
+      onChange(val, selectedOption);
     }
-    if (newValue === 'redirectURL' && withRedirect) {
+    if (val === 'redirectURL' && withRedirect) {
       navigate(urlToRedirect);
     }
   };
 
-  const handleOnSelect = (value) => {
-    setCurrentValue(value[outputValue] || value); // set nested value or value
-  };
-
   const [, cancel] = useDebounce(
     () => {
-      //  setState("Typing stopped");
       setDebouncedValue(valToSearch);
     },
     500,
@@ -67,17 +61,15 @@ export default function AutoCompleteAsync({
 
   let { onFetch, result, isSuccess, isLoading } = useOnFetch();
 
-  const labels = (optionField) => {
-    return displayLabels.map((x) => optionField[x]).join(' ');
-  };
-
   useEffect(() => {
     const options = {
       q: debouncedValue,
       fields: searchFields,
     };
-    const callback = asyncSearch(options);
-    onFetch(callback);
+    if (debouncedValue) {
+        const callback = asyncSearch(options);
+        onFetch(callback);
+    }
 
     return () => {
       cancel();
@@ -87,8 +79,6 @@ export default function AutoCompleteAsync({
   const onSearch = (searchText) => {
     isSearching.current = true;
     setSearching(true);
-    // setOptions([]);
-    // setCurrentValue(undefined);
     setValToSearch(searchText);
   };
 
@@ -97,19 +87,34 @@ export default function AutoCompleteAsync({
       setOptions(result);
     } else {
       setSearching(false);
-      // setCurrentValue(undefined);
-      // setOptions([]);
     }
   }, [isSuccess, result]);
+
+  // --- CRITICAL FIX: Handle Value Updates Properly ---
   useEffect(() => {
-    // this for update Form , it's for setField
-    if (value && isUpdating.current) {
-      setOptions([value]);
-      setCurrentValue(value[outputValue] || value); // set nested value or value
-      onChange(value[outputValue] || value);
-      isUpdating.current = false;
+    if (value) {
+      // 1. Extract the actual ID string for the Select component
+      const val = (typeof value === 'object' && value[outputValue]) ? value[outputValue] : value;
+      setCurrentValue(val);
+
+      // 2. If 'value' is an object (contains name, etc.), ensure it's in the options list
+      // This fixes the "Blank" display issue when loading data.
+      if (typeof value === 'object') {
+        setOptions((prevOptions) => {
+          // Prevent duplicates
+          const exists = prevOptions.some(opt => 
+             (opt[outputValue] || opt) === (value[outputValue] || value)
+          );
+          if (!exists) {
+            return [value, ...prevOptions];
+          }
+          return prevOptions;
+        });
+      }
+    } else {
+      setCurrentValue(undefined);
     }
-  }, [value]);
+  }, [value, outputValue]);
 
   return (
     <Select
@@ -123,13 +128,11 @@ export default function AutoCompleteAsync({
       value={currentValue}
       onSearch={onSearch}
       onClear={() => {
-        // setOptions([]);
-        // setCurrentValue(undefined);
         setSearching(false);
+        setValToSearch(''); 
       }}
       onChange={handleSelectChange}
-      style={{ minWidth: '220px' }}
-      // onSelect={handleOnSelect}
+      style={{ minWidth: '180px', width: '100%' }}
     >
       {selectOptions.map((optionField) => (
         <Select.Option
