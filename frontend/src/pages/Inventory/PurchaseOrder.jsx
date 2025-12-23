@@ -1,17 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { Form, InputNumber, Button, Table, Tag, message, Select, Input } from 'antd';
 import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
+import { useSelector } from 'react-redux';
+import { selectCurrentItem } from '@/redux/crud/selectors';
 import CrudModule from '@/modules/CrudModule/CrudModule';
 import AutoCompleteAsync from '@/components/AutoCompleteAsync';
 import SelectAsync from '@/components/SelectAsync';
 import { request } from '@/request';
 import useLanguage from '@/locale/useLanguage';
+import dayjs from 'dayjs';
 
 function PurchaseOrderForm({ isUpdateForm = false }) {
   const form = Form.useFormInstance();
   const [items, setItems] = useState([]);
   const [totalAmount, setTotalAmount] = useState(0);
   const [pendingRequirements, setPendingRequirements] = useState([]);
+
+  // --- 1. Get Current Item Data from Redux (For Edit Mode) ---
+  const { result: currentItem } = useSelector(selectCurrentItem);
 
   useEffect(() => {
     (async () => {
@@ -26,13 +32,38 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
     })();
   }, []);
 
+  // --- 2. POPULATE FORM DATA ---
   useEffect(() => {
-    if (isUpdateForm) {
-      const currentItems = form.getFieldValue('items') || [];
-      setItems(currentItems);
-      updateTotalAmount(currentItems);
+    if (isUpdateForm && currentItem) {
+      const formData = { ...currentItem };
+
+      // Flatten supplier to ID
+      if (formData.supplier && typeof formData.supplier === 'object') {
+        formData.supplier = formData.supplier._id;
+      }
+
+      // Fix Date
+      if (formData.date) {
+        formData.date = dayjs(formData.date);
+      }
+
+      // Fix Items
+      if (Array.isArray(formData.items)) {
+        formData.items = formData.items.map((item, index) => ({
+          ...item,
+          key: item._id || Date.now() + index,
+          rate: parseFloat(item.rate) || 0,
+          amount: parseFloat(item.amount) || 0,
+          quantity: parseFloat(item.quantity) || 0,
+          material: item.material
+        }));
+      }
+
+      form.setFieldsValue(formData);
+      setItems(formData.items || []);
+      updateTotalAmount(formData.items || []);
     }
-  }, [isUpdateForm, form]);
+  }, [isUpdateForm, currentItem, form]);
 
   const convertFromRequirement = async (requirementId) => {
     if (!requirementId) return;
@@ -42,16 +73,10 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
         const requirement = res.result;
         
         const poItems = requirement.items.map((item, idx) => {
-          // --- FIX IS HERE ---
-          // Do NOT wrap the ID in a fake object. Pass it as is.
           let materialVal = item.material;
-          
-          // Only use a fallback if it is strictly null/undefined
           if (!materialVal) {
              materialVal = { _id: 'unknown', name: 'Unknown Material' };
           }
-          // If it is a string (ID), we leave it as a string. 
-          // AutoCompleteAsync will see the string and fetch the details automatically.
 
           return {
             key: Date.now() + idx, 
@@ -101,14 +126,25 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
     const newItems = items.map((item) => {
       if (item.key === key) {
         const updated = { ...item, [field]: value };
+        
+        // Recalculate Amount if Rate or Quantity changes
         if (field === 'quantity' || field === 'rate') {
-          updated.amount = (updated.quantity || 0) * (updated.rate || 0);
+          const qty = parseFloat(updated.quantity) || 0;
+          const rate = parseFloat(updated.rate) || 0;
+          updated.amount = qty * rate;
         }
         return updated;
       }
       return item;
     });
+
+    // 1. Update Local State (UI)
     setItems(newItems);
+    
+    // 2. CRITICAL FIX: Use setFieldsValue (plural) to correctly sync with Ant Design Form
+    form.setFieldsValue({ items: newItems });
+
+    // 3. Update Totals
     updateTotalAmount(newItems);
   };
 
@@ -118,11 +154,13 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
     form.setFieldsValue({ totalAmount: total });
   };
 
+  // --- 3. COLUMN DEFINITIONS (Fixed Widths & Spacing) ---
   const columns = [
     {
       title: 'Material',
+      dataIndex: 'material',
       key: 'material',
-      width: '35%',
+      width: 350, // Wider for Material Name
       render: (_, record, index) => (
         <Form.Item
           name={['items', index, 'material']}
@@ -130,8 +168,7 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
           style={{ margin: 0 }}
         >
           <AutoCompleteAsync
-            // Force re-render if key changes to prevent stale data
-            key={record.material?._id || record.key} 
+            key={record.key} 
             entity="material"
             displayLabels={['name', 'category']}
             searchFields="name,category"
@@ -145,18 +182,20 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
     },
     {
       title: 'Quantity',
+      dataIndex: 'quantity',
       key: 'quantity',
-      width: '15%',
+      width: 120,
       render: (_, record, index) => (
         <Form.Item
           name={['items', index, 'quantity']}
-          rules={[{ required: true, message: 'Enter quantity' }]}
+          rules={[{ required: true, message: 'Required' }]}
           style={{ margin: 0 }}
         >
           <InputNumber
             min={0.01}
-            step={0.01}
             style={{ width: '100%' }}
+            placeholder="Qty"
+            value={items[index]?.quantity}
             onChange={(value) => updateItem(record.key, 'quantity', value)}
           />
         </Form.Item>
@@ -164,18 +203,22 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
     },
     {
       title: 'Rate',
+      dataIndex: 'rate',
       key: 'rate',
-      width: '15%',
+      width: 150,
       render: (_, record, index) => (
         <Form.Item
           name={['items', index, 'rate']}
-          rules={[{ required: true, message: 'Enter rate' }]}
+          rules={[{ required: true, message: 'Required' }]}
           style={{ margin: 0 }}
         >
           <InputNumber
             min={0}
             step={0.01}
             style={{ width: '100%' }}
+            prefix="₹"
+            placeholder="Rate"
+            value={items[index]?.rate}
             onChange={(value) => updateItem(record.key, 'rate', value)}
           />
         </Form.Item>
@@ -183,27 +226,27 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
     },
     {
       title: 'Amount',
+      dataIndex: 'amount',
       key: 'amount',
-      width: '15%',
-      render: (_, record) => (
-        <span style={{ fontWeight: 'bold' }}>
-          ₹{((record.quantity || 0) * (record.rate || 0)).toLocaleString('en-IN')}
-        </span>
+      width: 150,
+      render: (_, record, index) => (
+        <div style={{ padding: '4px 11px', background: '#fafafa', border: '1px solid #d9d9d9', borderRadius: '2px', textAlign: 'right' }}>
+          <strong>₹{(items[index]?.amount || 0).toLocaleString('en-IN')}</strong>
+        </div>
       ),
     },
     {
-      title: 'Action',
+      title: '',
       key: 'action',
-      width: '10%',
+      width: 50,
+      fixed: 'right',
       render: (_, record) => (
         <Button
-          type="link"
+          type="text"
           danger
           icon={<DeleteOutlined />}
           onClick={() => removeItem(record.key)}
-        >
-          Remove
-        </Button>
+        />
       ),
     },
   ];
@@ -238,33 +281,61 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
           outputValue="_id"
           placeholder="Select Supplier"
           withRedirect={true}
-          redirectLabel="Add New Supplier"
           urlToRedirect="/supplier"
+          redirectLabel="Add New Supplier"
         />
       </Form.Item>
 
-      <Form.Item label="Items" required>
-        <Button
-          type="dashed"
-          onClick={addItem}
-          icon={<PlusOutlined />}
-          style={{ width: '100%', marginBottom: 16 }}
+      <div style={{ display: 'flex', gap: '20px' }}>
+        <Form.Item
+          label="PO Date"
+          name="date"
+          rules={[{ required: true }]}
+          style={{ flex: 1 }}
         >
-          Add Material
-        </Button>
+          <Input type="date" />
+        </Form.Item>
+        <Form.Item
+          label="Status"
+          name="status"
+          initialValue="Draft"
+          style={{ flex: 1 }}
+        >
+          <Select>
+            <Select.Option value="Draft">Draft</Select.Option>
+            <Select.Option value="Issued">Issued</Select.Option>
+            <Select.Option value="Partially Received">Partially Received</Select.Option>
+            <Select.Option value="Closed">Closed</Select.Option>
+          </Select>
+        </Form.Item>
+      </div>
+
+      <Form.Item label="Items" required>
         <Table
           dataSource={items}
           columns={columns}
           pagination={false}
           size="small"
           rowKey="key"
+          // FIX: Add scroll to prevent columns from being squished
+          scroll={{ x: 'max-content' }} 
+          footer={() => (
+            <Button
+              type="dashed"
+              onClick={addItem}
+              icon={<PlusOutlined />}
+              block
+            >
+              Add Material
+            </Button>
+          )}
         />
       </Form.Item>
 
       {totalAmount > 0 && (
-        <div style={{ marginBottom: 16, padding: 10, background: '#f0f5ff', borderRadius: 4 }}>
+        <div style={{ marginBottom: 16, padding: 10, background: '#f6ffed', border: '1px solid #b7eb8f', borderRadius: 4, textAlign: 'right' }}>
           <strong>Total Amount: </strong>
-          <span style={{ fontSize: '18px', fontWeight: 'bold', color: '#1890ff' }}>
+          <span style={{ fontSize: '18px', fontWeight: 'bold', color: '#389e0d' }}>
             ₹{totalAmount.toLocaleString('en-IN')}
           </span>
         </div>
@@ -295,8 +366,9 @@ export default function PurchaseOrder() {
     dataTableColumns: [
         { title: 'PO Number', key: 'number', render: (_, record) => `PO-${record.year}-${String(record.number).padStart(4, '0')}` },
         { title: 'Supplier', key: 'supplier', render: (_, r) => {
-            // Support both object and simple string display
-            if (typeof r.supplier === 'object') return r.supplier?.name || '-';
+            if (r.supplier && typeof r.supplier === 'object') {
+                return r.supplier.name;
+            }
             return r.supplier || '-';
         }},
         { title: 'Date', dataIndex: 'date', render: (date) => (date ? new Date(date).toLocaleDateString() : '-') },
