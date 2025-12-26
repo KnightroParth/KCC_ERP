@@ -68,7 +68,7 @@ export default function WorkTable({
     columns.push({
         title: 'Action',
         key: 'action',
-        width: 80,
+        width: 100,
         fixed: 'right',
         render: (_, record) => (
             <Popconfirm
@@ -81,10 +81,18 @@ export default function WorkTable({
                 <Tooltip title="Clear All">
                     <Button
                         danger
+                        type="primary"
                         icon={<DeleteOutlined />}
                         size="small"
                         disabled={!record.assignedTasks || record.assignedTasks.length === 0}
-                    />
+                        style={{ 
+                            backgroundColor: '#ff4d4f',
+                            borderColor: '#ff4d4f',
+                            color: '#fff'
+                        }}
+                    >
+                        Delete
+                    </Button>
                 </Tooltip>
             </Popconfirm>
         ),
