@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Form, InputNumber, Button, Table, Tag, message, Select, Input } from 'antd';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Form, InputNumber, Button, Table, Tag, message, Select, Input, DatePicker } from 'antd';
 import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
 import { useSelector } from 'react-redux';
 import { selectCurrentItem } from '@/redux/crud/selectors';
@@ -7,7 +7,6 @@ import CrudModule from '@/modules/CrudModule/CrudModule';
 import AutoCompleteAsync from '@/components/AutoCompleteAsync';
 import SelectAsync from '@/components/SelectAsync';
 import { request } from '@/request';
-import useLanguage from '@/locale/useLanguage';
 import dayjs from 'dayjs';
 
 function PurchaseOrderForm({ isUpdateForm = false }) {
@@ -32,6 +31,14 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
     })();
   }, []);
 
+  // --- Helper: Recalculate Total ---
+  const recalculateTotal = useCallback((currentItems) => {
+    const total = currentItems.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
+    setTotalAmount(total);
+    // Sync total with Form
+    form.setFieldValue('totalAmount', total);
+  }, [form]);
+
   // --- 2. POPULATE FORM DATA ---
   useEffect(() => {
     if (isUpdateForm && currentItem) {
@@ -42,9 +49,11 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
         formData.supplier = formData.supplier._id;
       }
 
-      // Fix Date
+      // Fix Date: Convert to dayjs object
       if (formData.date) {
         formData.date = dayjs(formData.date);
+      } else {
+        formData.date = dayjs();
       }
 
       // Fix Items
@@ -55,15 +64,18 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
           rate: parseFloat(item.rate) || 0,
           amount: parseFloat(item.amount) || 0,
           quantity: parseFloat(item.quantity) || 0,
-          material: item.material
+          material: item.material // Keep full object for display if needed
         }));
       }
 
       form.setFieldsValue(formData);
       setItems(formData.items || []);
-      updateTotalAmount(formData.items || []);
+      recalculateTotal(formData.items || []);
+    } else if (!isUpdateForm) {
+      // Default date for new forms
+      form.setFieldValue('date', dayjs());
     }
-  }, [isUpdateForm, currentItem, form]);
+  }, [isUpdateForm, currentItem, form, recalculateTotal]);
 
   const convertFromRequirement = async (requirementId) => {
     if (!requirementId) return;
@@ -94,7 +106,7 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
           supplier: null, 
         });
 
-        updateTotalAmount(poItems);
+        recalculateTotal(poItems);
         message.success('Items loaded from requirement');
       }
     } catch (error) {
@@ -119,48 +131,42 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
     const newItems = items.filter((item) => item.key !== key);
     setItems(newItems);
     form.setFieldsValue({ items: newItems });
-    updateTotalAmount(newItems);
+    recalculateTotal(newItems);
   };
 
   const updateItem = (key, field, value) => {
-    const newItems = items.map((item) => {
-      if (item.key === key) {
-        const updated = { ...item, [field]: value };
-        
-        // Recalculate Amount if Rate or Quantity changes
-        if (field === 'quantity' || field === 'rate') {
-          const qty = parseFloat(updated.quantity) || 0;
-          const rate = parseFloat(updated.rate) || 0;
-          updated.amount = qty * rate;
-        }
-        return updated;
-      }
-      return item;
-    });
+    // Find index for direct form update
+    const index = items.findIndex((item) => item.key === key);
+    if (index === -1) return;
 
-    // 1. Update Local State (UI)
-    setItems(newItems);
+    const newItems = [...items];
+    const item = { ...newItems[index], [field]: value };
+
+    // Recalculate Amount if Rate or Quantity changes
+    if (field === 'quantity' || field === 'rate') {
+      const qty = parseFloat(field === 'quantity' ? value : item.quantity) || 0;
+      const rate = parseFloat(field === 'rate' ? value : item.rate) || 0;
+      item.amount = qty * rate;
+      
+      // Explicitly update the amount field in the form for this row
+      form.setFieldValue(['items', index, 'amount'], item.amount);
+    }
     
-    // 2. CRITICAL FIX: Use setFieldsValue (plural) to correctly sync with Ant Design Form
-    form.setFieldsValue({ items: newItems });
+    // Explicitly update the changed field in the form
+    form.setFieldValue(['items', index, field], value);
 
-    // 3. Update Totals
-    updateTotalAmount(newItems);
+    newItems[index] = item;
+    setItems(newItems);
+    recalculateTotal(newItems);
   };
 
-  const updateTotalAmount = (currentItems) => {
-    const total = currentItems.reduce((sum, item) => sum + (item.amount || 0), 0);
-    setTotalAmount(total);
-    form.setFieldsValue({ totalAmount: total });
-  };
-
-  // --- 3. COLUMN DEFINITIONS (Fixed Widths & Spacing) ---
+  // --- 3. COLUMN DEFINITIONS ---
   const columns = [
     {
       title: 'Material',
       dataIndex: 'material',
       key: 'material',
-      width: 350, // Wider for Material Name
+      width: 350, 
       render: (_, record, index) => (
         <Form.Item
           name={['items', index, 'material']}
@@ -195,7 +201,6 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
             min={0.01}
             style={{ width: '100%' }}
             placeholder="Qty"
-            value={items[index]?.quantity}
             onChange={(value) => updateItem(record.key, 'quantity', value)}
           />
         </Form.Item>
@@ -218,7 +223,6 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
             style={{ width: '100%' }}
             prefix="₹"
             placeholder="Rate"
-            value={items[index]?.rate}
             onChange={(value) => updateItem(record.key, 'rate', value)}
           />
         </Form.Item>
@@ -230,9 +234,17 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
       key: 'amount',
       width: 150,
       render: (_, record, index) => (
-        <div style={{ padding: '4px 11px', background: '#fafafa', border: '1px solid #d9d9d9', borderRadius: '2px', textAlign: 'right' }}>
-          <strong>₹{(items[index]?.amount || 0).toLocaleString('en-IN')}</strong>
-        </div>
+        <>
+          <Form.Item
+            name={['items', index, 'amount']}
+            style={{ display: 'none' }} // Hidden input to keep form sync
+          >
+             <Input />
+          </Form.Item>
+          <div style={{ padding: '4px 11px', background: '#fafafa', border: '1px solid #d9d9d9', borderRadius: '2px', textAlign: 'right' }}>
+            <strong>₹{(items[index]?.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</strong>
+          </div>
+        </>
       ),
     },
     {
@@ -263,7 +275,7 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
           >
             {pendingRequirements.map((req) => (
               <Select.Option key={req._id} value={req._id}>
-                {req.projectId?.name || 'Unknown Project'} - {req.requestDate ? new Date(req.requestDate).toLocaleDateString() : 'No Date'} ({req.items?.length || 0} items)
+                {req.projectId?.name || 'Unknown Project'} - {req.requestDate ? dayjs(req.requestDate).format('DD/MM/YYYY') : 'No Date'} ({req.items?.length || 0} items)
               </Select.Option>
             ))}
           </Select>
@@ -293,7 +305,7 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
           rules={[{ required: true }]}
           style={{ flex: 1 }}
         >
-          <Input type="date" />
+          <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
         </Form.Item>
         <Form.Item
           label="Status"
@@ -317,7 +329,6 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
           pagination={false}
           size="small"
           rowKey="key"
-          // FIX: Add scroll to prevent columns from being squished
           scroll={{ x: 'max-content' }} 
           footer={() => (
             <Button
@@ -332,11 +343,16 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
         />
       </Form.Item>
 
+      {/* Hidden total field for form submission */}
+      <Form.Item name="totalAmount" hidden>
+        <InputNumber />
+      </Form.Item>
+
       {totalAmount > 0 && (
         <div style={{ marginBottom: 16, padding: 10, background: '#f6ffed', border: '1px solid #b7eb8f', borderRadius: 4, textAlign: 'right' }}>
           <strong>Total Amount: </strong>
           <span style={{ fontSize: '18px', fontWeight: 'bold', color: '#389e0d' }}>
-            ₹{totalAmount.toLocaleString('en-IN')}
+            ₹{totalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
           </span>
         </div>
       )}
@@ -371,7 +387,7 @@ export default function PurchaseOrder() {
             }
             return r.supplier || '-';
         }},
-        { title: 'Date', dataIndex: 'date', render: (date) => (date ? new Date(date).toLocaleDateString() : '-') },
+        { title: 'Date', dataIndex: 'date', render: (date) => (date ? dayjs(date).format('DD/MM/YYYY') : '-') },
         { title: 'Status', dataIndex: 'status', render: (status) => <Tag>{status}</Tag> },
         { title: 'Total', dataIndex: 'totalAmount', render: (val) => `₹${(val || 0).toLocaleString('en-IN')}` },
     ]

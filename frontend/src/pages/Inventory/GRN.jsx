@@ -1,50 +1,50 @@
-// frontend/src/pages/Inventory/GRN.jsx
-
-import React, { useState, useEffect } from 'react';
-import { Form, InputNumber, Button, Table, Tag, message, Select, Input, DatePicker } from 'antd';
-import { CheckOutlined } from '@ant-design/icons';
+import React, { useState } from 'react';
+import { Form, InputNumber, Table, Tag, message, Input, DatePicker } from 'antd';
 import CrudModule from '@/modules/CrudModule/CrudModule';
 import SelectAsync from '@/components/SelectAsync';
 import { request } from '@/request';
-import useLanguage from '@/locale/useLanguage';
+import dayjs from 'dayjs';
 
 function GRNForm({ isUpdateForm = false }) {
-  const translate = useLanguage();
   const form = Form.useFormInstance();
   const [poItems, setPoItems] = useState([]);
-  const [selectedPO, setSelectedPO] = useState(null);
-
+  
   const loadPO = async (poId) => {
     try {
       const res = await request.read({ entity: 'inventory/purchase-order', id: poId });
       if (res?.result) {
         const po = res.result;
-        setSelectedPO(po);
-        const items = po.items.map((item, idx) => ({
+        
+        // Map Items safely
+        const items = (po.items || []).map((item, idx) => ({
           key: idx,
           material: item.material?._id || item.material,
-          materialName: item.material?.name || 'Unknown',
-          orderedQty: item.quantity,
-          receivedQty: item.receivedQuantity || 0,
-          pendingQty: item.quantity - (item.receivedQuantity || 0),
-          rate: item.rate,
-          receivedQuantity: Math.min(item.quantity - (item.receivedQuantity || 0), item.quantity),
+          materialName: item.material?.name || 'Unknown Material',
+          orderedQty: parseFloat(item.quantity) || 0,
+          receivedQty: parseFloat(item.receivedQuantity) || 0,
+          pendingQty: (parseFloat(item.quantity) || 0) - (parseFloat(item.receivedQuantity) || 0),
+          rate: parseFloat(item.rate) || 0,
+          // Default receive amount is pending amount
+          currentReceive: Math.max(0, (parseFloat(item.quantity) || 0) - (parseFloat(item.receivedQuantity) || 0))
         }));
+
         setPoItems(items);
+
+        // Pre-fill form
         form.setFieldsValue({
           purchaseOrder: poId,
-          projectId: po.referenceRequirement?.projectId || null,
-          date: new Date(),
+          projectId: po.referenceRequirement?.projectId?._id || po.referenceRequirement?.projectId || null,
+          date: dayjs(), // FIXED: Use dayjs() for AntD DatePicker
           items: items.map(item => ({
             material: item.material,
-            quantity: item.receivedQuantity,
+            quantity: item.currentReceive,
             rate: item.rate,
-            unit: item.material?.uom || 'nos',
           })),
         });
         message.success('Purchase Order loaded');
       }
     } catch (error) {
+      console.error(error);
       message.error('Failed to load PO: ' + error.message);
     }
   };
@@ -54,21 +54,14 @@ function GRNForm({ isUpdateForm = false }) {
     const item = newItems[index];
     const maxQty = item.pendingQty;
     
+    // Defensive check
     if (value > maxQty) {
-      message.warning(`Cannot receive more than ${maxQty} (pending quantity)`);
-      value = maxQty;
+       // Allow user to type but show error in UI via validator
     }
     
-    item.receivedQuantity = value;
+    // Sync to state to update UI if needed (though Form handles input)
+    item.currentReceive = value;
     setPoItems(newItems);
-    
-    // Update form values
-    const formItems = form.getFieldValue('items') || [];
-    formItems[index] = {
-      ...formItems[index],
-      quantity: value,
-    };
-    form.setFieldsValue({ items: formItems });
   };
 
   const columns = [
@@ -79,37 +72,40 @@ function GRNForm({ isUpdateForm = false }) {
       width: '30%',
     },
     {
-      title: 'Ordered Qty',
+      title: 'Ordered',
       dataIndex: 'orderedQty',
       key: 'orderedQty',
       width: '15%',
     },
     {
-      title: 'Already Received',
+      title: 'Prev Received',
       dataIndex: 'receivedQty',
       key: 'receivedQty',
       width: '15%',
     },
     {
-      title: 'Pending Qty',
+      title: 'Pending',
       dataIndex: 'pendingQty',
       key: 'pendingQty',
       width: '15%',
       render: (qty) => <Tag color={qty > 0 ? 'orange' : 'green'}>{qty}</Tag>,
     },
     {
-      title: 'Received Qty',
-      key: 'receivedQuantity',
+      title: 'Receive Now',
+      key: 'quantity',
       width: '20%',
       render: (_, record, index) => (
         <Form.Item
           name={['items', index, 'quantity']}
           rules={[
-            { required: true, message: 'Enter received quantity' },
+            { required: true, message: 'Required' },
             {
               validator: (_, value) => {
                 if (value > record.pendingQty) {
-                  return Promise.reject(`Max: ${record.pendingQty}`);
+                  return Promise.reject(`Max pending: ${record.pendingQty}`);
+                }
+                if (value < 0) {
+                  return Promise.reject('Cannot be negative');
                 }
                 return Promise.resolve();
               },
@@ -119,10 +115,11 @@ function GRNForm({ isUpdateForm = false }) {
         >
           <InputNumber
             min={0}
-            max={record.pendingQty}
+            max={record.pendingQty} // Hardware limit on input
             step={0.01}
             style={{ width: '100%' }}
             onChange={(value) => updateReceivedQty(index, value)}
+            disabled={record.pendingQty <= 0}
           />
         </Form.Item>
       ),
@@ -163,28 +160,29 @@ function GRNForm({ isUpdateForm = false }) {
         name="date"
         rules={[{ required: true, message: 'Please select date' }]}
       >
-        <DatePicker style={{ width: '100%' }} />
+        <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
       </Form.Item>
 
       {poItems.length > 0 && (
         <>
-      <Form.Item label="Items to Receive" required>
-        <Table
-          dataSource={poItems}
-          columns={columns}
-          pagination={false}
-          size="small"
-          rowKey="key"
-        />
-      </Form.Item>
+          <Form.Item label="Items to Receive" required>
+            <Table
+              dataSource={poItems}
+              columns={columns}
+              pagination={false}
+              size="small"
+              rowKey="key"
+            />
+          </Form.Item>
 
-      <Form.Item name="items" rules={[{ required: true, message: 'Items are required' }]}>
-        <Input hidden />
-      </Form.Item>
+          {/* Hidden fields to ensure data structure on submit */}
+          <Form.Item name="items" hidden>
+            <Input />
+          </Form.Item>
 
-      <Form.Item name="type" initialValue="IN" hidden>
-        <Input />
-      </Form.Item>
+          <Form.Item name="type" initialValue="IN" hidden>
+            <Input />
+          </Form.Item>
         </>
       )}
 
@@ -196,8 +194,6 @@ function GRNForm({ isUpdateForm = false }) {
 }
 
 export default function GRN() {
-  const entity = 'inventory/transaction';
-
   const searchConfig = {
     displayLabels: ['date', 'type'],
     searchFields: 'notes',
@@ -216,7 +212,7 @@ export default function GRN() {
       title: 'Date',
       dataIndex: 'date',
       key: 'date',
-      render: (date) => (date ? new Date(date).toLocaleDateString() : '-'),
+      render: (date) => (date ? dayjs(date).format('DD/MM/YYYY') : '-'),
     },
     {
       title: 'Type',
