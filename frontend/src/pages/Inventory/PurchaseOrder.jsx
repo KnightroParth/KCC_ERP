@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Form, InputNumber, Button, Table, Tag, message, Select, Input, DatePicker } from 'antd';
-import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
+import { Form, InputNumber, Button, Table, Tag, message, Select, Input, DatePicker, Card, Statistic, Row, Col, Tooltip } from 'antd';
+import { PlusOutlined, DeleteOutlined, CheckCircleOutlined, WarningOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
 import { useSelector } from 'react-redux';
 import { selectCurrentItem } from '@/redux/crud/selectors';
 import CrudModule from '@/modules/CrudModule/CrudModule';
@@ -56,6 +56,11 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
         formData.date = dayjs();
       }
 
+      // Fix Expected Delivery Date
+      if (formData.expectedDeliveryDate) {
+        formData.expectedDeliveryDate = dayjs(formData.expectedDeliveryDate);
+      }
+
       // Fix Items
       if (Array.isArray(formData.items)) {
         formData.items = formData.items.map((item, index) => ({
@@ -64,6 +69,7 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
           rate: parseFloat(item.rate) || 0,
           amount: parseFloat(item.amount) || 0,
           quantity: parseFloat(item.quantity) || 0,
+          originalIndentQty: parseFloat(item.originalIndentQty) || null,
           material: item.material // Keep full object for display if needed
         }));
       }
@@ -77,6 +83,19 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
     }
   }, [isUpdateForm, currentItem, form, recalculateTotal]);
 
+  // --- Auto-calculate Expected Delivery Date when PO Date or Lead Time changes ---
+  const handleDateOrLeadTimeChange = useCallback(() => {
+    const poDate = form.getFieldValue('date');
+    const leadTime = form.getFieldValue('leadTimeDays');
+    
+    if (poDate && leadTime && leadTime > 0) {
+      const expectedDate = dayjs(poDate).add(leadTime, 'day');
+      form.setFieldValue('expectedDeliveryDate', expectedDate);
+    } else {
+      form.setFieldValue('expectedDeliveryDate', null);
+    }
+  }, [form]);
+
   const convertFromRequirement = async (requirementId) => {
     if (!requirementId) return;
     try {
@@ -84,20 +103,37 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
       if (res?.result) {
         const requirement = res.result;
         
-        const poItems = requirement.items.map((item, idx) => {
+        // Group items by material._id and sum quantities
+        const groupedItems = {};
+        
+        requirement.items.forEach((item) => {
           let materialVal = item.material;
           if (!materialVal) {
-             materialVal = { _id: 'unknown', name: 'Unknown Material' };
+            materialVal = { _id: 'unknown', name: 'Unknown Material' };
           }
-
-          return {
-            key: Date.now() + idx, 
-            material: materialVal, 
-            quantity: item.quantity,
-            rate: 0, 
-            amount: 0,
-          };
+          
+          const materialId = materialVal._id || materialVal;
+          const quantity = parseFloat(item.quantity) || 0;
+          
+          if (groupedItems[materialId]) {
+            // Material already exists, sum the quantities
+            groupedItems[materialId].quantity += quantity;
+            groupedItems[materialId].originalIndentQty += quantity;
+          } else {
+            // New material, create entry
+            groupedItems[materialId] = {
+              key: Date.now() + Object.keys(groupedItems).length,
+              material: materialVal,
+              quantity: quantity,
+              originalIndentQty: quantity, // Store original indent quantity for variance analysis
+              rate: 0,
+              amount: 0,
+            };
+          }
         });
+
+        // Convert grouped object to array
+        const poItems = Object.values(groupedItems);
 
         setItems(poItems);
         form.setFieldsValue({
@@ -107,7 +143,7 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
         });
 
         recalculateTotal(poItems);
-        message.success('Items loaded from requirement');
+        message.success(`Items loaded from requirement (${poItems.length} unique materials)`);
       }
     } catch (error) {
       message.error('Failed to load requirement: ' + error.message);
@@ -121,6 +157,7 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
       quantity: 1,
       rate: 0,
       amount: 0,
+      originalIndentQty: null, // No indent reference for manually added items
     };
     const newItems = [...items, newItem];
     setItems(newItems);
@@ -160,6 +197,29 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
     recalculateTotal(newItems);
   };
 
+  // --- Helper: Get Variance Status ---
+  const getVarianceStatus = (currentQty, originalQty) => {
+    if (!originalQty || originalQty === null) return null; // No indent reference
+    
+    if (currentQty > originalQty) {
+      return { type: 'over', color: '#ff4d4f', icon: <ExclamationCircleOutlined />, text: 'Over ordering' };
+    } else if (currentQty < originalQty) {
+      return { type: 'partial', color: '#fa8c16', icon: <WarningOutlined />, text: 'Partial order' };
+    } else {
+      return { type: 'exact', color: '#52c41a', icon: <CheckCircleOutlined />, text: 'Exact match' };
+    }
+  };
+
+  // --- Calculate Summary Statistics ---
+  const summaryStats = useCallback(() => {
+    const uniqueItems = items.length;
+    const totalQuantity = items.reduce((sum, item) => sum + (parseFloat(item.quantity) || 0), 0);
+    const totalAmount = items.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
+    return { uniqueItems, totalQuantity, totalAmount };
+  }, [items]);
+
+  const stats = summaryStats();
+
   // --- 3. COLUMN DEFINITIONS ---
   const columns = [
     {
@@ -190,21 +250,41 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
       title: 'Quantity',
       dataIndex: 'quantity',
       key: 'quantity',
-      width: 120,
-      render: (_, record, index) => (
-        <Form.Item
-          name={['items', index, 'quantity']}
-          rules={[{ required: true, message: 'Required' }]}
-          style={{ margin: 0 }}
-        >
-          <InputNumber
-            min={0.01}
-            style={{ width: '100%' }}
-            placeholder="Qty"
-            onChange={(value) => updateItem(record.key, 'quantity', value)}
-          />
-        </Form.Item>
-      ),
+      width: 150,
+      render: (_, record, index) => {
+        const currentQty = parseFloat(items[index]?.quantity) || 0;
+        const originalQty = items[index]?.originalIndentQty;
+        const variance = getVarianceStatus(currentQty, originalQty);
+        
+        return (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Form.Item
+              name={['items', index, 'quantity']}
+              rules={[{ required: true, message: 'Required' }]}
+              style={{ margin: 0, flex: 1 }}
+            >
+              <InputNumber
+                min={0.01}
+                style={{ width: '100%' }}
+                placeholder="Qty"
+                onChange={(value) => updateItem(record.key, 'quantity', value)}
+              />
+            </Form.Item>
+            {variance && (
+              <Tooltip title={`${variance.text}: ${originalQty} (Indent) vs ${currentQty} (PO)`}>
+                <Tag color={variance.color} icon={variance.icon} style={{ margin: 0 }}>
+                  {variance.text}
+                </Tag>
+              </Tooltip>
+            )}
+            {originalQty && (
+              <Form.Item name={['items', index, 'originalIndentQty']} style={{ display: 'none' }}>
+                <Input />
+              </Form.Item>
+            )}
+          </div>
+        );
+      },
     },
     {
       title: 'Rate',
@@ -298,20 +378,48 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
         />
       </Form.Item>
 
-      <div style={{ display: 'flex', gap: '20px' }}>
+      <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap' }}>
         <Form.Item
           label="PO Date"
           name="date"
           rules={[{ required: true }]}
-          style={{ flex: 1 }}
+          style={{ flex: 1, minWidth: '200px' }}
         >
-          <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
+          <DatePicker 
+            style={{ width: '100%' }} 
+            format="DD/MM/YYYY"
+            onChange={() => handleDateOrLeadTimeChange()}
+          />
+        </Form.Item>
+        <Form.Item
+          label="Lead Time (Days)"
+          name="leadTimeDays"
+          style={{ flex: 1, minWidth: '150px' }}
+        >
+          <InputNumber
+            min={0}
+            style={{ width: '100%' }}
+            placeholder="Enter days"
+            onChange={() => handleDateOrLeadTimeChange()}
+          />
+        </Form.Item>
+        <Form.Item
+          label="Expected Delivery"
+          name="expectedDeliveryDate"
+          style={{ flex: 1, minWidth: '200px' }}
+        >
+          <DatePicker 
+            style={{ width: '100%' }} 
+            format="DD/MM/YYYY"
+            disabled
+            placeholder="Auto-calculated"
+          />
         </Form.Item>
         <Form.Item
           label="Status"
           name="status"
           initialValue="Draft"
-          style={{ flex: 1 }}
+          style={{ flex: 1, minWidth: '150px' }}
         >
           <Select>
             <Select.Option value="Draft">Draft</Select.Option>
@@ -321,6 +429,42 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
           </Select>
         </Form.Item>
       </div>
+
+      {/* Summary Dashboard */}
+      {items.length > 0 && (
+        <Card 
+          title="Purchase Order Summary" 
+          style={{ marginBottom: 16 }}
+          bodyStyle={{ padding: '16px' }}
+        >
+          <Row gutter={[16, 16]}>
+            <Col xs={24} sm={8}>
+              <Statistic
+                title="Total Unique Items"
+                value={stats.uniqueItems}
+                valueStyle={{ color: '#1890ff' }}
+              />
+            </Col>
+            <Col xs={24} sm={8}>
+              <Statistic
+                title="Total Quantity"
+                value={stats.totalQuantity}
+                precision={2}
+                valueStyle={{ color: '#722ed1' }}
+              />
+            </Col>
+            <Col xs={24} sm={8}>
+              <Statistic
+                title="Total Amount"
+                value={stats.totalAmount}
+                prefix="₹"
+                precision={2}
+                valueStyle={{ color: '#52c41a', fontSize: '20px', fontWeight: 'bold' }}
+              />
+            </Col>
+          </Row>
+        </Card>
+      )}
 
       <Form.Item label="Items" required>
         <Table

@@ -34,6 +34,13 @@ const PurchaseOrderSchema = new mongoose.Schema(
       required: true,
       default: Date.now,
     },
+    leadTimeDays: {
+      type: Number,
+      min: 0,
+    },
+    expectedDeliveryDate: {
+      type: Date,
+    },
     status: {
       type: String,
       enum: ['Draft', 'Issued', 'Partially Received', 'Closed'],
@@ -65,6 +72,10 @@ const PurchaseOrderSchema = new mongoose.Schema(
         receivedQuantity: {
           type: Number,
           default: 0,
+        },
+        originalIndentQty: {
+          type: Number,
+          min: 0,
         },
       },
     ],
@@ -113,7 +124,15 @@ PurchaseOrderSchema.pre('save', async function (next) {
     this.number = count + 1;
   }
 
-  // 2. Calculate Item Amounts & Total Amount
+  // 2. Calculate Expected Delivery Date if leadTimeDays and date are provided
+  if (this.leadTimeDays && this.date) {
+    const poDate = new Date(this.date);
+    const expectedDate = new Date(poDate);
+    expectedDate.setDate(expectedDate.getDate() + this.leadTimeDays);
+    this.expectedDeliveryDate = expectedDate;
+  }
+
+  // 3. Calculate Item Amounts & Total Amount
   if (this.items && this.items.length > 0) {
     let total = 0;
     

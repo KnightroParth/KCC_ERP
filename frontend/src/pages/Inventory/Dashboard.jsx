@@ -1,17 +1,31 @@
 // frontend/src/pages/Inventory/InventoryDashboard.jsx
 
 import React, { useState, useEffect } from 'react';
-import { Table, Tag, Select, Card, Statistic, Row, Col } from 'antd';
+import { Table, Tag, Card, Statistic, Row, Col, message } from 'antd';
 import axios from 'axios';
 import { request } from '@/request';
-import SelectAsync from '@/components/SelectAsync';
+import { API_BASE_URL } from '@/config/serverApiConfig';
 import storePersist from '@/redux/storePersist';
+import SelectAsync from '@/components/SelectAsync';
+import dayjs from 'dayjs';
+
+// Helper function to include token (same pattern as request utility)
+function includeToken() {
+  axios.defaults.baseURL = API_BASE_URL;
+  axios.defaults.withCredentials = true;
+  const auth = storePersist.get('auth');
+  if (auth) {
+    axios.defaults.headers.common['Authorization'] = `Bearer ${auth.current.token}`;
+  }
+}
 
 export default function InventoryDashboard() {
   const [projectId, setProjectId] = useState(null);
   const [inventoryData, setInventoryData] = useState([]);
   const [totals, setTotals] = useState({ totalReceived: 0, totalConsumed: 0, totalValue: 0 });
   const [loading, setLoading] = useState(false);
+  const [pendingShipments, setPendingShipments] = useState([]);
+  const [loadingShipments, setLoadingShipments] = useState(false);
 
   useEffect(() => {
     if (projectId) {
@@ -19,29 +33,63 @@ export default function InventoryDashboard() {
     }
   }, [projectId]);
 
+  useEffect(() => {
+    loadPendingShipments();
+  }, []);
+
   const loadDashboard = async () => {
     setLoading(true);
     try {
-      const auth = storePersist.get('auth');
-      const token = auth?.current?.token;
+      includeToken();
+      const response = await axios.get(
+        `inventory/inventory/dashboard?projectId=${projectId}`
+      );
       
-      const res = await axios.get(
-        `${import.meta.env.VITE_BACKEND_SERVER || 'http://localhost:8888/'}api/inventory/inventory/dashboard?projectId=${projectId}`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      ).then(res => res.data).catch(err => ({ result: { items: [], totals: {} } }));
-
-      if (res?.result) {
-        setInventoryData(res.result.items || []);
-        setTotals(res.result.totals || {});
+      if (response?.data?.result) {
+        setInventoryData(response.data.result.items || []);
+        setTotals(response.data.result.totals || {});
+      } else if (response?.data?.success && response?.data?.result) {
+        setInventoryData(response.data.result.items || []);
+        setTotals(response.data.result.totals || {});
       }
     } catch (error) {
       console.error('Error loading dashboard:', error);
+      message.error('Failed to load dashboard data');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadPendingShipments = async () => {
+    setLoadingShipments(true);
+    try {
+      const res = await request.list({ 
+        entity: 'inventory/purchase-order', 
+        options: { 
+          status: 'Issued',
+          items: 100 // Get more items to show all pending shipments
+        } 
+      });
+
+      if (res?.success && res?.result) {
+        // Filter and sort by expected delivery date (soonest first)
+        const shipments = res.result
+          .filter(po => po.expectedDeliveryDate) // Only show POs with expected delivery date
+          .map(po => ({
+            ...po,
+            expectedDeliveryDate: dayjs(po.expectedDeliveryDate),
+          }))
+          .sort((a, b) => {
+            if (!a.expectedDeliveryDate || !b.expectedDeliveryDate) return 0;
+            return a.expectedDeliveryDate.valueOf() - b.expectedDeliveryDate.valueOf();
+          });
+        
+        setPendingShipments(shipments);
+      }
+    } catch (error) {
+      console.error('Error loading pending shipments:', error);
+    } finally {
+      setLoadingShipments(false);
     }
   };
 
@@ -135,6 +183,63 @@ export default function InventoryDashboard() {
     },
   ];
 
+  const shipmentColumns = [
+    {
+      title: 'Supplier Name',
+      key: 'supplier',
+      width: '30%',
+      render: (_, record) => {
+        const supplier = record.supplier;
+        if (!supplier) return '-';
+        if (typeof supplier === 'object') {
+          return supplier.name || '-';
+        }
+        return '-';
+      },
+    },
+    {
+      title: 'Project',
+      key: 'project',
+      width: '30%',
+      render: (_, record) => {
+        const requirement = record.referenceRequirement;
+        if (!requirement) return '-';
+        if (typeof requirement === 'object') {
+          const project = requirement.projectId;
+          if (project && typeof project === 'object') {
+            return project.name || project.projectCode || '-';
+          }
+        }
+        return '-';
+      },
+    },
+    {
+      title: 'Expected Delivery Date',
+      key: 'expectedDeliveryDate',
+      width: '25%',
+      render: (_, record) => {
+        if (record.expectedDeliveryDate) {
+          const date = dayjs.isDayjs(record.expectedDeliveryDate) 
+            ? record.expectedDeliveryDate 
+            : dayjs(record.expectedDeliveryDate);
+          return date.format('DD/MM/YYYY');
+        }
+        return '-';
+      },
+    },
+    {
+      title: 'PO Number',
+      key: 'poNumber',
+      width: '15%',
+      render: (_, record) => {
+        if (record.number && record.year) {
+          return `PO-${record.year}-${String(record.number).padStart(4, '0')}`;
+        }
+        return '-';
+      },
+    },
+  ];
+
   return (
     <div style={{ padding: '24px' }}>
       <Card title="Inventory Dashboard" style={{ marginBottom: 24 }}>
@@ -184,6 +289,31 @@ export default function InventoryDashboard() {
               </Card>
             </Col>
           </Row>
+        )}
+      </Card>
+
+      {/* Expected Incoming Shipments Section */}
+      <Card 
+        title="Expected Incoming Shipments" 
+        style={{ marginBottom: 24 }}
+        loading={loadingShipments}
+      >
+        {pendingShipments.length > 0 ? (
+          <Table
+            dataSource={pendingShipments}
+            columns={shipmentColumns}
+            rowKey={(record) => record._id}
+            pagination={{
+              pageSize: 10,
+              showSizeChanger: true,
+              showTotal: (total) => `Total ${total} pending shipments`,
+            }}
+            size="small"
+          />
+        ) : (
+          <p style={{ textAlign: 'center', color: '#999', padding: '20px' }}>
+            No pending shipments found
+          </p>
         )}
       </Card>
 

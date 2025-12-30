@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Form, InputNumber, Table, Tag, message, Input, DatePicker } from 'antd';
 import CrudModule from '@/modules/CrudModule/CrudModule';
 import SelectAsync from '@/components/SelectAsync';
@@ -8,12 +8,20 @@ import dayjs from 'dayjs';
 function GRNForm({ isUpdateForm = false }) {
   const form = Form.useFormInstance();
   const [poItems, setPoItems] = useState([]);
+  const [expectedDeliveryDate, setExpectedDeliveryDate] = useState(null);
   
   const loadPO = async (poId) => {
     try {
       const res = await request.read({ entity: 'inventory/purchase-order', id: poId });
       if (res?.result) {
         const po = res.result;
+        
+        // Extract expected delivery date
+        if (po.expectedDeliveryDate) {
+          setExpectedDeliveryDate(dayjs(po.expectedDeliveryDate));
+        } else {
+          setExpectedDeliveryDate(null);
+        }
         
         // Map Items safely
         const items = (po.items || []).map((item, idx) => ({
@@ -48,6 +56,40 @@ function GRNForm({ isUpdateForm = false }) {
       message.error('Failed to load PO: ' + error.message);
     }
   };
+
+  // Calculate delivery performance status
+  const getDeliveryStatus = () => {
+    if (!expectedDeliveryDate) return null;
+    
+    const grnDate = form.getFieldValue('date');
+    if (!grnDate) return null;
+    
+    const daysDiff = dayjs(grnDate).diff(expectedDeliveryDate, 'day');
+    
+    if (daysDiff > 0) {
+      return {
+        type: 'late',
+        color: 'red',
+        text: `Late by ${daysDiff} ${daysDiff === 1 ? 'Day' : 'Days'}`,
+        days: daysDiff
+      };
+    } else {
+      return {
+        type: 'ontime',
+        color: 'green',
+        text: 'On Time',
+        days: 0
+      };
+    }
+  };
+
+  const deliveryStatus = getDeliveryStatus();
+
+  // Watch for date changes to update delivery status
+  const grnDate = Form.useWatch('date', form);
+  useEffect(() => {
+    // This will trigger re-render when date changes
+  }, [grnDate]);
 
   const updateReceivedQty = (index, value) => {
     const newItems = [...poItems];
@@ -160,7 +202,24 @@ function GRNForm({ isUpdateForm = false }) {
         name="date"
         rules={[{ required: true, message: 'Please select date' }]}
       >
-        <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
+        <div>
+          <DatePicker 
+            style={{ width: '100%' }} 
+            format="DD/MM/YYYY"
+          />
+          {deliveryStatus && (
+            <div style={{ marginTop: 8 }}>
+              <Tag color={deliveryStatus.color} style={{ fontSize: '13px', padding: '4px 12px' }}>
+                {deliveryStatus.text}
+              </Tag>
+              {expectedDeliveryDate && (
+                <span style={{ marginLeft: 8, color: '#666', fontSize: '12px' }}>
+                  (Expected: {expectedDeliveryDate.format('DD/MM/YYYY')})
+                </span>
+              )}
+            </div>
+          )}
+        </div>
       </Form.Item>
 
       {poItems.length > 0 && (
