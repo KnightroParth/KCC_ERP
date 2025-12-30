@@ -1,17 +1,21 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Form, InputNumber, Button, Table, Tag, message, Select, Input, DatePicker, Card, Statistic, Row, Col, Tooltip } from 'antd';
-import { PlusOutlined, DeleteOutlined, CheckCircleOutlined, WarningOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
+import { PlusOutlined, DeleteOutlined, CheckCircleOutlined, WarningOutlined, ExclamationCircleOutlined, FilePdfOutlined } from '@ant-design/icons';
 import { useSelector } from 'react-redux';
 import { selectCurrentItem } from '@/redux/crud/selectors';
 import CrudModule from '@/modules/CrudModule/CrudModule';
 import AutoCompleteAsync from '@/components/AutoCompleteAsync';
 import SelectAsync from '@/components/SelectAsync';
 import { request } from '@/request';
+import { API_BASE_URL } from '@/config/serverApiConfig';
 import dayjs from 'dayjs';
 
 function PurchaseOrderForm({ isUpdateForm = false }) {
   const form = Form.useFormInstance();
   const [items, setItems] = useState([]);
+  const [subTotal, setSubTotal] = useState(0);
+  const [taxRate, setTaxRate] = useState(0);
+  const [taxTotal, setTaxTotal] = useState(0);
   const [totalAmount, setTotalAmount] = useState(0);
   const [pendingRequirements, setPendingRequirements] = useState([]);
 
@@ -31,13 +35,29 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
     })();
   }, []);
 
-  // --- Helper: Recalculate Total ---
-  const recalculateTotal = useCallback((currentItems) => {
-    const total = currentItems.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
+  // --- Helper: Recalculate Totals with Tax ---
+  const recalculateTotals = useCallback((currentItems, currentTaxRate = taxRate) => {
+    const sub = currentItems.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
+    const tax = (sub * (currentTaxRate || 0)) / 100;
+    const total = sub + tax;
+    
+    setSubTotal(sub);
+    setTaxTotal(tax);
     setTotalAmount(total);
-    // Sync total with Form
+    
+    // Sync with Form
+    form.setFieldValue('subTotal', sub);
+    form.setFieldValue('taxTotal', tax);
     form.setFieldValue('totalAmount', total);
-  }, [form]);
+  }, [form, taxRate]);
+
+  // --- Handle Tax Rate Change ---
+  const handleTaxRateChange = useCallback((value) => {
+    const rate = parseFloat(value) || 0;
+    setTaxRate(rate);
+    form.setFieldValue('taxRate', rate);
+    recalculateTotals(items, rate);
+  }, [items, form, recalculateTotals]);
 
   // --- 2. POPULATE FORM DATA ---
   useEffect(() => {
@@ -61,6 +81,11 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
         formData.expectedDeliveryDate = dayjs(formData.expectedDeliveryDate);
       }
 
+      // Fix Tax Rate
+      if (formData.taxRate !== undefined) {
+        setTaxRate(parseFloat(formData.taxRate) || 0);
+      }
+
       // Fix Items
       if (Array.isArray(formData.items)) {
         formData.items = formData.items.map((item, index) => ({
@@ -70,18 +95,19 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
           amount: parseFloat(item.amount) || 0,
           quantity: parseFloat(item.quantity) || 0,
           originalIndentQty: parseFloat(item.originalIndentQty) || null,
-          material: item.material // Keep full object for display if needed
+          material: item.material
         }));
       }
 
       form.setFieldsValue(formData);
       setItems(formData.items || []);
-      recalculateTotal(formData.items || []);
+      recalculateTotals(formData.items || [], formData.taxRate || 0);
     } else if (!isUpdateForm) {
       // Default date for new forms
       form.setFieldValue('date', dayjs());
+      form.setFieldValue('taxRate', 0);
     }
-  }, [isUpdateForm, currentItem, form, recalculateTotal]);
+  }, [isUpdateForm, currentItem, form, recalculateTotals]);
 
   // --- Auto-calculate Expected Delivery Date when PO Date or Lead Time changes ---
   const handleDateOrLeadTimeChange = useCallback(() => {
@@ -116,23 +142,20 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
           const quantity = parseFloat(item.quantity) || 0;
           
           if (groupedItems[materialId]) {
-            // Material already exists, sum the quantities
             groupedItems[materialId].quantity += quantity;
             groupedItems[materialId].originalIndentQty += quantity;
           } else {
-            // New material, create entry
             groupedItems[materialId] = {
               key: Date.now() + Object.keys(groupedItems).length,
               material: materialVal,
               quantity: quantity,
-              originalIndentQty: quantity, // Store original indent quantity for variance analysis
+              originalIndentQty: quantity,
               rate: 0,
               amount: 0,
             };
           }
         });
 
-        // Convert grouped object to array
         const poItems = Object.values(groupedItems);
 
         setItems(poItems);
@@ -142,7 +165,7 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
           supplier: null, 
         });
 
-        recalculateTotal(poItems);
+        recalculateTotals(poItems, taxRate);
         message.success(`Items loaded from requirement (${poItems.length} unique materials)`);
       }
     } catch (error) {
@@ -157,7 +180,7 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
       quantity: 1,
       rate: 0,
       amount: 0,
-      originalIndentQty: null, // No indent reference for manually added items
+      originalIndentQty: null,
     };
     const newItems = [...items, newItem];
     setItems(newItems);
@@ -168,11 +191,10 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
     const newItems = items.filter((item) => item.key !== key);
     setItems(newItems);
     form.setFieldsValue({ items: newItems });
-    recalculateTotal(newItems);
+    recalculateTotals(newItems, taxRate);
   };
 
   const updateItem = (key, field, value) => {
-    // Find index for direct form update
     const index = items.findIndex((item) => item.key === key);
     if (index === -1) return;
 
@@ -185,28 +207,43 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
       const rate = parseFloat(field === 'rate' ? value : item.rate) || 0;
       item.amount = qty * rate;
       
-      // Explicitly update the amount field in the form for this row
       form.setFieldValue(['items', index, 'amount'], item.amount);
     }
     
-    // Explicitly update the changed field in the form
     form.setFieldValue(['items', index, field], value);
 
     newItems[index] = item;
     setItems(newItems);
-    recalculateTotal(newItems);
+    recalculateTotals(newItems, taxRate);
   };
 
   // --- Helper: Get Variance Status ---
   const getVarianceStatus = (currentQty, originalQty) => {
-    if (!originalQty || originalQty === null) return null; // No indent reference
+    if (!originalQty || originalQty === null) return null;
     
     if (currentQty > originalQty) {
-      return { type: 'over', color: '#ff4d4f', icon: <ExclamationCircleOutlined />, text: 'Over ordering' };
+      const diff = currentQty - originalQty;
+      return { 
+        type: 'over', 
+        color: '#ff4d4f', 
+        icon: <ExclamationCircleOutlined />, 
+        text: 'Over ordering',
+        diff: diff
+      };
     } else if (currentQty < originalQty) {
-      return { type: 'partial', color: '#fa8c16', icon: <WarningOutlined />, text: 'Partial order' };
+      return { 
+        type: 'partial', 
+        color: '#fa8c16', 
+        icon: <WarningOutlined />, 
+        text: 'Partial order' 
+      };
     } else {
-      return { type: 'exact', color: '#52c41a', icon: <CheckCircleOutlined />, text: 'Exact match' };
+      return { 
+        type: 'exact', 
+        color: '#52c41a', 
+        icon: <CheckCircleOutlined />, 
+        text: 'Exact match' 
+      };
     }
   };
 
@@ -214,8 +251,7 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
   const summaryStats = useCallback(() => {
     const uniqueItems = items.length;
     const totalQuantity = items.reduce((sum, item) => sum + (parseFloat(item.quantity) || 0), 0);
-    const totalAmount = items.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
-    return { uniqueItems, totalQuantity, totalAmount };
+    return { uniqueItems, totalQuantity };
   }, [items]);
 
   const stats = summaryStats();
@@ -250,7 +286,7 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
       title: 'Quantity',
       dataIndex: 'quantity',
       key: 'quantity',
-      width: 150,
+      width: 180,
       render: (_, record, index) => {
         const currentQty = parseFloat(items[index]?.quantity) || 0;
         const originalQty = items[index]?.originalIndentQty;
@@ -271,7 +307,13 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
               />
             </Form.Item>
             {variance && (
-              <Tooltip title={`${variance.text}: ${originalQty} (Indent) vs ${currentQty} (PO)`}>
+              <Tooltip 
+                title={
+                  variance.type === 'over' 
+                    ? `Over-ordering by ${variance.diff} units: ${originalQty} (Indent) vs ${currentQty} (PO)`
+                    : `${variance.text}: ${originalQty} (Indent) vs ${currentQty} (PO)`
+                }
+              >
                 <Tag color={variance.color} icon={variance.icon} style={{ margin: 0 }}>
                   {variance.text}
                 </Tag>
@@ -317,7 +359,7 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
         <>
           <Form.Item
             name={['items', index, 'amount']}
-            style={{ display: 'none' }} // Hidden input to keep form sync
+            style={{ display: 'none' }}
           >
              <Input />
           </Form.Item>
@@ -455,11 +497,11 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
             </Col>
             <Col xs={24} sm={8}>
               <Statistic
-                title="Total Amount"
-                value={stats.totalAmount}
+                title="Sub Total"
+                value={subTotal}
                 prefix="₹"
                 precision={2}
-                valueStyle={{ color: '#52c41a', fontSize: '20px', fontWeight: 'bold' }}
+                valueStyle={{ color: '#1890ff', fontSize: '18px', fontWeight: 'bold' }}
               />
             </Col>
           </Row>
@@ -487,21 +529,56 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
         />
       </Form.Item>
 
-      {/* Hidden total field for form submission */}
+      {/* Tax and Totals Section */}
+      <div style={{ display: 'flex', gap: '20px', marginBottom: 16, flexWrap: 'wrap' }}>
+        <Form.Item
+          label="Tax %"
+          name="taxRate"
+          style={{ flex: 1, minWidth: '150px' }}
+        >
+          <InputNumber
+            min={0}
+            max={100}
+            style={{ width: '100%' }}
+            placeholder="Tax Rate"
+            onChange={handleTaxRateChange}
+            suffix="%"
+          />
+        </Form.Item>
+        <div style={{ flex: 2, minWidth: '200px', paddingTop: '32px' }}>
+          <div style={{ textAlign: 'right' }}>
+            <div style={{ marginBottom: 8 }}>
+              <strong>Sub Total: </strong>
+              <span style={{ fontSize: '16px' }}>₹{subTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+            </div>
+            {taxRate > 0 && (
+              <div style={{ marginBottom: 8 }}>
+                <strong>Tax ({taxRate}%): </strong>
+                <span style={{ fontSize: '16px' }}>₹{taxTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+              </div>
+            )}
+            <div style={{ padding: '10px', background: '#f6ffed', border: '1px solid #b7eb8f', borderRadius: 4 }}>
+              <strong>Grand Total: </strong>
+              <span style={{ fontSize: '20px', fontWeight: 'bold', color: '#389e0d' }}>
+                ₹{totalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Hidden fields for form submission */}
+      <Form.Item name="subTotal" hidden>
+        <InputNumber />
+      </Form.Item>
+      <Form.Item name="taxTotal" hidden>
+        <InputNumber />
+      </Form.Item>
       <Form.Item name="totalAmount" hidden>
         <InputNumber />
       </Form.Item>
 
-      {totalAmount > 0 && (
-        <div style={{ marginBottom: 16, padding: 10, background: '#f6ffed', border: '1px solid #b7eb8f', borderRadius: 4, textAlign: 'right' }}>
-          <strong>Total Amount: </strong>
-          <span style={{ fontSize: '18px', fontWeight: 'bold', color: '#389e0d' }}>
-            ₹{totalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-          </span>
-        </div>
-      )}
-
-      <Form.Item label="Terms & Conditions" name="terms">
+      <Form.Item label="Terms & Conditions" name="termsAndConditions">
         <Input.TextArea rows={3} placeholder="Payment terms, delivery terms, etc." />
       </Form.Item>
 
@@ -513,6 +590,37 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
 }
 
 export default function PurchaseOrder() {
+  const { result: currentRequest } = useSelector(selectCurrentItem);
+  const [pdfLoading, setPdfLoading] = useState(false);
+
+  const handleDownloadPDF = async () => {
+    if (!currentRequest?._id) {
+      message.error('No Purchase Order selected');
+      return;
+    }
+
+    setPdfLoading(true);
+    try {
+      const pdfUrl = `${API_BASE_URL}inventory/purchase-order/pdf/${currentRequest._id}`;
+      const link = document.createElement('a');
+      link.href = pdfUrl;
+      link.target = '_blank';
+      link.download = `PO-${currentRequest.year}-${String(currentRequest.number).padStart(4, '0')}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      // Give it a moment for the download to start
+      setTimeout(() => {
+        setPdfLoading(false);
+      }, 1000);
+    } catch (error) {
+      console.error('Error downloading PDF:', error);
+      message.error('Failed to download PDF');
+      setPdfLoading(false);
+    }
+  };
+
   const config = {
     entity: 'inventory/purchase-order',
     PANEL_TITLE: 'Purchase Order',
@@ -534,7 +642,18 @@ export default function PurchaseOrder() {
         { title: 'Date', dataIndex: 'date', render: (date) => (date ? dayjs(date).format('DD/MM/YYYY') : '-') },
         { title: 'Status', dataIndex: 'status', render: (status) => <Tag>{status}</Tag> },
         { title: 'Total', dataIndex: 'totalAmount', render: (val) => `₹${(val || 0).toLocaleString('en-IN')}` },
-    ]
+    ],
+    extra: currentRequest?._id ? [
+      <Button
+        key="pdf"
+        type="primary"
+        icon={<FilePdfOutlined />}
+        onClick={handleDownloadPDF}
+        loading={pdfLoading}
+      >
+        Download PDF
+      </Button>
+    ] : []
   };
 
   return (

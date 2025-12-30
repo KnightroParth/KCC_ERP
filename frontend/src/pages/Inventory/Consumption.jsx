@@ -8,29 +8,33 @@ import CrudModule from '@/modules/CrudModule/CrudModule';
 import AutoCompleteAsync from '@/components/AutoCompleteAsync';
 import SelectAsync from '@/components/SelectAsync';
 import { request } from '@/request';
-import useLanguage from '@/locale/useLanguage';
+import { API_BASE_URL } from '@/config/serverApiConfig';
 import storePersist from '@/redux/storePersist';
+import dayjs from 'dayjs';
+
+// Helper function to include token
+function includeToken() {
+  axios.defaults.baseURL = API_BASE_URL;
+  axios.defaults.withCredentials = true;
+  const auth = storePersist.get('auth');
+  if (auth) {
+    axios.defaults.headers.common['Authorization'] = `Bearer ${auth.current.token}`;
+  }
+}
 
 function ConsumptionForm({ isUpdateForm = false }) {
-  const translate = useLanguage();
   const form = Form.useFormInstance();
   const [items, setItems] = useState([]);
   const [stockInfo, setStockInfo] = useState({});
+  const [canSave, setCanSave] = useState(true);
 
   const checkStock = async (projectId, materialId) => {
     if (!projectId || !materialId) return;
 
     try {
-      const auth = storePersist.get('auth');
-      const token = auth?.current?.token;
-      
+      includeToken();
       const res = await axios.get(
-        `${import.meta.env.VITE_BACKEND_SERVER || 'http://localhost:8888/'}api/inventory/inventory/getCurrentStock?projectId=${projectId}&materialId=${materialId}`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
+        `inventory/inventory/getCurrentStock?projectId=${projectId}&materialId=${materialId}`
       ).then(res => res.data).catch(err => ({ result: null }));
       
       if (res?.result) {
@@ -38,11 +42,41 @@ function ConsumptionForm({ isUpdateForm = false }) {
           ...stockInfo,
           [materialId]: res.result,
         });
+      } else {
+        setStockInfo({
+          ...stockInfo,
+          [materialId]: { currentStock: 0, material: null },
+        });
       }
     } catch (error) {
       console.error('Error checking stock:', error);
+      setStockInfo({
+        ...stockInfo,
+        [materialId]: { currentStock: 0, material: null },
+      });
     }
   };
+
+  // Check if any item exceeds available stock
+  useEffect(() => {
+    const projectId = form.getFieldValue('projectId');
+    if (!projectId) {
+      setCanSave(true);
+      return;
+    }
+
+    let hasInsufficientStock = false;
+    items.forEach(item => {
+      if (item.material) {
+        const stock = stockInfo[item.material];
+        if (stock && item.quantity > stock.currentStock) {
+          hasInsufficientStock = true;
+        }
+      }
+    });
+
+    setCanSave(!hasInsufficientStock);
+  }, [items, stockInfo, form]);
 
   const addItem = () => {
     setItems([
@@ -57,7 +91,8 @@ function ConsumptionForm({ isUpdateForm = false }) {
   };
 
   const removeItem = (key) => {
-    setItems(items.filter((item) => item.key !== key));
+    const newItems = items.filter((item) => item.key !== key);
+    setItems(newItems);
     const newStockInfo = { ...stockInfo };
     const removedItem = items.find(item => item.key === key);
     if (removedItem?.material) {
@@ -88,34 +123,47 @@ function ConsumptionForm({ isUpdateForm = false }) {
     {
       title: 'Material',
       key: 'material',
-      width: '35%',
-      render: (_, record, index) => (
-        <Form.Item
-          name={['items', index, 'material']}
-          rules={[{ required: true, message: 'Select material' }]}
-          style={{ margin: 0 }}
-        >
-          <AutoCompleteAsync
-            entity="material"
-            displayLabels={['name', 'category']}
-            searchFields="name,category"
-            outputValue="_id"
-            placeholder="Search material..."
-            onChange={(value) => updateItem(record.key, 'material', value)}
-          />
-        </Form.Item>
-      ),
+      width: '30%',
+      render: (_, record, index) => {
+        const stock = record.material ? stockInfo[record.material] : null;
+        const available = stock?.currentStock || 0;
+        
+        return (
+          <div>
+            <Form.Item
+              name={['items', index, 'material']}
+              rules={[{ required: true, message: 'Select material' }]}
+              style={{ margin: 0 }}
+            >
+              <AutoCompleteAsync
+                entity="material"
+                displayLabels={['name', 'category']}
+                searchFields="name,category"
+                outputValue="_id"
+                placeholder="Search material..."
+                onChange={(value) => updateItem(record.key, 'material', value)}
+              />
+            </Form.Item>
+            {record.material && stock && (
+              <div style={{ marginTop: 4, fontSize: '12px', color: available > 0 ? '#52c41a' : '#ff4d4f' }}>
+                Available: {available.toFixed(2)} {stock.material?.uom || 'nos'}
+              </div>
+            )}
+          </div>
+        );
+      },
     },
     {
       title: 'Available Stock',
       key: 'stock',
-      width: '20%',
+      width: '15%',
       render: (_, record) => {
         const info = stockInfo[record.material];
-        if (!info) return <Tag>-</Tag>;
+        if (!info || !record.material) return <Tag>-</Tag>;
+        const color = info.currentStock > 0 ? 'green' : 'red';
         return (
-          <Tag color={info.currentStock > 0 ? 'green' : 'red'}>
-            {info.currentStock} {info.material?.uom || 'nos'}
+          <Tag color={color}>
+            {info.currentStock.toFixed(2)} {info.material?.uom || 'nos'}
           </Tag>
         );
       },
@@ -127,6 +175,8 @@ function ConsumptionForm({ isUpdateForm = false }) {
       render: (_, record, index) => {
         const info = stockInfo[record.material];
         const maxQty = info?.currentStock || 0;
+        const currentQty = items[index]?.quantity || 0;
+        const exceedsStock = currentQty > maxQty;
         
         return (
           <Form.Item
@@ -136,13 +186,18 @@ function ConsumptionForm({ isUpdateForm = false }) {
               {
                 validator: (_, value) => {
                   if (value > maxQty) {
-                    return Promise.reject(`Insufficient stock. Available: ${maxQty}`);
+                    return Promise.reject(`Insufficient stock. Available: ${maxQty.toFixed(2)}`);
+                  }
+                  if (value <= 0) {
+                    return Promise.reject('Quantity must be greater than 0');
                   }
                   return Promise.resolve();
                 },
               },
             ]}
             style={{ margin: 0 }}
+            validateStatus={exceedsStock ? 'error' : ''}
+            help={exceedsStock ? `Exceeds available stock (${maxQty.toFixed(2)})` : ''}
           >
             <InputNumber
               min={0.01}
@@ -204,6 +259,35 @@ function ConsumptionForm({ isUpdateForm = false }) {
     }
   }, [form.getFieldValue('projectId')]);
 
+  // Override form submission to check stock before saving
+  const handleSubmit = async () => {
+    const projectId = form.getFieldValue('projectId');
+    if (!projectId) {
+      message.error('Please select a project');
+      return;
+    }
+
+    // Final check before submission
+    let hasError = false;
+    for (const item of items) {
+      if (item.material) {
+        const stock = stockInfo[item.material];
+        if (!stock || item.quantity > stock.currentStock) {
+          hasError = true;
+          message.error(`Insufficient stock for ${stock?.material?.name || 'selected material'}. Available: ${stock?.currentStock || 0}`);
+          break;
+        }
+      }
+    }
+
+    if (hasError) {
+      return;
+    }
+
+    // Proceed with normal form submission
+    return true;
+  };
+
   return (
     <>
       <Form.Item
@@ -239,7 +323,7 @@ function ConsumptionForm({ isUpdateForm = false }) {
         name="date"
         rules={[{ required: true, message: 'Please select date' }]}
       >
-        <DatePicker style={{ width: '100%' }} />
+        <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
       </Form.Item>
 
       <Form.Item label="Items" required>
@@ -257,8 +341,14 @@ function ConsumptionForm({ isUpdateForm = false }) {
             columns={columns}
             pagination={false}
             size="small"
+            rowKey="key"
           />
         </Form.Item>
+        {!canSave && (
+          <div style={{ marginTop: 8, padding: 8, background: '#fff2e8', border: '1px solid #ffbb96', borderRadius: 4 }}>
+            <Tag color="error">Cannot save: One or more items exceed available stock</Tag>
+          </div>
+        )}
       </Form.Item>
 
       <Form.Item label="Notes" name="notes">
@@ -293,7 +383,7 @@ export default function Consumption() {
       title: 'Date',
       dataIndex: 'date',
       key: 'date',
-      render: (date) => (date ? new Date(date).toLocaleDateString() : '-'),
+      render: (date) => (date ? dayjs(date).format('DD/MM/YYYY') : '-'),
     },
     {
       title: 'Project',

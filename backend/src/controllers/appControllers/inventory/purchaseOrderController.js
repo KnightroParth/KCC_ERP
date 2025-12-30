@@ -3,6 +3,13 @@
 const mongoose = require('mongoose');
 const createCRUDController = require('@/controllers/middlewaresControllers/createCRUDController');
 const PurchaseOrder = mongoose.model('PurchaseOrder');
+const pug = require('pug');
+const path = require('path');
+const fs = require('fs');
+const moment = require('moment');
+const { loadSettings } = require('@/middlewares/settings');
+const useLanguage = require('@/locale/useLanguage');
+const { useMoney, useDate } = require('@/settings');
 
 const purchaseOrderController = () => {
   const methods = createCRUDController('PurchaseOrder');
@@ -22,9 +29,12 @@ const purchaseOrderController = () => {
       if (status && status !== 'All') query.status = status;
 
       const result = await Model.find(query)
-        .populate('supplier', 'name phone email')
+        .populate('supplier', 'name phone email address')
         .populate('referenceRequirement', 'requestDate priority')
-        .populate('items.material', 'name category uom')
+        .populate({
+          path: 'items.material',
+          select: 'name code unit uom category',
+        })
         .sort({ [sort]: sortValue })
         .skip(skip)
         .limit(parseInt(items));
@@ -53,15 +63,18 @@ const purchaseOrderController = () => {
     }
   };
 
-  // Override read to populate supplier
+  // Override read to populate supplier and materials
   methods.read = async (req, res) => {
     try {
       const { id } = req.params;
 
       const result = await PurchaseOrder.findOne({ _id: id, removed: false })
-        .populate('supplier', 'name phone email')
+        .populate('supplier', 'name phone email address')
         .populate('referenceRequirement', 'requestDate priority')
-        .populate('items.material', 'name category uom');
+        .populate({
+          path: 'items.material',
+          select: 'name code unit uom category',
+        });
 
       if (!result) {
         return res.status(404).json({
@@ -91,9 +104,12 @@ const purchaseOrderController = () => {
       const { id } = req.params;
 
       const result = await PurchaseOrder.findById(id)
-        .populate('supplier', 'name phone email')
+        .populate('supplier', 'name phone email address')
         .populate('referenceRequirement', 'requestDate priority')
-        .populate('items.material', 'name category uom specifications');
+        .populate({
+          path: 'items.material',
+          select: 'name code unit uom category specifications',
+        });
 
       if (!result) {
         return res.status(404).json({
@@ -107,6 +123,137 @@ const purchaseOrderController = () => {
         success: true,
         result,
         message: 'Purchase Order found',
+      });
+    } catch (error) {
+      return res.status(500).json({
+        success: false,
+        result: null,
+        message: error.message,
+      });
+    }
+  };
+
+  // PDF generation method
+  methods.pdf = async (req, res) => {
+    try {
+      const { id } = req.params;
+
+      // Fetch PO with all populations
+      const po = await PurchaseOrder.findOne({ _id: id, removed: false })
+        .populate('supplier', 'name phone email address')
+        .populate('referenceRequirement.projectId', 'name projectCode address')
+        .populate({
+          path: 'items.material',
+          select: 'name code unit uom category',
+        })
+        .lean();
+
+      if (!po) {
+        return res.status(404).json({
+          success: false,
+          result: null,
+          message: 'Purchase Order not found',
+        });
+      }
+
+      // Calculate totals if missing
+      let subTotal = 0;
+      if (po.items && po.items.length > 0) {
+        po.items.forEach((item) => {
+          if (!item.amount) {
+            item.amount = (item.quantity || 0) * (item.rate || 0);
+          }
+          subTotal += item.amount;
+        });
+      }
+
+      if (!po.subTotal) po.subTotal = subTotal;
+      if (!po.taxRate) po.taxRate = 0;
+      if (!po.taxTotal) po.taxTotal = (po.subTotal * po.taxRate) / 100;
+      if (!po.totalAmount) po.totalAmount = po.subTotal + po.taxTotal;
+
+      // Handle missing materials gracefully
+      po.items = po.items.map((item) => {
+        if (!item.material || typeof item.material !== 'object') {
+          item.material = {
+            name: 'Unknown Material',
+            code: '-',
+            unit: 'nos',
+            uom: 'nos',
+            category: '-',
+          };
+        }
+        return item;
+      });
+
+      // Load settings
+      const settings = await loadSettings();
+      const selectedLang = settings['idurar_app_language'] || 'en';
+      const translate = useLanguage({ selectedLang });
+
+      const {
+        currency_symbol,
+        currency_position,
+        decimal_sep,
+        thousand_sep,
+        cent_precision,
+        zero_format,
+      } = settings;
+
+      const { moneyFormatter } = useMoney({
+        settings: {
+          currency_symbol,
+          currency_position,
+          decimal_sep,
+          thousand_sep,
+          cent_precision,
+          zero_format,
+        },
+      });
+
+      const { dateFormat } = useDate({ settings });
+      settings.public_server_file = process.env.PUBLIC_SERVER_FILE || '';
+
+      // Render PDF template
+      const templatePath = path.join(__dirname, '../../../pdf/PurchaseOrder.pug');
+      
+      if (!fs.existsSync(templatePath)) {
+        return res.status(500).json({
+          success: false,
+          result: null,
+          message: 'PDF template not found',
+        });
+      }
+
+      const htmlContent = pug.renderFile(templatePath, {
+        model: po,
+        settings,
+        translate,
+        dateFormat,
+        moneyFormatter,
+        moment: moment,
+      });
+
+      // Generate PDF
+      const pdf = require('html-pdf');
+      const pdfOptions = {
+        format: 'A4',
+        orientation: 'portrait',
+        border: '10mm',
+      };
+
+      pdf.create(htmlContent, pdfOptions).toBuffer((error, buffer) => {
+        if (error) {
+          return res.status(500).json({
+            success: false,
+            result: null,
+            message: 'Error generating PDF: ' + error.message,
+          });
+        }
+
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename=PO-${po.year}-${String(po.number).padStart(4, '0')}.pdf`);
+        res.send(buffer);
       });
     } catch (error) {
       return res.status(500).json({

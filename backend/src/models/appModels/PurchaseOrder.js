@@ -12,12 +12,10 @@ const PurchaseOrderSchema = new mongoose.Schema(
     },
     number: {
       type: Number,
-      // required: true, // REMOVED: Auto-generated in pre-save
       index: true,
     },
     year: {
       type: Number,
-      // required: true, // REMOVED: Auto-generated in pre-save
       index: true,
     },
     supplier: {
@@ -47,42 +45,67 @@ const PurchaseOrderSchema = new mongoose.Schema(
       default: 'Draft',
       index: true,
     },
-    items: [
-      {
-        material: {
-          type: mongoose.Schema.Types.ObjectId,
-          ref: 'Material',
-          required: true,
+    items: {
+      type: [
+        {
+          material: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'Material',
+            required: true,
+          },
+          quantity: {
+            type: Number,
+            required: true,
+            min: 0.01,
+          },
+          rate: {
+            type: Number,
+            required: true,
+            min: 0,
+          },
+          amount: {
+            type: Number,
+            min: 0,
+          },
+          receivedQuantity: {
+            type: Number,
+            default: 0,
+          },
+          originalIndentQty: {
+            type: Number,
+            min: 0,
+          },
         },
-        quantity: {
-          type: Number,
-          required: true,
-          min: 0.01,
+      ],
+      validate: {
+        validator: function (items) {
+          return items && items.length > 0;
         },
-        rate: {
-          type: Number,
-          required: true,
-          min: 0,
-        },
-        amount: {
-          type: Number,
-          // required: true, // REMOVED: Calculated in pre-save
-          min: 0,
-        },
-        receivedQuantity: {
-          type: Number,
-          default: 0,
-        },
-        originalIndentQty: {
-          type: Number,
-          min: 0,
-        },
+        message: 'Purchase Order must have at least one item',
       },
-    ],
+    },
+    subTotal: {
+      type: Number,
+      default: 0,
+    },
+    taxRate: {
+      type: Number,
+      default: 0,
+      min: 0,
+      max: 100,
+    },
+    taxTotal: {
+      type: Number,
+      default: 0,
+    },
     totalAmount: {
       type: Number,
       required: true,
       default: 0,
+    },
+    termsAndConditions: {
+      type: String,
+      trim: true,
     },
     terms: {
       type: String,
@@ -132,20 +155,22 @@ PurchaseOrderSchema.pre('save', async function (next) {
     this.expectedDeliveryDate = expectedDate;
   }
 
-  // 3. Calculate Item Amounts & Total Amount
+  // 3. Calculate Item Amounts & Subtotal
+  let subTotal = 0;
   if (this.items && this.items.length > 0) {
-    let total = 0;
-    
     this.items.forEach((item) => {
       // Calculate item amount automatically
       item.amount = (item.quantity || 0) * (item.rate || 0);
-      total += item.amount;
+      subTotal += item.amount;
     });
-
-    this.totalAmount = total;
+    this.subTotal = subTotal;
   } else {
-    this.totalAmount = 0;
+    this.subTotal = 0;
   }
+
+  // 4. Calculate Tax and Total
+  this.taxTotal = (this.subTotal * (this.taxRate || 0)) / 100;
+  this.totalAmount = this.subTotal + this.taxTotal;
 
   this.updated = new Date();
   next();

@@ -1,0 +1,364 @@
+doctype html
+html
+  head
+    link(rel="shortcut icon" type="image/png" href="/images/icons/favicon.png")
+    meta(name="viewport" content="width=device-width, initial-scale=1")
+    style.
+      .sheet {
+        margin: 0;
+        width: 100%; 
+        height: 297mm;
+      }
+
+      body{
+        width: 100%; 
+        margin: 0;
+        padding: 0px ;
+        background: #ffffff;
+        font-family: sans-serif;
+        font-size:12px;
+        color:#222
+      }
+      *, *:before, *:after {
+        box-sizing: inherit;
+        color:#222
+      }
+
+      .clearfix {
+        display: block; }
+      .left{
+        float:left;
+      }
+      .right{
+        float:right;
+      }
+      .top-area {    
+        display: block;
+        width:100%;
+        
+      }
+      alignRight :{
+        text-align: right !important;
+      }
+      alignLeft :{
+        text-align: left;
+      }
+      .logo {
+        width: 150px;
+      }
+      .company-info{
+        text-align: right;
+        font-size:12px;
+      }
+      h1.po{
+        font-size:32px;
+        color:#52008c;
+        margin-top:0;
+      }
+      p.strong{
+        font-weight:700;
+      }
+      .billTo p, .shipTo p {
+        text-align: left !important;
+        float:left;
+        display:block;
+        font-size:12px;
+        width:100%;
+        margin-top:0;
+        margin-bottom:5px;
+        
+      }
+
+      .tableHeader{
+        color:#52008c;
+      }
+      .clearfix {
+        display: block; }
+      .col {
+        float:left;
+      }
+      .col-1 {
+        width: 4.16667%; }
+
+      .col-2 {
+        width: 8.33333%; }
+
+      .col-3 {
+        width: 12.5%; }
+
+      .col-4 {
+        width: 16.66667%; }
+
+      .col-5 {
+        width: 20.83333%; }
+
+      .col-6 {
+        width: 25%; }
+
+      .col-7 {
+        width: 29.16667%; }
+
+      .col-8 {
+        width: 33.33333%; }
+
+      .col-9 {
+        width: 37.5%; }
+
+      .col-10 {
+        width: 41.66667%; }
+
+      .col-11 {
+        width: 45.83333%; }
+
+      .col-12 {
+        width: 50%; }
+
+      .col-13 {
+        width: 54.16667%; }
+
+      .col-14 {
+        width: 58.33333%; }
+
+      .col-15 {
+        width: 62.5%; }
+
+      .col-16 {
+        width: 66.66667%; }
+
+      .col-17 {
+        width: 70.83333%; }
+
+      .col-18 {
+        width: 75%; }
+
+      .col-19 {
+        width: 79.16667%; }
+
+      .col-20 {
+        width: 83.33333%; }
+
+      .col-21 {
+        width: 87.5%; }
+
+      .col-22 {
+        width: 91.66667%; }
+
+      .col-23 {
+        width: 95.83333%; }
+
+      .col-24 {
+        width: 100%; }
+      .space {
+        margin-top: 20px;
+        margin-bottom: 20px;
+        width:100%;
+      }
+      .top-area .number-po > h1 {
+        font-weight: 500;
+      }
+      .about-po {
+        padding: 0px 15px;
+        margin-top: 10px;
+        font-size: 13px;
+      }
+      .project-po {
+        float: left;
+        margin-bottom: 10px;
+      }
+      .project-po span {
+        color: #5d6975;
+        text-align: right;
+        width: 52px;
+        margin-right: 10px;
+        display: inline-block;
+        font-size: 0.8em;
+      }
+      .company-po {
+        float: right;
+        text-align: right;
+        margin-bottom: 60px;
+      }
+      .project-po div, .company-po div {
+        white-space: nowrap;
+        margin: 5px auto;
+      }
+      .table-po {
+        width: 100%;
+        border-collapse: collapse;
+        border-spacing: 0;
+        margin-bottom: 20px;
+      }
+      .table-po tr:nth-child(2n-1) td {
+        background: #fcfeff;
+      }
+      .table-po th, .table-po td {
+        text-align: center;
+      }
+      .table-po th {
+        padding: 8px 10px;
+        border-bottom: 1px solid #c2e0f2;
+        color:#52008c;
+        white-space: nowrap;
+        font-weight: 700;
+        font-size: 12px;
+        text-align: right;
+      }
+      tbody{
+        border-bottom: 1px solid #c2e0f2;
+      }
+      .table-po .material, .table-po .desc {
+        text-align: left;
+      }
+      .table-po td {
+        padding: 10px ;
+        text-align: right;
+        font-size: 11px;
+      }
+      .table-po td.material, .table-po td.desc {
+        vertical-align: top;
+      }
+      .table-po td.unit, .table-po td.qty, .table-po td.total {
+        
+      }
+      .table-po td.grand {
+        border-top: 1px solid #5d6975;
+      }
+      .material span{
+        display:block;
+        clear:both;
+        width : 100%;
+        color:#666;
+        margin-top:5px;
+        font-size:10px;
+      }
+      .notice-po {
+        padding: 15px;
+        font-size: 11px;
+        color: #5d6975;
+      }
+      .footer-po {
+        margin-top:30px;
+        color: #5d6975;
+        width: 100%;
+        position: absolute;
+        bottom: 0;
+        padding: 20px 0;
+        text-align: center;
+      }
+      .signature-box {
+        margin-top: 40px;
+        border: 1px solid #c2e0f2;
+        padding: 15px;
+        width: 300px;
+        float: right;
+      }
+      .signature-box p {
+        margin: 5px 0;
+        font-size: 11px;
+      }
+      .terms-box {
+        margin-top: 20px;
+        padding: 15px;
+        border: 1px solid #c2e0f2;
+        font-size: 11px;
+        color: #5d6975;
+      }
+
+  body
+    header.clearfix
+      .top-area
+        img.logo.left(src=settings.public_server_file+settings.company_logo)
+        .right.company-info
+            p.strong #{settings.company_name}
+            p #{settings.company_address}
+            p #{settings.company_reg_number}
+            
+      .col.col-24
+        .space  
+      .left.col-14
+          h1.po
+            | Purchase Order
+          div 
+            .col.col-7
+              p.strong Date :
+              p #{moment(model.date).format(dateFormat)}
+            .col.col-9
+              p.strong Expected Delivery :
+              p #{model.expectedDeliveryDate ? moment(model.expectedDeliveryDate).format(dateFormat) : 'N/A'}
+            .col.col-8 
+              p.strong PO Number :
+              p PO-#{model.year || ""}-#{String(model.number || "").padStart(4, '0')}
+            .col.col-8
+              p.strong Status :
+              p #{model.status || 'Draft'}
+              
+      .right.col-10
+          .billTo
+              p.strong To: #{model.supplier ? (model.supplier.name || 'N/A') : 'N/A'}
+              p #{model.supplier ? (model.supplier.address || '') : ''}
+              p Phone: #{model.supplier ? (model.supplier.phone || 'N/A') : 'N/A'}
+              p Email: #{model.supplier ? (model.supplier.email || 'N/A') : 'N/A'}
+          .shipTo
+              p.strong Ship To: #{settings.company_name}
+              p #{settings.company_address}
+              p Contact: #{settings.company_phone || 'N/A'}
+        .col.col-24
+          .space  
+    main
+      table.table-po
+        thead
+          tr.tableHeader
+            th(style="width: 5%") S.No
+            th.material(style="width: 30%") Material
+            th(style="width: 10%") Unit
+            th(style="width: 12%") Quantity
+            th(style="width: 15%") Rate
+            th(style="width: 18%") Amount
+        tbody
+          each item, index in model.items
+            tr
+              td #{index + 1}
+              td.material #{item.material ? (item.material.name || 'Unknown Material') : 'Unknown Material'}
+                if item.material && item.material.code
+                  span Code: #{item.material.code}
+                if item.material && item.material.category
+                  span Category: #{item.material.category}
+              td.unit #{item.material ? (item.material.uom || item.material.unit || 'nos') : 'nos'}
+              td.qty #{item.quantity || 0}
+              td.unit #{moneyFormatter({amount:item.rate || 0})}
+              td.total #{moneyFormatter({amount:item.amount || 0})}
+          tr
+            td(colspan='5', style="text-align: right; font-weight: bold") SUB TOTAL
+            td.total #{moneyFormatter({amount:model.subTotal || 0})}
+          if model.taxRate && model.taxRate > 0
+            tr
+              td(colspan='5', style="text-align: right; font-weight: bold") TAX (#{model.taxRate}%)
+              td.total #{moneyFormatter({amount:model.taxTotal || 0})}
+          tr
+            td.grand.total(colspan='5', style="text-align: right; font-weight: bold; font-size: 14px") GRAND TOTAL
+            td.grand.total(style="font-weight: bold; font-size: 14px") #{moneyFormatter({amount:model.totalAmount || 0})}
+      
+    .col.col-24
+        .space     
+    
+    .terms-box
+      if model.termsAndConditions
+        p.strong Terms & Conditions:
+        p #{model.termsAndConditions}
+      else if model.terms
+        p.strong Terms & Conditions:
+        p #{model.terms}
+      else
+        p.strong Terms & Conditions:
+        p Standard terms and conditions apply.
+    
+    .signature-box
+      p.strong Authorized Signatory
+      p _________________________
+      p Name: ___________________
+      p Date: ___________________
+      p Seal: ___________________
+    
+    footer.footer-po
+      | This is a computer-generated document and is valid without signature.
+

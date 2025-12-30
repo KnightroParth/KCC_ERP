@@ -58,6 +58,7 @@ router.route('/purchase-order/search').get(catchErrors(purchaseOrderController.s
 router.route('/purchase-order/filter').get(catchErrors(purchaseOrderController.filter));
 router.route('/purchase-order/summary').get(catchErrors(purchaseOrderController.summary));
 router.route('/purchase-order/getForGRN/:id').get(catchErrors(purchaseOrderController.getForGRN));
+router.route('/purchase-order/pdf/:id').get(catchErrors(purchaseOrderController.pdf));
 
 // Stock Transaction routes
 router.route('/transaction/create').post(catchErrors(stockTransactionController.create));

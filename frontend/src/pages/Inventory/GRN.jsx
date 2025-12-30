@@ -30,9 +30,8 @@ function GRNForm({ isUpdateForm = false }) {
           materialName: item.material?.name || 'Unknown Material',
           orderedQty: parseFloat(item.quantity) || 0,
           receivedQty: parseFloat(item.receivedQuantity) || 0,
-          pendingQty: (parseFloat(item.quantity) || 0) - (parseFloat(item.receivedQuantity) || 0),
+          pendingQty: Math.max(0, (parseFloat(item.quantity) || 0) - (parseFloat(item.receivedQuantity) || 0)),
           rate: parseFloat(item.rate) || 0,
-          // Default receive amount is pending amount
           currentReceive: Math.max(0, (parseFloat(item.quantity) || 0) - (parseFloat(item.receivedQuantity) || 0))
         }));
 
@@ -42,7 +41,7 @@ function GRNForm({ isUpdateForm = false }) {
         form.setFieldsValue({
           purchaseOrder: poId,
           projectId: po.referenceRequirement?.projectId?._id || po.referenceRequirement?.projectId || null,
-          date: dayjs(), // FIXED: Use dayjs() for AntD DatePicker
+          date: dayjs(),
           items: items.map(item => ({
             material: item.material,
             quantity: item.currentReceive,
@@ -96,12 +95,23 @@ function GRNForm({ isUpdateForm = false }) {
     const item = newItems[index];
     const maxQty = item.pendingQty;
     
-    // Defensive check
+    // Strict limit: If user tries to receive more than pending, set back to pending and show error
     if (value > maxQty) {
-       // Allow user to type but show error in UI via validator
+      message.error(`Cannot receive more than pending quantity: ${maxQty}`);
+      form.setFieldValue(['items', index, 'quantity'], maxQty);
+      item.currentReceive = maxQty;
+      setPoItems(newItems);
+      return;
     }
     
-    // Sync to state to update UI if needed (though Form handles input)
+    if (value < 0) {
+      message.error('Quantity cannot be negative');
+      form.setFieldValue(['items', index, 'quantity'], 0);
+      item.currentReceive = 0;
+      setPoItems(newItems);
+      return;
+    }
+    
     item.currentReceive = value;
     setPoItems(newItems);
   };
@@ -111,31 +121,26 @@ function GRNForm({ isUpdateForm = false }) {
       title: 'Material',
       dataIndex: 'materialName',
       key: 'materialName',
-      width: '30%',
+      width: '25%',
     },
     {
       title: 'Ordered',
       dataIndex: 'orderedQty',
       key: 'orderedQty',
-      width: '15%',
+      width: '12%',
+      render: (qty) => qty.toFixed(2),
     },
     {
-      title: 'Prev Received',
+      title: 'Received So Far',
       dataIndex: 'receivedQty',
       key: 'receivedQty',
-      width: '15%',
+      width: '12%',
+      render: (qty) => qty.toFixed(2),
     },
     {
-      title: 'Pending',
-      dataIndex: 'pendingQty',
-      key: 'pendingQty',
-      width: '15%',
-      render: (qty) => <Tag color={qty > 0 ? 'orange' : 'green'}>{qty}</Tag>,
-    },
-    {
-      title: 'Receive Now',
+      title: 'Receiving Now',
       key: 'quantity',
-      width: '20%',
+      width: '15%',
       render: (_, record, index) => (
         <Form.Item
           name={['items', index, 'quantity']}
@@ -144,7 +149,7 @@ function GRNForm({ isUpdateForm = false }) {
             {
               validator: (_, value) => {
                 if (value > record.pendingQty) {
-                  return Promise.reject(`Max pending: ${record.pendingQty}`);
+                  return Promise.reject(`Max: ${record.pendingQty.toFixed(2)}`);
                 }
                 if (value < 0) {
                   return Promise.reject('Cannot be negative');
@@ -157,7 +162,7 @@ function GRNForm({ isUpdateForm = false }) {
         >
           <InputNumber
             min={0}
-            max={record.pendingQty} // Hardware limit on input
+            max={record.pendingQty}
             step={0.01}
             style={{ width: '100%' }}
             onChange={(value) => updateReceivedQty(index, value)}
@@ -165,6 +170,23 @@ function GRNForm({ isUpdateForm = false }) {
           />
         </Form.Item>
       ),
+    },
+    {
+      title: 'Remaining',
+      dataIndex: 'pendingQty',
+      key: 'pendingQty',
+      width: '12%',
+      render: (qty) => {
+        const color = qty > 0 ? 'orange' : 'green';
+        return <Tag color={color}>{qty.toFixed(2)}</Tag>;
+      },
+    },
+    {
+      title: 'Rate',
+      dataIndex: 'rate',
+      key: 'rate',
+      width: '12%',
+      render: (rate) => `₹${(rate || 0).toFixed(2)}`,
     },
   ];
 

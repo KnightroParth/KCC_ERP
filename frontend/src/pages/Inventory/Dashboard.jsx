@@ -67,14 +67,14 @@ export default function InventoryDashboard() {
         entity: 'inventory/purchase-order', 
         options: { 
           status: 'Issued',
-          items: 100 // Get more items to show all pending shipments
+          items: 100
         } 
       });
 
       if (res?.success && res?.result) {
         // Filter and sort by expected delivery date (soonest first)
         const shipments = res.result
-          .filter(po => po.expectedDeliveryDate) // Only show POs with expected delivery date
+          .filter(po => po.expectedDeliveryDate)
           .map(po => ({
             ...po,
             expectedDeliveryDate: dayjs(po.expectedDeliveryDate),
@@ -92,6 +92,12 @@ export default function InventoryDashboard() {
       setLoadingShipments(false);
     }
   };
+
+  // Calculate total stock value
+  const totalStockValue = inventoryData.reduce((sum, record) => {
+    const value = (record.currentStock || 0) * (record.avgRate || 0);
+    return sum + value;
+  }, 0);
 
   const columns = [
     {
@@ -258,7 +264,7 @@ export default function InventoryDashboard() {
 
         {projectId && (
           <Row gutter={16} style={{ marginBottom: 24 }}>
-            <Col span={8}>
+            <Col span={6}>
               <Card>
                 <Statistic
                   title="Total Received"
@@ -268,7 +274,7 @@ export default function InventoryDashboard() {
                 />
               </Card>
             </Col>
-            <Col span={8}>
+            <Col span={6}>
               <Card>
                 <Statistic
                   title="Total Consumed"
@@ -278,7 +284,7 @@ export default function InventoryDashboard() {
                 />
               </Card>
             </Col>
-            <Col span={8}>
+            <Col span={6}>
               <Card>
                 <Statistic
                   title="Total Inventory Value"
@@ -288,13 +294,24 @@ export default function InventoryDashboard() {
                 />
               </Card>
             </Col>
+            <Col span={6}>
+              <Card>
+                <Statistic
+                  title="Total Stock Value"
+                  value={totalStockValue}
+                  precision={2}
+                  prefix="₹"
+                  valueStyle={{ color: '#52c41a', fontSize: '20px', fontWeight: 'bold' }}
+                />
+              </Card>
+            </Col>
           </Row>
         )}
       </Card>
 
       {/* Expected Incoming Shipments Section */}
       <Card 
-        title="Expected Incoming Shipments" 
+        title="Incoming Deliveries" 
         style={{ marginBottom: 24 }}
         loading={loadingShipments}
       >
