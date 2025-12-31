@@ -6,85 +6,64 @@ const PurchaseOrderSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
-    enabled: {
-      type: Boolean,
-      default: true,
+    createdBy: {
+      type: mongoose.Schema.ObjectId,
+      ref: 'Admin',
     },
     number: {
       type: Number,
+      required: true,
       index: true,
     },
     year: {
       type: Number,
-      index: true,
-    },
-    supplier: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Supplier',
       required: true,
-    },
-    referenceRequirement: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'StockRequirement',
+      index: true,
     },
     date: {
       type: Date,
-      required: true,
       default: Date.now,
     },
-    leadTimeDays: {
-      type: Number,
-      min: 0,
-    },
-    expectedDeliveryDate: {
+    expiredDate: {
       type: Date,
     },
-    status: {
-      type: String,
-      enum: ['Draft', 'Issued', 'Partially Received', 'Closed'],
-      default: 'Draft',
-      index: true,
+    supplier: {
+      type: mongoose.Schema.ObjectId,
+      ref: 'Supplier',
     },
-    items: {
-      type: [
-        {
-          material: {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: 'Material',
-            required: true,
-          },
-          quantity: {
-            type: Number,
-            required: true,
-            min: 0.01,
-          },
-          rate: {
-            type: Number,
-            required: true,
-            min: 0,
-          },
-          amount: {
-            type: Number,
-            min: 0,
-          },
-          receivedQuantity: {
-            type: Number,
-            default: 0,
-          },
-          originalIndentQty: {
-            type: Number,
-            min: 0,
-          },
+    referenceRequirement: {
+      type: mongoose.Schema.ObjectId,
+      ref: 'StockRequirement',
+    },
+    items: [
+      {
+        material: {
+          type: mongoose.Schema.ObjectId,
+          ref: 'Material',
         },
-      ],
-      validate: {
-        validator: function (items) {
-          return items && items.length > 0;
+        quantity: {
+          type: Number,
+          min: 0.01,
         },
-        message: 'Purchase Order must have at least one item',
+        rate: {
+          type: Number,
+          default: 0,
+          min: 0,
+        },
+        amount: {
+          type: Number,
+          default: 0,
+        },
+        receivedQuantity: {
+          type: Number,
+          default: 0,
+        },
+        originalIndentQty: {
+          type: Number,
+        },
       },
-    },
-    subTotal: {
+    ],
+    leadTimeDays: {
       type: Number,
       default: 0,
     },
@@ -94,24 +73,29 @@ const PurchaseOrderSchema = new mongoose.Schema(
       min: 0,
       max: 100,
     },
+    subTotal: {
+      type: Number,
+      default: 0,
+    },
     taxTotal: {
       type: Number,
       default: 0,
     },
     totalAmount: {
       type: Number,
-      required: true,
       default: 0,
     },
-    termsAndConditions: {
+    status: {
+      type: String,
+      default: 'Draft',
+      enum: ['Draft', 'Pending', 'Issued', 'Received', 'Closed'],
+      index: true,
+    },
+    notes: {
       type: String,
       trim: true,
     },
     terms: {
-      type: String,
-      trim: true,
-    },
-    notes: {
       type: String,
       trim: true,
     },
@@ -129,8 +113,9 @@ const PurchaseOrderSchema = new mongoose.Schema(
   }
 );
 
+// Pre-save hook: Auto-generate PO number and calculate totals
 PurchaseOrderSchema.pre('save', async function (next) {
-  // 1. Auto-generate PO number if not provided
+  // Auto-generate PO number if not provided
   if (!this.number || !this.year) {
     const now = new Date();
     const year = now.getFullYear();
@@ -147,19 +132,19 @@ PurchaseOrderSchema.pre('save', async function (next) {
     this.number = count + 1;
   }
 
-  // 2. Calculate Expected Delivery Date if leadTimeDays and date are provided
-  if (this.leadTimeDays && this.date) {
+  // Calculate expiredDate (Expected Delivery Date) from leadTimeDays
+  if (this.leadTimeDays && this.leadTimeDays > 0 && this.date) {
     const poDate = new Date(this.date);
     const expectedDate = new Date(poDate);
     expectedDate.setDate(expectedDate.getDate() + this.leadTimeDays);
-    this.expectedDeliveryDate = expectedDate;
+    this.expiredDate = expectedDate;
   }
 
-  // 3. Calculate Item Amounts & Subtotal
+  // Calculate item amounts and totals
   let subTotal = 0;
   if (this.items && this.items.length > 0) {
     this.items.forEach((item) => {
-      // Calculate item amount automatically
+      // Calculate item amount: quantity * rate
       item.amount = (item.quantity || 0) * (item.rate || 0);
       subTotal += item.amount;
     });
@@ -168,7 +153,7 @@ PurchaseOrderSchema.pre('save', async function (next) {
     this.subTotal = 0;
   }
 
-  // 4. Calculate Tax and Total
+  // Calculate tax and total
   this.taxTotal = (this.subTotal * (this.taxRate || 0)) / 100;
   this.totalAmount = this.subTotal + this.taxTotal;
 

@@ -16,23 +16,23 @@ function GRNForm({ isUpdateForm = false }) {
       if (res?.result) {
         const po = res.result;
         
-        // Extract expected delivery date
-        if (po.expectedDeliveryDate) {
-          setExpectedDeliveryDate(dayjs(po.expectedDeliveryDate));
+        // SAFETY: Extract expected delivery date with optional chaining
+        if (po?.expiredDate) {
+          setExpectedDeliveryDate(dayjs(po.expiredDate));
         } else {
           setExpectedDeliveryDate(null);
         }
         
-        // Map Items safely
-        const items = (po.items || []).map((item, idx) => ({
+        // SAFETY: Map Items with optional chaining - prevent crashes
+        const items = (po?.items || []).map((item, idx) => ({
           key: idx,
-          material: item.material?._id || item.material,
-          materialName: item.material?.name || 'Unknown Material',
-          orderedQty: parseFloat(item.quantity) || 0,
-          receivedQty: parseFloat(item.receivedQuantity) || 0,
-          pendingQty: Math.max(0, (parseFloat(item.quantity) || 0) - (parseFloat(item.receivedQuantity) || 0)),
-          rate: parseFloat(item.rate) || 0,
-          currentReceive: Math.max(0, (parseFloat(item.quantity) || 0) - (parseFloat(item.receivedQuantity) || 0))
+          material: item?.material?._id || item?.material || null,
+          materialName: item?.material?.name || 'Unknown',
+          orderedQty: parseFloat(item?.quantity) || 0,
+          receivedQty: parseFloat(item?.receivedQuantity) || 0,
+          pendingQty: Math.max(0, (parseFloat(item?.quantity) || 0) - (parseFloat(item?.receivedQuantity) || 0)),
+          rate: parseFloat(item?.rate) || 0,
+          currentReceive: Math.max(0, (parseFloat(item?.quantity) || 0) - (parseFloat(item?.receivedQuantity) || 0))
         }));
 
         setPoItems(items);
@@ -40,7 +40,7 @@ function GRNForm({ isUpdateForm = false }) {
         // Pre-fill form
         form.setFieldsValue({
           purchaseOrder: poId,
-          projectId: po.referenceRequirement?.projectId?._id || po.referenceRequirement?.projectId || null,
+          projectId: po?.referenceRequirement?.projectId?._id || po?.referenceRequirement?.projectId || null,
           date: dayjs(),
           items: items.map(item => ({
             material: item.material,
@@ -52,17 +52,18 @@ function GRNForm({ isUpdateForm = false }) {
       }
     } catch (error) {
       console.error(error);
-      message.error('Failed to load PO: ' + error.message);
+      message.error('Failed to load PO: ' + (error?.message || 'Unknown error'));
     }
   };
 
-  // Calculate delivery performance status
+  // VENDOR RATING: Calculate delivery performance status
   const getDeliveryStatus = () => {
     if (!expectedDeliveryDate) return null;
     
     const grnDate = form.getFieldValue('date');
     if (!grnDate) return null;
     
+    // Calculate difference: GRN Date - PO Expected Date
     const daysDiff = dayjs(grnDate).diff(expectedDeliveryDate, 'day');
     
     if (daysDiff > 0) {
@@ -84,20 +85,20 @@ function GRNForm({ isUpdateForm = false }) {
 
   const deliveryStatus = getDeliveryStatus();
 
-  // Watch for date changes to update delivery status
+  // Watch for date changes
   const grnDate = Form.useWatch('date', form);
   useEffect(() => {
-    // This will trigger re-render when date changes
+    // Trigger re-render when date changes
   }, [grnDate]);
 
   const updateReceivedQty = (index, value) => {
     const newItems = [...poItems];
     const item = newItems[index];
-    const maxQty = item.pendingQty;
+    const maxQty = item?.pendingQty || 0;
     
-    // Strict limit: If user tries to receive more than pending, set back to pending and show error
+    // VALIDATION: Strict limit - if user types more than pending, reset and show error
     if (value > maxQty) {
-      message.error(`Cannot receive more than pending quantity: ${maxQty}`);
+      message.error(`Cannot receive more than pending quantity: ${maxQty.toFixed(2)}`);
       form.setFieldValue(['items', index, 'quantity'], maxQty);
       item.currentReceive = maxQty;
       setPoItems(newItems);
@@ -122,54 +123,58 @@ function GRNForm({ isUpdateForm = false }) {
       dataIndex: 'materialName',
       key: 'materialName',
       width: '25%',
+      render: (text) => text || 'Unknown',
     },
     {
       title: 'Ordered',
       dataIndex: 'orderedQty',
       key: 'orderedQty',
       width: '12%',
-      render: (qty) => qty.toFixed(2),
+      render: (qty) => (qty || 0).toFixed(2),
     },
     {
       title: 'Received So Far',
       dataIndex: 'receivedQty',
       key: 'receivedQty',
       width: '12%',
-      render: (qty) => qty.toFixed(2),
+      render: (qty) => (qty || 0).toFixed(2),
     },
     {
       title: 'Receiving Now',
       key: 'quantity',
       width: '15%',
-      render: (_, record, index) => (
-        <Form.Item
-          name={['items', index, 'quantity']}
-          rules={[
-            { required: true, message: 'Required' },
-            {
-              validator: (_, value) => {
-                if (value > record.pendingQty) {
-                  return Promise.reject(`Max: ${record.pendingQty.toFixed(2)}`);
-                }
-                if (value < 0) {
-                  return Promise.reject('Cannot be negative');
-                }
-                return Promise.resolve();
+      render: (_, record, index) => {
+        const maxQty = record?.pendingQty || 0;
+        return (
+          <Form.Item
+            name={['items', index, 'quantity']}
+            rules={[
+              { required: true, message: 'Required' },
+              {
+                validator: (_, value) => {
+                  if (value > maxQty) {
+                    return Promise.reject(`Max: ${maxQty.toFixed(2)}`);
+                  }
+                  if (value < 0) {
+                    return Promise.reject('Cannot be negative');
+                  }
+                  return Promise.resolve();
+                },
               },
-            },
-          ]}
-          style={{ margin: 0 }}
-        >
-          <InputNumber
-            min={0}
-            max={record.pendingQty}
-            step={0.01}
-            style={{ width: '100%' }}
-            onChange={(value) => updateReceivedQty(index, value)}
-            disabled={record.pendingQty <= 0}
-          />
-        </Form.Item>
-      ),
+            ]}
+            style={{ margin: 0 }}
+          >
+            <InputNumber
+              min={0}
+              max={maxQty}
+              step={0.01}
+              style={{ width: '100%' }}
+              onChange={(value) => updateReceivedQty(index, value)}
+              disabled={maxQty <= 0}
+            />
+          </Form.Item>
+        );
+      },
     },
     {
       title: 'Remaining',
@@ -177,8 +182,9 @@ function GRNForm({ isUpdateForm = false }) {
       key: 'pendingQty',
       width: '12%',
       render: (qty) => {
-        const color = qty > 0 ? 'orange' : 'green';
-        return <Tag color={color}>{qty.toFixed(2)}</Tag>;
+        const qtyValue = qty || 0;
+        const color = qtyValue > 0 ? 'orange' : 'green';
+        return <Tag color={color}>{qtyValue.toFixed(2)}</Tag>;
       },
     },
     {
@@ -256,7 +262,6 @@ function GRNForm({ isUpdateForm = false }) {
             />
           </Form.Item>
 
-          {/* Hidden fields to ensure data structure on submit */}
           <Form.Item name="items" hidden>
             <Input />
           </Form.Item>
@@ -307,10 +312,10 @@ export default function GRN() {
       title: 'Project',
       key: 'project',
       render: (_, record) => {
-        const project = record.projectId;
+        const project = record?.projectId;
         if (!project) return '-';
-        if (typeof project === 'object' && project.name) {
-          return project.projectCode ? `${project.name} (${project.projectCode})` : project.name;
+        if (typeof project === 'object' && project?.name) {
+          return project?.projectCode ? `${project.name} (${project.projectCode})` : project.name;
         }
         return '-';
       },
@@ -319,10 +324,10 @@ export default function GRN() {
       title: 'PO Number',
       key: 'po',
       render: (_, record) => {
-        if (record.type === 'IN' && record.purchaseOrder) {
+        if (record?.type === 'IN' && record?.purchaseOrder) {
           const po = record.purchaseOrder;
-          if (typeof po === 'object' && po.number) {
-            return `PO-${po.year}-${String(po.number).padStart(4, '0')}`;
+          if (typeof po === 'object' && po?.number) {
+            return `PO-${po?.year}-${String(po.number).padStart(4, '0')}`;
           }
         }
         return '-';
@@ -331,7 +336,7 @@ export default function GRN() {
     {
       title: 'Items Count',
       key: 'itemsCount',
-      render: (_, record) => record.items?.length || 0,
+      render: (_, record) => record?.items?.length || 0,
     },
   ];
 

@@ -123,6 +123,8 @@ function Sidebar({ collapsible, isMobile = false }) {
         { key: 'inventory/purchase-order', label: <Link to="/inventory/purchase-order" style={{ ...subLinkStyle, color: currentPath === 'inventory/purchase-order' ? '#ffffff' : '#1677ff' }}>Purchase Orders</Link> },
         { key: 'inventory/grn', label: <Link to="/inventory/grn" style={{ ...subLinkStyle, color: currentPath === 'inventory/grn' ? '#ffffff' : '#1677ff' }}>Receive Stock (GRN)</Link> },
         { key: 'inventory/consumption', label: <Link to="/inventory/consumption" style={{ ...subLinkStyle, color: currentPath === 'inventory/consumption' ? '#ffffff' : '#1677ff' }}>Issue Stock</Link> },
+        // Added Supplier Link Here
+        { key: 'inventory/supplier', label: <Link to="/inventory/supplier" style={{ ...subLinkStyle, color: currentPath === 'inventory/supplier' ? '#ffffff' : '#1677ff' }}>Suppliers</Link> },
       ],
     },
 

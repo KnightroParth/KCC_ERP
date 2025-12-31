@@ -45,7 +45,7 @@ const Attendance = lazy(() => import('@/pages/Attendance'));
 const Labour = lazy(() => import('@/pages/Labour'));
 const Vendor = lazy(() => import('@/pages/Vendor'));
 
-// ✅ Supplier (your work)
+// ✅ Supplier (moved to Inventory module)
 const Supplier = lazy(() => import('@/pages/Supplier'));
 
 // Inventory Module (your work)
@@ -104,16 +104,14 @@ let routes = {
     { path: '/labour', element: <Labour /> },
     { path: '/vendor', element: <Vendor /> },
 
-    // ✅ Supplier
-    { path: '/supplier', element: <Supplier /> },
-
-    // Inventory
+    // Inventory Module (Supplier moved here as last child)
     { path: '/inventory', element: <InventoryDashboard /> },
     { path: '/inventory/materials', element: <MaterialLibrary /> },
     { path: '/inventory/indent', element: <IndentRequest /> },
     { path: '/inventory/purchase-order', element: <PurchaseOrder /> },
     { path: '/inventory/grn', element: <GRN /> },
     { path: '/inventory/consumption', element: <Consumption /> },
+    { path: '/inventory/supplier', element: <Supplier /> },
 
     { path: '/profile', element: <Profile /> },
     { path: '*', element: <NotFound /> },

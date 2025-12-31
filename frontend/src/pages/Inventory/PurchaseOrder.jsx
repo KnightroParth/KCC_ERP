@@ -18,135 +18,179 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
   const [taxTotal, setTaxTotal] = useState(0);
   const [totalAmount, setTotalAmount] = useState(0);
   const [pendingRequirements, setPendingRequirements] = useState([]);
+  const [pdfLoading, setPdfLoading] = useState(false);
 
-  // --- 1. Get Current Item Data from Redux (For Edit Mode) ---
+  // DEFENSIVE: Default to empty object to prevent crashes
   const { result: currentItem } = useSelector(selectCurrentItem);
+  const safeCurrentItem = currentItem || {};
+
+  // PDF Button visibility: Check if we have a saved PO (has _id)
+  const hasSavedPO = safeCurrentItem?._id ? true : false;
 
   useEffect(() => {
     (async () => {
       try {
         const res = await request.list({ entity: 'inventory/requirement', options: { status: 'Pending' } });
         if (res?.result) {
-          setPendingRequirements(res.result);
+          setPendingRequirements(res.result || []);
         }
       } catch (error) {
         console.error('Error loading requirements:', error);
+        setPendingRequirements([]);
       }
     })();
   }, []);
 
-  // --- Helper: Recalculate Totals with Tax ---
+  // Recalculate totals with tax
   const recalculateTotals = useCallback((currentItems, currentTaxRate = taxRate) => {
-    const sub = currentItems.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
-    const tax = (sub * (currentTaxRate || 0)) / 100;
-    const total = sub + tax;
-    
-    setSubTotal(sub);
-    setTaxTotal(tax);
-    setTotalAmount(total);
-    
-    // Sync with Form
-    form.setFieldValue('subTotal', sub);
-    form.setFieldValue('taxTotal', tax);
-    form.setFieldValue('totalAmount', total);
+    try {
+      const sub = (currentItems || []).reduce((sum, item) => sum + (parseFloat(item?.amount) || 0), 0);
+      const tax = (sub * (parseFloat(currentTaxRate) || 0)) / 100;
+      const total = sub + tax;
+      
+      setSubTotal(sub);
+      setTaxTotal(tax);
+      setTotalAmount(total);
+      
+      // CRITICAL: Sync with Form
+      form.setFieldValue('subTotal', sub);
+      form.setFieldValue('taxTotal', tax);
+      form.setFieldValue('totalAmount', total);
+    } catch (err) {
+      console.error('Error in recalculateTotals:', err);
+    }
   }, [form, taxRate]);
 
-  // --- Handle Tax Rate Change ---
+  // Handle tax rate change
   const handleTaxRateChange = useCallback((value) => {
-    const rate = parseFloat(value) || 0;
-    setTaxRate(rate);
-    form.setFieldValue('taxRate', rate);
-    recalculateTotals(items, rate);
+    try {
+      const rate = parseFloat(value) || 0;
+      setTaxRate(rate);
+      form.setFieldValue('taxRate', rate);
+      recalculateTotals(items, rate);
+    } catch (err) {
+      console.error('Error in handleTaxRateChange:', err);
+    }
   }, [items, form, recalculateTotals]);
 
-  // --- 2. POPULATE FORM DATA ---
+  // Populate form data - DEFENSIVE: Check for null/undefined
   useEffect(() => {
-    if (isUpdateForm && currentItem) {
-      const formData = { ...currentItem };
+    try {
+      if (isUpdateForm && safeCurrentItem?._id) {
+        const formData = { ...safeCurrentItem };
 
-      // Flatten supplier to ID
-      if (formData.supplier && typeof formData.supplier === 'object') {
-        formData.supplier = formData.supplier._id;
+        // Flatten supplier to ID
+        if (formData.supplier && typeof formData.supplier === 'object') {
+          formData.supplier = formData.supplier._id || formData.supplier;
+        }
+
+        // Convert dates to dayjs - DEFENSIVE: Check if date exists
+        if (formData.date) {
+          formData.date = dayjs(formData.date);
+        } else {
+          formData.date = dayjs();
+        }
+
+        if (formData.expiredDate) {
+          formData.expiredDate = dayjs(formData.expiredDate);
+        }
+
+        // Set tax rate
+        if (formData.taxRate !== undefined) {
+          setTaxRate(parseFloat(formData.taxRate) || 0);
+        }
+
+        // Process items - DEFENSIVE: Check if items is array
+        if (Array.isArray(formData.items)) {
+          formData.items = formData.items.map((item, index) => ({
+            ...item,
+            key: item._id || item.key || `item-${Date.now()}-${index}`,
+            rate: parseFloat(item.rate) || 0,
+            amount: parseFloat(item.amount) || 0,
+            quantity: parseFloat(item.quantity) || 0,
+            originalIndentQty: parseFloat(item.originalIndentQty) || null,
+            material: item.material || null
+          }));
+        } else {
+          formData.items = [];
+        }
+
+        form.setFieldsValue(formData);
+        setItems(formData.items || []);
+        recalculateTotals(formData.items || [], formData.taxRate || 0);
+      } else if (!isUpdateForm) {
+        form.setFieldValue('date', dayjs());
+        form.setFieldValue('taxRate', 0);
+        form.setFieldValue('leadTimeDays', 0);
       }
-
-      // Fix Date: Convert to dayjs object
-      if (formData.date) {
-        formData.date = dayjs(formData.date);
-      } else {
-        formData.date = dayjs();
-      }
-
-      // Fix Expected Delivery Date
-      if (formData.expectedDeliveryDate) {
-        formData.expectedDeliveryDate = dayjs(formData.expectedDeliveryDate);
-      }
-
-      // Fix Tax Rate
-      if (formData.taxRate !== undefined) {
-        setTaxRate(parseFloat(formData.taxRate) || 0);
-      }
-
-      // Fix Items
-      if (Array.isArray(formData.items)) {
-        formData.items = formData.items.map((item, index) => ({
-          ...item,
-          key: item._id || Date.now() + index,
-          rate: parseFloat(item.rate) || 0,
-          amount: parseFloat(item.amount) || 0,
-          quantity: parseFloat(item.quantity) || 0,
-          originalIndentQty: parseFloat(item.originalIndentQty) || null,
-          material: item.material
-        }));
-      }
-
-      form.setFieldsValue(formData);
-      setItems(formData.items || []);
-      recalculateTotals(formData.items || [], formData.taxRate || 0);
-    } else if (!isUpdateForm) {
-      // Default date for new forms
-      form.setFieldValue('date', dayjs());
-      form.setFieldValue('taxRate', 0);
+    } catch (err) {
+      console.error('Error in form population useEffect:', err);
     }
-  }, [isUpdateForm, currentItem, form, recalculateTotals]);
+  }, [isUpdateForm, safeCurrentItem, form, recalculateTotals]);
 
-  // --- Auto-calculate Expected Delivery Date when PO Date or Lead Time changes ---
+  // Auto-calculate expiredDate when date or leadTimeDays changes
   const handleDateOrLeadTimeChange = useCallback(() => {
-    const poDate = form.getFieldValue('date');
-    const leadTime = form.getFieldValue('leadTimeDays');
-    
-    if (poDate && leadTime && leadTime > 0) {
-      const expectedDate = dayjs(poDate).add(leadTime, 'day');
-      form.setFieldValue('expectedDeliveryDate', expectedDate);
-    } else {
-      form.setFieldValue('expectedDeliveryDate', null);
+    try {
+      const poDate = form.getFieldValue('date');
+      const leadTime = form.getFieldValue('leadTimeDays');
+      
+      if (poDate && leadTime && leadTime > 0) {
+        const expectedDate = dayjs(poDate).add(leadTime, 'day');
+        form.setFieldValue('expiredDate', expectedDate);
+      } else {
+        form.setFieldValue('expiredDate', null);
+      }
+    } catch (err) {
+      console.error('Error in handleDateOrLeadTimeChange:', err);
     }
   }, [form]);
+
+  // PDF Download Handler - DEFENSIVE: Check for _id
+  const handleDownloadPDF = async () => {
+    if (!hasSavedPO || !safeCurrentItem?._id) {
+      message.error('No Purchase Order selected');
+      return;
+    }
+
+    setPdfLoading(true);
+    try {
+      const pdfUrl = `${API_BASE_URL}inventory/purchase-order/pdf/${safeCurrentItem._id}`;
+      window.open(pdfUrl, '_blank');
+      setTimeout(() => {
+        setPdfLoading(false);
+      }, 1000);
+    } catch (error) {
+      console.error('Error downloading PDF:', error);
+      message.error('Failed to download PDF');
+      setPdfLoading(false);
+    }
+  };
 
   const convertFromRequirement = async (requirementId) => {
     if (!requirementId) return;
     try {
       const res = await request.read({ entity: 'inventory/requirement', id: requirementId });
       if (res?.result) {
-        const requirement = res.result;
+        const requirement = res.result || {};
         
-        // Group items by material._id and sum quantities
+        // Group items by material._id
         const groupedItems = {};
         
-        requirement.items.forEach((item) => {
-          let materialVal = item.material;
+        (requirement.items || []).forEach((item) => {
+          let materialVal = item?.material;
           if (!materialVal) {
             materialVal = { _id: 'unknown', name: 'Unknown Material' };
           }
           
           const materialId = materialVal._id || materialVal;
-          const quantity = parseFloat(item.quantity) || 0;
+          const quantity = parseFloat(item?.quantity) || 0;
           
           if (groupedItems[materialId]) {
             groupedItems[materialId].quantity += quantity;
             groupedItems[materialId].originalIndentQty += quantity;
           } else {
             groupedItems[materialId] = {
-              key: Date.now() + Object.keys(groupedItems).length,
+              key: `item-${Date.now()}-${Object.keys(groupedItems).length}`,
               material: materialVal,
               quantity: quantity,
               originalIndentQty: quantity,
@@ -169,94 +213,121 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
         message.success(`Items loaded from requirement (${poItems.length} unique materials)`);
       }
     } catch (error) {
-      message.error('Failed to load requirement: ' + error.message);
+      console.error('Error in convertFromRequirement:', error);
+      message.error('Failed to load requirement: ' + (error?.message || 'Unknown error'));
     }
   };
 
   const addItem = () => {
-    const newItem = {
-      key: Date.now(),
-      material: null,
-      quantity: 1,
-      rate: 0,
-      amount: 0,
-      originalIndentQty: null,
-    };
-    const newItems = [...items, newItem];
-    setItems(newItems);
-    form.setFieldsValue({ items: newItems });
+    try {
+      const newItem = {
+        key: `item-${Date.now()}`,
+        material: null,
+        quantity: 1,
+        rate: 0,
+        amount: 0,
+        originalIndentQty: null,
+      };
+      const newItems = [...items, newItem];
+      setItems(newItems);
+      form.setFieldValue({ items: newItems });
+    } catch (err) {
+      console.error('Error in addItem:', err);
+    }
   };
 
   const removeItem = (key) => {
-    const newItems = items.filter((item) => item.key !== key);
-    setItems(newItems);
-    form.setFieldsValue({ items: newItems });
-    recalculateTotals(newItems, taxRate);
-  };
-
-  const updateItem = (key, field, value) => {
-    const index = items.findIndex((item) => item.key === key);
-    if (index === -1) return;
-
-    const newItems = [...items];
-    const item = { ...newItems[index], [field]: value };
-
-    // Recalculate Amount if Rate or Quantity changes
-    if (field === 'quantity' || field === 'rate') {
-      const qty = parseFloat(field === 'quantity' ? value : item.quantity) || 0;
-      const rate = parseFloat(field === 'rate' ? value : item.rate) || 0;
-      item.amount = qty * rate;
-      
-      form.setFieldValue(['items', index, 'amount'], item.amount);
+    try {
+      const newItems = items.filter((item) => item?.key !== key);
+      setItems(newItems);
+      form.setFieldValue({ items: newItems });
+      recalculateTotals(newItems, taxRate);
+    } catch (err) {
+      console.error('Error in removeItem:', err);
     }
-    
-    form.setFieldValue(['items', index, field], value);
-
-    newItems[index] = item;
-    setItems(newItems);
-    recalculateTotals(newItems, taxRate);
   };
 
-  // --- Helper: Get Variance Status ---
+  // CRITICAL: Fix updateItem - Calculate Amount and sync with form immediately
+  const updateItem = (key, field, value) => {
+    try {
+      const index = items.findIndex((item) => item?.key === key);
+      if (index === -1) return;
+
+      const newItems = [...items];
+      const item = { ...newItems[index], [field]: value };
+
+      // CRITICAL: When Rate or Quantity changes, calculate Amount = rate * quantity
+      if (field === 'quantity' || field === 'rate') {
+        const qty = parseFloat(field === 'quantity' ? value : item.quantity) || 0;
+        const rate = parseFloat(field === 'rate' ? value : item.rate) || 0;
+        const calculatedAmount = qty * rate;
+        item.amount = calculatedAmount;
+        
+        // CRITICAL: Update form field immediately so form sees the new value
+        form.setFieldValue(['items', index, 'amount'], calculatedAmount);
+      }
+      
+      // Update the changed field in form
+      form.setFieldValue(['items', index, field], value);
+
+      newItems[index] = item;
+      setItems(newItems);
+      
+      // Recalculate totals and update form
+      recalculateTotals(newItems, taxRate);
+    } catch (err) {
+      console.error('Error in updateItem:', err);
+    }
+  };
+
+  // Get variance status
   const getVarianceStatus = (currentQty, originalQty) => {
     if (!originalQty || originalQty === null) return null;
     
-    if (currentQty > originalQty) {
-      const diff = currentQty - originalQty;
-      return { 
-        type: 'over', 
-        color: '#ff4d4f', 
-        icon: <ExclamationCircleOutlined />, 
-        text: 'Over ordering',
-        diff: diff
-      };
-    } else if (currentQty < originalQty) {
-      return { 
-        type: 'partial', 
-        color: '#fa8c16', 
-        icon: <WarningOutlined />, 
-        text: 'Partial order' 
-      };
-    } else {
-      return { 
-        type: 'exact', 
-        color: '#52c41a', 
-        icon: <CheckCircleOutlined />, 
-        text: 'Exact match' 
-      };
+    try {
+      if (currentQty > originalQty) {
+        const diff = currentQty - originalQty;
+        return { 
+          type: 'over', 
+          color: '#ff4d4f', 
+          icon: <ExclamationCircleOutlined />, 
+          text: 'Over ordering',
+          diff: diff
+        };
+      } else if (currentQty < originalQty) {
+        return { 
+          type: 'partial', 
+          color: '#fa8c16', 
+          icon: <WarningOutlined />, 
+          text: 'Partial order' 
+        };
+      } else {
+        return { 
+          type: 'exact', 
+          color: '#52c41a', 
+          icon: <CheckCircleOutlined />, 
+          text: 'Exact match' 
+        };
+      }
+    } catch (err) {
+      console.error('Error in getVarianceStatus:', err);
+      return null;
     }
   };
 
-  // --- Calculate Summary Statistics ---
   const summaryStats = useCallback(() => {
-    const uniqueItems = items.length;
-    const totalQuantity = items.reduce((sum, item) => sum + (parseFloat(item.quantity) || 0), 0);
-    return { uniqueItems, totalQuantity };
+    try {
+      const uniqueItems = items.length;
+      const totalQuantity = (items || []).reduce((sum, item) => sum + (parseFloat(item?.quantity) || 0), 0);
+      return { uniqueItems, totalQuantity };
+    } catch (err) {
+      console.error('Error in summaryStats:', err);
+      return { uniqueItems: 0, totalQuantity: 0 };
+    }
   }, [items]);
 
   const stats = summaryStats();
 
-  // --- 3. COLUMN DEFINITIONS ---
   const columns = [
     {
       title: 'Material',
@@ -270,13 +341,13 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
           style={{ margin: 0 }}
         >
           <AutoCompleteAsync
-            key={record.key} 
+            key={record?.key} 
             entity="material"
             displayLabels={['name', 'category']}
             searchFields="name,category"
             outputValue="_id"
             placeholder="Search material..."
-            onChange={(val, fullOption) => updateItem(record.key, 'material', fullOption || val)}
+            onChange={(val, fullOption) => updateItem(record?.key, 'material', fullOption || val)}
             value={items[index]?.material}
           />
         </Form.Item>
@@ -303,7 +374,7 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
                 min={0.01}
                 style={{ width: '100%' }}
                 placeholder="Qty"
-                onChange={(value) => updateItem(record.key, 'quantity', value)}
+                onChange={(value) => updateItem(record?.key, 'quantity', value)}
               />
             </Form.Item>
             {variance && (
@@ -345,7 +416,7 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
             style={{ width: '100%' }}
             prefix="₹"
             placeholder="Rate"
-            onChange={(value) => updateItem(record.key, 'rate', value)}
+            onChange={(value) => updateItem(record?.key, 'rate', value)}
           />
         </Form.Item>
       ),
@@ -379,7 +450,7 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
           type="text"
           danger
           icon={<DeleteOutlined />}
-          onClick={() => removeItem(record.key)}
+          onClick={() => removeItem(record?.key)}
         />
       ),
     },
@@ -387,6 +458,21 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
 
   return (
     <>
+      {/* PDF BUTTON: Placed at the top, visible when PO is saved */}
+      {hasSavedPO && (
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 20 }}>
+          <Button
+            type="primary"
+            icon={<FilePdfOutlined />}
+            onClick={handleDownloadPDF}
+            loading={pdfLoading}
+            size="large"
+          >
+            Download PDF
+          </Button>
+        </div>
+      )}
+
       {!isUpdateForm && pendingRequirements.length > 0 && (
         <Form.Item label="Convert from Requirement">
           <Select
@@ -396,8 +482,8 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
             style={{ width: '100%' }}
           >
             {pendingRequirements.map((req) => (
-              <Select.Option key={req._id} value={req._id}>
-                {req.projectId?.name || 'Unknown Project'} - {req.requestDate ? dayjs(req.requestDate).format('DD/MM/YYYY') : 'No Date'} ({req.items?.length || 0} items)
+              <Select.Option key={req?._id} value={req?._id}>
+                {req?.projectId?.name || 'Unknown Project'} - {req?.requestDate ? dayjs(req.requestDate).format('DD/MM/YYYY') : 'No Date'} ({req?.items?.length || 0} items)
               </Select.Option>
             ))}
           </Select>
@@ -412,10 +498,12 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
         <SelectAsync
           entity="inventory/supplier"
           displayLabels={['name', 'phone']}
+          // ✅ FIX: Added comprehensive search fields and clear placeholder
+          searchFields="name,email,phone,contactPerson,gstNumber,address"
           outputValue="_id"
-          placeholder="Select Supplier"
+          placeholder="Type to search supplier..."
           withRedirect={true}
-          urlToRedirect="/supplier"
+          urlToRedirect="/inventory/supplier"
           redirectLabel="Add New Supplier"
         />
       </Form.Item>
@@ -447,7 +535,7 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
         </Form.Item>
         <Form.Item
           label="Expected Delivery"
-          name="expectedDeliveryDate"
+          name="expiredDate"
           style={{ flex: 1, minWidth: '200px' }}
         >
           <DatePicker 
@@ -465,14 +553,14 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
         >
           <Select>
             <Select.Option value="Draft">Draft</Select.Option>
+            <Select.Option value="Pending">Pending</Select.Option>
             <Select.Option value="Issued">Issued</Select.Option>
-            <Select.Option value="Partially Received">Partially Received</Select.Option>
+            <Select.Option value="Received">Received</Select.Option>
             <Select.Option value="Closed">Closed</Select.Option>
           </Select>
         </Form.Item>
       </div>
 
-      {/* Summary Dashboard */}
       {items.length > 0 && (
         <Card 
           title="Purchase Order Summary" 
@@ -529,7 +617,6 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
         />
       </Form.Item>
 
-      {/* Tax and Totals Section */}
       <div style={{ display: 'flex', gap: '20px', marginBottom: 16, flexWrap: 'wrap' }}>
         <Form.Item
           label="Tax %"
@@ -567,7 +654,6 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
         </div>
       </div>
 
-      {/* Hidden fields for form submission */}
       <Form.Item name="subTotal" hidden>
         <InputNumber />
       </Form.Item>
@@ -578,7 +664,7 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
         <InputNumber />
       </Form.Item>
 
-      <Form.Item label="Terms & Conditions" name="termsAndConditions">
+      <Form.Item label="Terms & Conditions" name="terms">
         <Input.TextArea rows={3} placeholder="Payment terms, delivery terms, etc." />
       </Form.Item>
 
@@ -590,37 +676,6 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
 }
 
 export default function PurchaseOrder() {
-  const { result: currentRequest } = useSelector(selectCurrentItem);
-  const [pdfLoading, setPdfLoading] = useState(false);
-
-  const handleDownloadPDF = async () => {
-    if (!currentRequest?._id) {
-      message.error('No Purchase Order selected');
-      return;
-    }
-
-    setPdfLoading(true);
-    try {
-      const pdfUrl = `${API_BASE_URL}inventory/purchase-order/pdf/${currentRequest._id}`;
-      const link = document.createElement('a');
-      link.href = pdfUrl;
-      link.target = '_blank';
-      link.download = `PO-${currentRequest.year}-${String(currentRequest.number).padStart(4, '0')}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      
-      // Give it a moment for the download to start
-      setTimeout(() => {
-        setPdfLoading(false);
-      }, 1000);
-    } catch (error) {
-      console.error('Error downloading PDF:', error);
-      message.error('Failed to download PDF');
-      setPdfLoading(false);
-    }
-  };
-
   const config = {
     entity: 'inventory/purchase-order',
     PANEL_TITLE: 'Purchase Order',
@@ -632,28 +687,17 @@ export default function PurchaseOrder() {
     deleteModalLabels: ['number'],
     tableActions: { showEdit: true, showDelete: true },
     dataTableColumns: [
-        { title: 'PO Number', key: 'number', render: (_, record) => `PO-${record.year}-${String(record.number).padStart(4, '0')}` },
+        { title: 'PO Number', key: 'number', render: (_, record) => `PO-${record?.year || ''}-${String(record?.number || '').padStart(4, '0')}` },
         { title: 'Supplier', key: 'supplier', render: (_, r) => {
-            if (r.supplier && typeof r.supplier === 'object') {
-                return r.supplier.name;
+            if (r?.supplier && typeof r.supplier === 'object') {
+                return r.supplier?.name || '-';
             }
-            return r.supplier || '-';
+            return r?.supplier || '-';
         }},
         { title: 'Date', dataIndex: 'date', render: (date) => (date ? dayjs(date).format('DD/MM/YYYY') : '-') },
-        { title: 'Status', dataIndex: 'status', render: (status) => <Tag>{status}</Tag> },
+        { title: 'Status', dataIndex: 'status', render: (status) => <Tag>{status || '-'}</Tag> },
         { title: 'Total', dataIndex: 'totalAmount', render: (val) => `₹${(val || 0).toLocaleString('en-IN')}` },
     ],
-    extra: currentRequest?._id ? [
-      <Button
-        key="pdf"
-        type="primary"
-        icon={<FilePdfOutlined />}
-        onClick={handleDownloadPDF}
-        loading={pdfLoading}
-      >
-        Download PDF
-      </Button>
-    ] : []
   };
 
   return (

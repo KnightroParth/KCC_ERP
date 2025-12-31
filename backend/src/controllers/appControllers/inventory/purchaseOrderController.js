@@ -98,6 +98,87 @@ const purchaseOrderController = () => {
     }
   };
 
+  // Override create to ensure leadTimeDays, taxRate, and terms are saved
+  methods.create = async (req, res) => {
+    try {
+      const body = req.body;
+      
+      // Ensure leadTimeDays, taxRate, and terms are included
+      if (body.leadTimeDays === undefined) body.leadTimeDays = 0;
+      if (body.taxRate === undefined) body.taxRate = 0;
+      if (body.terms === undefined) body.terms = '';
+      
+      // Set createdBy if available
+      if (req.admin && req.admin._id) {
+        body.createdBy = req.admin._id;
+      }
+
+      const result = await PurchaseOrder.create(body);
+
+      return res.status(200).json({
+        success: true,
+        result,
+        message: 'Purchase Order created successfully',
+      });
+    } catch (error) {
+      return res.status(500).json({
+        success: false,
+        result: null,
+        message: error.message,
+      });
+    }
+  };
+
+  // Override update to ensure leadTimeDays, taxRate, and terms are saved
+  methods.update = async (req, res) => {
+    try {
+      const { id } = req.params;
+      const body = req.body;
+
+      // Ensure leadTimeDays, taxRate, and terms can be updated
+      const updateData = { ...body };
+      
+      // Calculate expiredDate if leadTimeDays or date changed
+      if (updateData.leadTimeDays !== undefined || updateData.date !== undefined) {
+        const existingPO = await PurchaseOrder.findById(id);
+        const poDate = updateData.date ? new Date(updateData.date) : existingPO.date;
+        const leadTime = updateData.leadTimeDays !== undefined ? updateData.leadTimeDays : existingPO.leadTimeDays;
+        
+        if (leadTime > 0 && poDate) {
+          const expectedDate = new Date(poDate);
+          expectedDate.setDate(expectedDate.getDate() + leadTime);
+          updateData.expiredDate = expectedDate;
+        }
+      }
+
+      const result = await PurchaseOrder.findByIdAndUpdate(
+        id,
+        { $set: updateData },
+        { new: true, runValidators: true }
+      );
+
+      if (!result) {
+        return res.status(404).json({
+          success: false,
+          result: null,
+          message: 'Purchase Order not found',
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        result,
+        message: 'Purchase Order updated successfully',
+      });
+    } catch (error) {
+      return res.status(500).json({
+        success: false,
+        result: null,
+        message: error.message,
+      });
+    }
+  };
+
   // Get PO by ID with full details (for GRN form)
   methods.getForGRN = async (req, res) => {
     try {
@@ -172,7 +253,7 @@ const purchaseOrderController = () => {
       if (!po.taxTotal) po.taxTotal = (po.subTotal * po.taxRate) / 100;
       if (!po.totalAmount) po.totalAmount = po.subTotal + po.taxTotal;
 
-      // Handle missing materials gracefully
+      // Handle missing materials gracefully - prevent crashes
       po.items = po.items.map((item) => {
         if (!item.material || typeof item.material !== 'object') {
           item.material = {

@@ -1,5 +1,3 @@
-// frontend/src/pages/Inventory/InventoryDashboard.jsx
-
 import React, { useState, useEffect } from 'react';
 import { Table, Tag, Card, Statistic, Row, Col, message } from 'antd';
 import axios from 'axios';
@@ -72,16 +70,16 @@ export default function InventoryDashboard() {
       });
 
       if (res?.success && res?.result) {
-        // Filter and sort by expected delivery date (soonest first)
+        // Filter and sort by expected delivery date (expiredDate) - soonest first
         const shipments = res.result
-          .filter(po => po.expectedDeliveryDate)
+          .filter(po => po?.expiredDate)
           .map(po => ({
             ...po,
-            expectedDeliveryDate: dayjs(po.expectedDeliveryDate),
+            expiredDate: dayjs(po.expiredDate),
           }))
           .sort((a, b) => {
-            if (!a.expectedDeliveryDate || !b.expectedDeliveryDate) return 0;
-            return a.expectedDeliveryDate.valueOf() - b.expectedDeliveryDate.valueOf();
+            if (!a.expiredDate || !b.expiredDate) return 0;
+            return a.expiredDate.valueOf() - b.expiredDate.valueOf();
           });
         
         setPendingShipments(shipments);
@@ -105,10 +103,10 @@ export default function InventoryDashboard() {
       key: 'material',
       width: '25%',
       render: (_, record) => {
-        const material = record.material;
+        const material = record?.material;
         if (!material) return '-';
         if (typeof material === 'object') {
-          return material.name || '-';
+          return material?.name || '-';
         }
         return '-';
       },
@@ -118,9 +116,9 @@ export default function InventoryDashboard() {
       key: 'category',
       width: '15%',
       render: (_, record) => {
-        const material = record.material;
+        const material = record?.material;
         if (material && typeof material === 'object') {
-          return material.category || '-';
+          return material?.category || '-';
         }
         return '-';
       },
@@ -130,9 +128,9 @@ export default function InventoryDashboard() {
       key: 'uom',
       width: '10%',
       render: (_, record) => {
-        const material = record.material;
+        const material = record?.material;
         if (material && typeof material === 'object') {
-          return material.uom || '-';
+          return material?.uom || '-';
         }
         return '-';
       },
@@ -143,7 +141,7 @@ export default function InventoryDashboard() {
       key: 'totalReceived',
       width: '12%',
       render: (qty, record) => {
-        const material = record.material;
+        const material = record?.material;
         const uom = material?.uom || 'nos';
         return `${(qty || 0).toFixed(2)} ${uom}`;
       },
@@ -154,7 +152,7 @@ export default function InventoryDashboard() {
       key: 'totalConsumed',
       width: '12%',
       render: (qty, record) => {
-        const material = record.material;
+        const material = record?.material;
         const uom = material?.uom || 'nos';
         return `${(qty || 0).toFixed(2)} ${uom}`;
       },
@@ -165,7 +163,7 @@ export default function InventoryDashboard() {
       key: 'currentStock',
       width: '12%',
       render: (qty, record) => {
-        const material = record.material;
+        const material = record?.material;
         const uom = material?.uom || 'nos';
         const color = qty > 0 ? 'green' : qty === 0 ? 'orange' : 'red';
         return <Tag color={color}>{qty || 0} {uom}</Tag>;
@@ -195,10 +193,10 @@ export default function InventoryDashboard() {
       key: 'supplier',
       width: '30%',
       render: (_, record) => {
-        const supplier = record.supplier;
+        const supplier = record?.supplier;
         if (!supplier) return '-';
         if (typeof supplier === 'object') {
-          return supplier.name || '-';
+          return supplier?.name || '-';
         }
         return '-';
       },
@@ -208,12 +206,12 @@ export default function InventoryDashboard() {
       key: 'project',
       width: '30%',
       render: (_, record) => {
-        const requirement = record.referenceRequirement;
+        const requirement = record?.referenceRequirement;
         if (!requirement) return '-';
         if (typeof requirement === 'object') {
-          const project = requirement.projectId;
+          const project = requirement?.projectId;
           if (project && typeof project === 'object') {
-            return project.name || project.projectCode || '-';
+            return project?.name || project?.projectCode || '-';
           }
         }
         return '-';
@@ -221,13 +219,13 @@ export default function InventoryDashboard() {
     },
     {
       title: 'Expected Delivery Date',
-      key: 'expectedDeliveryDate',
+      key: 'expiredDate',
       width: '25%',
       render: (_, record) => {
-        if (record.expectedDeliveryDate) {
-          const date = dayjs.isDayjs(record.expectedDeliveryDate) 
-            ? record.expectedDeliveryDate 
-            : dayjs(record.expectedDeliveryDate);
+        if (record?.expiredDate) {
+          const date = dayjs.isDayjs(record.expiredDate) 
+            ? record.expiredDate 
+            : dayjs(record.expiredDate);
           return date.format('DD/MM/YYYY');
         }
         return '-';
@@ -238,7 +236,7 @@ export default function InventoryDashboard() {
       key: 'poNumber',
       width: '15%',
       render: (_, record) => {
-        if (record.number && record.year) {
+        if (record?.number && record?.year) {
           return `PO-${record.year}-${String(record.number).padStart(4, '0')}`;
         }
         return '-';
@@ -319,7 +317,7 @@ export default function InventoryDashboard() {
           <Table
             dataSource={pendingShipments}
             columns={shipmentColumns}
-            rowKey={(record) => record._id}
+            rowKey={(record) => record?._id}
             pagination={{
               pageSize: 10,
               showSizeChanger: true,
@@ -340,7 +338,7 @@ export default function InventoryDashboard() {
             dataSource={inventoryData}
             columns={columns}
             loading={loading}
-            rowKey={(record) => record._id || record.material?._id}
+            rowKey={(record) => record?._id || record?.material?._id}
             pagination={{
               pageSize: 20,
               showSizeChanger: true,

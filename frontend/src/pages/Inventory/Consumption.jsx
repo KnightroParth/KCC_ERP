@@ -1,5 +1,3 @@
-// frontend/src/pages/Inventory/Consumption.jsx
-
 import React, { useState, useEffect } from 'react';
 import { Form, InputNumber, Button, Table, Tag, message, Input, DatePicker } from 'antd';
 import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
@@ -27,6 +25,7 @@ function ConsumptionForm({ isUpdateForm = false }) {
   const [items, setItems] = useState([]);
   const [stockInfo, setStockInfo] = useState({});
   const [canSave, setCanSave] = useState(true);
+  const [stockErrors, setStockErrors] = useState({});
 
   const checkStock = async (projectId, materialId) => {
     if (!projectId || !materialId) return;
@@ -62,20 +61,28 @@ function ConsumptionForm({ isUpdateForm = false }) {
     const projectId = form.getFieldValue('projectId');
     if (!projectId) {
       setCanSave(true);
+      setStockErrors({});
       return;
     }
 
     let hasInsufficientStock = false;
+    const errors = {};
+    
     items.forEach(item => {
       if (item.material) {
         const stock = stockInfo[item.material];
-        if (stock && item.quantity > stock.currentStock) {
+        const available = stock?.currentStock || 0;
+        const requested = parseFloat(item.quantity) || 0;
+        
+        if (requested > available) {
           hasInsufficientStock = true;
+          errors[item.material] = `Insufficient Stock for Construction Site. Available: ${available.toFixed(2)}`;
         }
       }
     });
 
     setCanSave(!hasInsufficientStock);
+    setStockErrors(errors);
   }, [items, stockInfo, form]);
 
   const addItem = () => {
@@ -94,11 +101,14 @@ function ConsumptionForm({ isUpdateForm = false }) {
     const newItems = items.filter((item) => item.key !== key);
     setItems(newItems);
     const newStockInfo = { ...stockInfo };
+    const newErrors = { ...stockErrors };
     const removedItem = items.find(item => item.key === key);
     if (removedItem?.material) {
       delete newStockInfo[removedItem.material];
+      delete newErrors[removedItem.material];
     }
     setStockInfo(newStockInfo);
+    setStockErrors(newErrors);
   };
 
   const updateItem = (key, field, value) => {
@@ -127,6 +137,7 @@ function ConsumptionForm({ isUpdateForm = false }) {
       render: (_, record, index) => {
         const stock = record.material ? stockInfo[record.material] : null;
         const available = stock?.currentStock || 0;
+        const error = record.material ? stockErrors[record.material] : null;
         
         return (
           <div>
@@ -147,6 +158,11 @@ function ConsumptionForm({ isUpdateForm = false }) {
             {record.material && stock && (
               <div style={{ marginTop: 4, fontSize: '12px', color: available > 0 ? '#52c41a' : '#ff4d4f' }}>
                 Available: {available.toFixed(2)} {stock.material?.uom || 'nos'}
+              </div>
+            )}
+            {error && (
+              <div style={{ marginTop: 4, fontSize: '12px', color: '#ff4d4f' }}>
+                {error}
               </div>
             )}
           </div>
@@ -186,7 +202,7 @@ function ConsumptionForm({ isUpdateForm = false }) {
               {
                 validator: (_, value) => {
                   if (value > maxQty) {
-                    return Promise.reject(`Insufficient stock. Available: ${maxQty.toFixed(2)}`);
+                    return Promise.reject(`Insufficient Stock for Construction Site. Available: ${maxQty.toFixed(2)}`);
                   }
                   if (value <= 0) {
                     return Promise.reject('Quantity must be greater than 0');
@@ -197,7 +213,7 @@ function ConsumptionForm({ isUpdateForm = false }) {
             ]}
             style={{ margin: 0 }}
             validateStatus={exceedsStock ? 'error' : ''}
-            help={exceedsStock ? `Exceeds available stock (${maxQty.toFixed(2)})` : ''}
+            help={exceedsStock ? `Insufficient Stock for Construction Site. Available: ${maxQty.toFixed(2)}` : ''}
           >
             <InputNumber
               min={0.01}
@@ -259,35 +275,6 @@ function ConsumptionForm({ isUpdateForm = false }) {
     }
   }, [form.getFieldValue('projectId')]);
 
-  // Override form submission to check stock before saving
-  const handleSubmit = async () => {
-    const projectId = form.getFieldValue('projectId');
-    if (!projectId) {
-      message.error('Please select a project');
-      return;
-    }
-
-    // Final check before submission
-    let hasError = false;
-    for (const item of items) {
-      if (item.material) {
-        const stock = stockInfo[item.material];
-        if (!stock || item.quantity > stock.currentStock) {
-          hasError = true;
-          message.error(`Insufficient stock for ${stock?.material?.name || 'selected material'}. Available: ${stock?.currentStock || 0}`);
-          break;
-        }
-      }
-    }
-
-    if (hasError) {
-      return;
-    }
-
-    // Proceed with normal form submission
-    return true;
-  };
-
   return (
     <>
       <Form.Item
@@ -346,7 +333,7 @@ function ConsumptionForm({ isUpdateForm = false }) {
         </Form.Item>
         {!canSave && (
           <div style={{ marginTop: 8, padding: 8, background: '#fff2e8', border: '1px solid #ffbb96', borderRadius: 4 }}>
-            <Tag color="error">Cannot save: One or more items exceed available stock</Tag>
+            <Tag color="error">Cannot save: Insufficient Stock for Construction Site</Tag>
           </div>
         )}
       </Form.Item>
@@ -389,10 +376,10 @@ export default function Consumption() {
       title: 'Project',
       key: 'project',
       render: (_, record) => {
-        const project = record.projectId;
+        const project = record?.projectId;
         if (!project) return '-';
-        if (typeof project === 'object' && project.name) {
-          return project.projectCode ? `${project.name} (${project.projectCode})` : project.name;
+        if (typeof project === 'object' && project?.name) {
+          return project?.projectCode ? `${project.name} (${project.projectCode})` : project.name;
         }
         return '-';
       },
@@ -410,7 +397,7 @@ export default function Consumption() {
     {
       title: 'Items Count',
       key: 'itemsCount',
-      render: (_, record) => record.items?.length || 0,
+      render: (_, record) => record?.items?.length || 0,
     },
   ];
 
