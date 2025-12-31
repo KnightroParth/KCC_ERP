@@ -219,10 +219,16 @@ const purchaseOrderController = () => {
     try {
       const { id } = req.params;
 
-      // Fetch PO with all populations
+      // ✅ FIX: Correct Deep Populate syntax for referenceRequirement.projectId
       const po = await PurchaseOrder.findOne({ _id: id, removed: false })
         .populate('supplier', 'name phone email address')
-        .populate('referenceRequirement.projectId', 'name projectCode address')
+        .populate({
+          path: 'referenceRequirement',
+          populate: {
+             path: 'projectId',
+             select: 'name projectCode address'
+          }
+        })
         .populate({
           path: 'items.material',
           select: 'name code unit uom category',
@@ -235,6 +241,11 @@ const purchaseOrderController = () => {
           result: null,
           message: 'Purchase Order not found',
         });
+      }
+
+      // ✅ FIX: Map 'expiredDate' (DB field) to 'expectedDeliveryDate' (Template field)
+      if (po.expiredDate && !po.expectedDeliveryDate) {
+        po.expectedDeliveryDate = po.expiredDate;
       }
 
       // Calculate totals if missing
@@ -293,16 +304,20 @@ const purchaseOrderController = () => {
       });
 
       const { dateFormat } = useDate({ settings });
+      
+      // ✅ FIX: Ensure logo paths are safe strings
       settings.public_server_file = process.env.PUBLIC_SERVER_FILE || '';
+      if(!settings.company_logo) settings.company_logo = '';
 
       // Render PDF template
+      // ✅ CONFIRMED: Path is correct relative to this controller
       const templatePath = path.join(__dirname, '../../../pdf/PurchaseOrder.pug');
       
       if (!fs.existsSync(templatePath)) {
         return res.status(500).json({
           success: false,
           result: null,
-          message: 'PDF template not found',
+          message: 'PDF template not found at ' + templatePath,
         });
       }
 
@@ -321,10 +336,12 @@ const purchaseOrderController = () => {
         format: 'A4',
         orientation: 'portrait',
         border: '10mm',
+        timeout: 50000, // Increase timeout
       };
 
       pdf.create(htmlContent, pdfOptions).toBuffer((error, buffer) => {
         if (error) {
+          console.error('PDF Generation Error:', error);
           return res.status(500).json({
             success: false,
             result: null,
@@ -337,6 +354,7 @@ const purchaseOrderController = () => {
         res.send(buffer);
       });
     } catch (error) {
+      console.error('PDF Controller Error:', error);
       return res.status(500).json({
         success: false,
         result: null,

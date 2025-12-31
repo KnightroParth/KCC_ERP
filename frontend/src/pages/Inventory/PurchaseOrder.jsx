@@ -20,11 +20,8 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
   const [pendingRequirements, setPendingRequirements] = useState([]);
   const [pdfLoading, setPdfLoading] = useState(false);
 
-  // DEFENSIVE: Default to empty object to prevent crashes
   const { result: currentItem } = useSelector(selectCurrentItem);
   const safeCurrentItem = currentItem || {};
-
-  // PDF Button visibility: Check if we have a saved PO (has _id)
   const hasSavedPO = safeCurrentItem?._id ? true : false;
 
   useEffect(() => {
@@ -41,7 +38,6 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
     })();
   }, []);
 
-  // Recalculate totals with tax
   const recalculateTotals = useCallback((currentItems, currentTaxRate = taxRate) => {
     try {
       const sub = (currentItems || []).reduce((sum, item) => sum + (parseFloat(item?.amount) || 0), 0);
@@ -52,7 +48,6 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
       setTaxTotal(tax);
       setTotalAmount(total);
       
-      // CRITICAL: Sync with Form
       form.setFieldValue('subTotal', sub);
       form.setFieldValue('taxTotal', tax);
       form.setFieldValue('totalAmount', total);
@@ -61,7 +56,6 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
     }
   }, [form, taxRate]);
 
-  // Handle tax rate change
   const handleTaxRateChange = useCallback((value) => {
     try {
       const rate = parseFloat(value) || 0;
@@ -73,34 +67,24 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
     }
   }, [items, form, recalculateTotals]);
 
-  // Populate form data - DEFENSIVE: Check for null/undefined
   useEffect(() => {
     try {
       if (isUpdateForm && safeCurrentItem?._id) {
         const formData = { ...safeCurrentItem };
 
-        // Flatten supplier to ID
         if (formData.supplier && typeof formData.supplier === 'object') {
           formData.supplier = formData.supplier._id || formData.supplier;
         }
 
-        // Convert dates to dayjs - DEFENSIVE: Check if date exists
-        if (formData.date) {
-          formData.date = dayjs(formData.date);
-        } else {
-          formData.date = dayjs();
-        }
+        if (formData.date) formData.date = dayjs(formData.date);
+        else formData.date = dayjs();
 
-        if (formData.expiredDate) {
-          formData.expiredDate = dayjs(formData.expiredDate);
-        }
+        if (formData.expiredDate) formData.expiredDate = dayjs(formData.expiredDate);
 
-        // Set tax rate
         if (formData.taxRate !== undefined) {
           setTaxRate(parseFloat(formData.taxRate) || 0);
         }
 
-        // Process items - DEFENSIVE: Check if items is array
         if (Array.isArray(formData.items)) {
           formData.items = formData.items.map((item, index) => ({
             ...item,
@@ -128,7 +112,6 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
     }
   }, [isUpdateForm, safeCurrentItem, form, recalculateTotals]);
 
-  // Auto-calculate expiredDate when date or leadTimeDays changes
   const handleDateOrLeadTimeChange = useCallback(() => {
     try {
       const poDate = form.getFieldValue('date');
@@ -145,7 +128,7 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
     }
   }, [form]);
 
-  // PDF Download Handler - DEFENSIVE: Check for _id
+  // ✅ FIX: Attach token to URL so the backend accepts the request
   const handleDownloadPDF = async () => {
     if (!hasSavedPO || !safeCurrentItem?._id) {
       message.error('No Purchase Order selected');
@@ -154,7 +137,8 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
 
     setPdfLoading(true);
     try {
-      const pdfUrl = `${API_BASE_URL}inventory/purchase-order/pdf/${safeCurrentItem._id}`;
+      const token = window.localStorage.getItem('token');
+      const pdfUrl = `${API_BASE_URL}inventory/purchase-order/pdf/${safeCurrentItem._id}?token=${token}`;
       window.open(pdfUrl, '_blank');
       setTimeout(() => {
         setPdfLoading(false);
@@ -173,14 +157,11 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
       if (res?.result) {
         const requirement = res.result || {};
         
-        // Group items by material._id
         const groupedItems = {};
         
         (requirement.items || []).forEach((item) => {
           let materialVal = item?.material;
-          if (!materialVal) {
-            materialVal = { _id: 'unknown', name: 'Unknown Material' };
-          }
+          if (!materialVal) materialVal = { _id: 'unknown', name: 'Unknown Material' };
           
           const materialId = materialVal._id || materialVal;
           const quantity = parseFloat(item?.quantity) || 0;
@@ -214,7 +195,7 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
       }
     } catch (error) {
       console.error('Error in convertFromRequirement:', error);
-      message.error('Failed to load requirement: ' + (error?.message || 'Unknown error'));
+      message.error('Failed to load requirement');
     }
   };
 
@@ -247,7 +228,6 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
     }
   };
 
-  // CRITICAL: Fix updateItem - Calculate Amount and sync with form immediately
   const updateItem = (key, field, value) => {
     try {
       const index = items.findIndex((item) => item?.key === key);
@@ -256,61 +236,34 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
       const newItems = [...items];
       const item = { ...newItems[index], [field]: value };
 
-      // CRITICAL: When Rate or Quantity changes, calculate Amount = rate * quantity
       if (field === 'quantity' || field === 'rate') {
         const qty = parseFloat(field === 'quantity' ? value : item.quantity) || 0;
         const rate = parseFloat(field === 'rate' ? value : item.rate) || 0;
         const calculatedAmount = qty * rate;
         item.amount = calculatedAmount;
-        
-        // CRITICAL: Update form field immediately so form sees the new value
         form.setFieldValue(['items', index, 'amount'], calculatedAmount);
       }
       
-      // Update the changed field in form
       form.setFieldValue(['items', index, field], value);
-
       newItems[index] = item;
       setItems(newItems);
-      
-      // Recalculate totals and update form
       recalculateTotals(newItems, taxRate);
     } catch (err) {
       console.error('Error in updateItem:', err);
     }
   };
 
-  // Get variance status
   const getVarianceStatus = (currentQty, originalQty) => {
     if (!originalQty || originalQty === null) return null;
-    
     try {
       if (currentQty > originalQty) {
-        const diff = currentQty - originalQty;
-        return { 
-          type: 'over', 
-          color: '#ff4d4f', 
-          icon: <ExclamationCircleOutlined />, 
-          text: 'Over ordering',
-          diff: diff
-        };
+        return { type: 'over', color: '#ff4d4f', icon: <ExclamationCircleOutlined />, text: 'Over ordering', diff: currentQty - originalQty };
       } else if (currentQty < originalQty) {
-        return { 
-          type: 'partial', 
-          color: '#fa8c16', 
-          icon: <WarningOutlined />, 
-          text: 'Partial order' 
-        };
+        return { type: 'partial', color: '#fa8c16', icon: <WarningOutlined />, text: 'Partial order' };
       } else {
-        return { 
-          type: 'exact', 
-          color: '#52c41a', 
-          icon: <CheckCircleOutlined />, 
-          text: 'Exact match' 
-        };
+        return { type: 'exact', color: '#52c41a', icon: <CheckCircleOutlined />, text: 'Exact match' };
       }
     } catch (err) {
-      console.error('Error in getVarianceStatus:', err);
       return null;
     }
   };
@@ -321,7 +274,6 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
       const totalQuantity = (items || []).reduce((sum, item) => sum + (parseFloat(item?.quantity) || 0), 0);
       return { uniqueItems, totalQuantity };
     } catch (err) {
-      console.error('Error in summaryStats:', err);
       return { uniqueItems: 0, totalQuantity: 0 };
     }
   }, [items]);
@@ -335,11 +287,7 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
       key: 'material',
       width: 350, 
       render: (_, record, index) => (
-        <Form.Item
-          name={['items', index, 'material']}
-          rules={[{ required: true, message: 'Select material' }]}
-          style={{ margin: 0 }}
-        >
+        <Form.Item name={['items', index, 'material']} rules={[{ required: true, message: 'Select material' }]} style={{ margin: 0 }}>
           <AutoCompleteAsync
             key={record?.key} 
             entity="material"
@@ -365,35 +313,16 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
         
         return (
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Form.Item
-              name={['items', index, 'quantity']}
-              rules={[{ required: true, message: 'Required' }]}
-              style={{ margin: 0, flex: 1 }}
-            >
-              <InputNumber
-                min={0.01}
-                style={{ width: '100%' }}
-                placeholder="Qty"
-                onChange={(value) => updateItem(record?.key, 'quantity', value)}
-              />
+            <Form.Item name={['items', index, 'quantity']} rules={[{ required: true, message: 'Required' }]} style={{ margin: 0, flex: 1 }}>
+              <InputNumber min={0.01} style={{ width: '100%' }} placeholder="Qty" onChange={(value) => updateItem(record?.key, 'quantity', value)} />
             </Form.Item>
             {variance && (
-              <Tooltip 
-                title={
-                  variance.type === 'over' 
-                    ? `Over-ordering by ${variance.diff} units: ${originalQty} (Indent) vs ${currentQty} (PO)`
-                    : `${variance.text}: ${originalQty} (Indent) vs ${currentQty} (PO)`
-                }
-              >
-                <Tag color={variance.color} icon={variance.icon} style={{ margin: 0 }}>
-                  {variance.text}
-                </Tag>
+              <Tooltip title={variance.type === 'over' ? `Over-ordering by ${variance.diff}` : `${variance.text}`}>
+                <Tag color={variance.color} icon={variance.icon} style={{ margin: 0 }}>{variance.text}</Tag>
               </Tooltip>
             )}
             {originalQty && (
-              <Form.Item name={['items', index, 'originalIndentQty']} style={{ display: 'none' }}>
-                <Input />
-              </Form.Item>
+              <Form.Item name={['items', index, 'originalIndentQty']} style={{ display: 'none' }}><Input /></Form.Item>
             )}
           </div>
         );
@@ -405,19 +334,8 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
       key: 'rate',
       width: 150,
       render: (_, record, index) => (
-        <Form.Item
-          name={['items', index, 'rate']}
-          rules={[{ required: true, message: 'Required' }]}
-          style={{ margin: 0 }}
-        >
-          <InputNumber
-            min={0}
-            step={0.01}
-            style={{ width: '100%' }}
-            prefix="₹"
-            placeholder="Rate"
-            onChange={(value) => updateItem(record?.key, 'rate', value)}
-          />
+        <Form.Item name={['items', index, 'rate']} rules={[{ required: true, message: 'Required' }]} style={{ margin: 0 }}>
+          <InputNumber min={0} step={0.01} style={{ width: '100%' }} prefix="₹" placeholder="Rate" onChange={(value) => updateItem(record?.key, 'rate', value)} />
         </Form.Item>
       ),
     },
@@ -428,12 +346,7 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
       width: 150,
       render: (_, record, index) => (
         <>
-          <Form.Item
-            name={['items', index, 'amount']}
-            style={{ display: 'none' }}
-          >
-             <Input />
-          </Form.Item>
+          <Form.Item name={['items', index, 'amount']} style={{ display: 'none' }}><Input /></Form.Item>
           <div style={{ padding: '4px 11px', background: '#fafafa', border: '1px solid #d9d9d9', borderRadius: '2px', textAlign: 'right' }}>
             <strong>₹{(items[index]?.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</strong>
           </div>
@@ -445,42 +358,21 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
       key: 'action',
       width: 50,
       fixed: 'right',
-      render: (_, record) => (
-        <Button
-          type="text"
-          danger
-          icon={<DeleteOutlined />}
-          onClick={() => removeItem(record?.key)}
-        />
-      ),
+      render: (_, record) => <Button type="text" danger icon={<DeleteOutlined />} onClick={() => removeItem(record?.key)} />,
     },
   ];
 
   return (
     <>
-      {/* PDF BUTTON: Placed at the top, visible when PO is saved */}
       {hasSavedPO && (
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 20 }}>
-          <Button
-            type="primary"
-            icon={<FilePdfOutlined />}
-            onClick={handleDownloadPDF}
-            loading={pdfLoading}
-            size="large"
-          >
-            Download PDF
-          </Button>
+          <Button type="primary" icon={<FilePdfOutlined />} onClick={handleDownloadPDF} loading={pdfLoading} size="large">Download PDF</Button>
         </div>
       )}
 
       {!isUpdateForm && pendingRequirements.length > 0 && (
         <Form.Item label="Convert from Requirement">
-          <Select
-            placeholder="Select a pending requirement to convert"
-            onChange={convertFromRequirement}
-            allowClear
-            style={{ width: '100%' }}
-          >
+          <Select placeholder="Select a pending requirement to convert" onChange={convertFromRequirement} allowClear style={{ width: '100%' }}>
             {pendingRequirements.map((req) => (
               <Select.Option key={req?._id} value={req?._id}>
                 {req?.projectId?.name || 'Unknown Project'} - {req?.requestDate ? dayjs(req.requestDate).format('DD/MM/YYYY') : 'No Date'} ({req?.items?.length || 0} items)
@@ -490,15 +382,10 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
         </Form.Item>
       )}
 
-      <Form.Item
-        label="Supplier"
-        name="supplier"
-        rules={[{ required: true, message: 'Please select a supplier' }]}
-      >
+      <Form.Item label="Supplier" name="supplier" rules={[{ required: true, message: 'Please select a supplier' }]}>
         <SelectAsync
           entity="inventory/supplier"
           displayLabels={['name', 'phone']}
-          // ✅ FIX: Added comprehensive search fields and clear placeholder
           searchFields="name,email,phone,contactPerson,gstNumber,address"
           outputValue="_id"
           placeholder="Type to search supplier..."
@@ -509,48 +396,16 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
       </Form.Item>
 
       <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap' }}>
-        <Form.Item
-          label="PO Date"
-          name="date"
-          rules={[{ required: true }]}
-          style={{ flex: 1, minWidth: '200px' }}
-        >
-          <DatePicker 
-            style={{ width: '100%' }} 
-            format="DD/MM/YYYY"
-            onChange={() => handleDateOrLeadTimeChange()}
-          />
+        <Form.Item label="PO Date" name="date" rules={[{ required: true }]} style={{ flex: 1, minWidth: '200px' }}>
+          <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" onChange={() => handleDateOrLeadTimeChange()} />
         </Form.Item>
-        <Form.Item
-          label="Lead Time (Days)"
-          name="leadTimeDays"
-          style={{ flex: 1, minWidth: '150px' }}
-        >
-          <InputNumber
-            min={0}
-            style={{ width: '100%' }}
-            placeholder="Enter days"
-            onChange={() => handleDateOrLeadTimeChange()}
-          />
+        <Form.Item label="Lead Time (Days)" name="leadTimeDays" style={{ flex: 1, minWidth: '150px' }}>
+          <InputNumber min={0} style={{ width: '100%' }} placeholder="Enter days" onChange={() => handleDateOrLeadTimeChange()} />
         </Form.Item>
-        <Form.Item
-          label="Expected Delivery"
-          name="expiredDate"
-          style={{ flex: 1, minWidth: '200px' }}
-        >
-          <DatePicker 
-            style={{ width: '100%' }} 
-            format="DD/MM/YYYY"
-            disabled
-            placeholder="Auto-calculated"
-          />
+        <Form.Item label="Expected Delivery" name="expiredDate" style={{ flex: 1, minWidth: '200px' }}>
+          <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" disabled placeholder="Auto-calculated" />
         </Form.Item>
-        <Form.Item
-          label="Status"
-          name="status"
-          initialValue="Draft"
-          style={{ flex: 1, minWidth: '150px' }}
-        >
+        <Form.Item label="Status" name="status" initialValue="Draft" style={{ flex: 1, minWidth: '150px' }}>
           <Select>
             <Select.Option value="Draft">Draft</Select.Option>
             <Select.Option value="Pending">Pending</Select.Option>
@@ -562,35 +417,16 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
       </div>
 
       {items.length > 0 && (
-        <Card 
-          title="Purchase Order Summary" 
-          style={{ marginBottom: 16 }}
-          bodyStyle={{ padding: '16px' }}
-        >
+        <Card title="Purchase Order Summary" style={{ marginBottom: 16 }} bodyStyle={{ padding: '16px' }}>
           <Row gutter={[16, 16]}>
             <Col xs={24} sm={8}>
-              <Statistic
-                title="Total Unique Items"
-                value={stats.uniqueItems}
-                valueStyle={{ color: '#1890ff' }}
-              />
+              <Statistic title="Total Unique Items" value={stats.uniqueItems} valueStyle={{ color: '#1890ff' }} />
             </Col>
             <Col xs={24} sm={8}>
-              <Statistic
-                title="Total Quantity"
-                value={stats.totalQuantity}
-                precision={2}
-                valueStyle={{ color: '#722ed1' }}
-              />
+              <Statistic title="Total Quantity" value={stats.totalQuantity} precision={2} valueStyle={{ color: '#722ed1' }} />
             </Col>
             <Col xs={24} sm={8}>
-              <Statistic
-                title="Sub Total"
-                value={subTotal}
-                prefix="₹"
-                precision={2}
-                valueStyle={{ color: '#1890ff', fontSize: '18px', fontWeight: 'bold' }}
-              />
+              <Statistic title="Sub Total" value={subTotal} prefix="₹" precision={2} valueStyle={{ color: '#1890ff', fontSize: '18px', fontWeight: 'bold' }} />
             </Col>
           </Row>
         </Card>
@@ -604,33 +440,13 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
           size="small"
           rowKey="key"
           scroll={{ x: 'max-content' }} 
-          footer={() => (
-            <Button
-              type="dashed"
-              onClick={addItem}
-              icon={<PlusOutlined />}
-              block
-            >
-              Add Material
-            </Button>
-          )}
+          footer={() => <Button type="dashed" onClick={addItem} icon={<PlusOutlined />} block>Add Material</Button>}
         />
       </Form.Item>
 
       <div style={{ display: 'flex', gap: '20px', marginBottom: 16, flexWrap: 'wrap' }}>
-        <Form.Item
-          label="Tax %"
-          name="taxRate"
-          style={{ flex: 1, minWidth: '150px' }}
-        >
-          <InputNumber
-            min={0}
-            max={100}
-            style={{ width: '100%' }}
-            placeholder="Tax Rate"
-            onChange={handleTaxRateChange}
-            suffix="%"
-          />
+        <Form.Item label="Tax %" name="taxRate" style={{ flex: 1, minWidth: '150px' }}>
+          <InputNumber min={0} max={100} style={{ width: '100%' }} placeholder="Tax Rate" onChange={handleTaxRateChange} suffix="%" />
         </Form.Item>
         <div style={{ flex: 2, minWidth: '200px', paddingTop: '32px' }}>
           <div style={{ textAlign: 'right' }}>
@@ -654,23 +470,11 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
         </div>
       </div>
 
-      <Form.Item name="subTotal" hidden>
-        <InputNumber />
-      </Form.Item>
-      <Form.Item name="taxTotal" hidden>
-        <InputNumber />
-      </Form.Item>
-      <Form.Item name="totalAmount" hidden>
-        <InputNumber />
-      </Form.Item>
-
-      <Form.Item label="Terms & Conditions" name="terms">
-        <Input.TextArea rows={3} placeholder="Payment terms, delivery terms, etc." />
-      </Form.Item>
-
-      <Form.Item label="Notes" name="notes">
-        <Input.TextArea rows={2} placeholder="Additional notes..." />
-      </Form.Item>
+      <Form.Item name="subTotal" hidden><InputNumber /></Form.Item>
+      <Form.Item name="taxTotal" hidden><InputNumber /></Form.Item>
+      <Form.Item name="totalAmount" hidden><InputNumber /></Form.Item>
+      <Form.Item label="Terms & Conditions" name="terms"><Input.TextArea rows={3} placeholder="Terms..." /></Form.Item>
+      <Form.Item label="Notes" name="notes"><Input.TextArea rows={2} placeholder="Notes..." /></Form.Item>
     </>
   );
 }
@@ -688,23 +492,12 @@ export default function PurchaseOrder() {
     tableActions: { showEdit: true, showDelete: true },
     dataTableColumns: [
         { title: 'PO Number', key: 'number', render: (_, record) => `PO-${record?.year || ''}-${String(record?.number || '').padStart(4, '0')}` },
-        { title: 'Supplier', key: 'supplier', render: (_, r) => {
-            if (r?.supplier && typeof r.supplier === 'object') {
-                return r.supplier?.name || '-';
-            }
-            return r?.supplier || '-';
-        }},
+        { title: 'Supplier', key: 'supplier', render: (_, r) => (r?.supplier && typeof r.supplier === 'object') ? r.supplier?.name || '-' : r?.supplier || '-' },
         { title: 'Date', dataIndex: 'date', render: (date) => (date ? dayjs(date).format('DD/MM/YYYY') : '-') },
         { title: 'Status', dataIndex: 'status', render: (status) => <Tag>{status || '-'}</Tag> },
         { title: 'Total', dataIndex: 'totalAmount', render: (val) => `₹${(val || 0).toLocaleString('en-IN')}` },
     ],
   };
 
-  return (
-    <CrudModule
-      config={config}
-      createForm={<PurchaseOrderForm />}
-      updateForm={<PurchaseOrderForm isUpdateForm={true} />}
-    />
-  );
+  return <CrudModule config={config} createForm={<PurchaseOrderForm />} updateForm={<PurchaseOrderForm isUpdateForm={true} />} />;
 }
