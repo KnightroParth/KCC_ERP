@@ -30,6 +30,7 @@ export default function UnitsTable({ data, onRefresh }) {
         form.setFieldsValue({
             floorNumber: record.floorNumber,
             unitNumber: record.unitNumber,
+            unitType: record.unitType,
             areaSqft: record.areaSqft,
             basePrice: record.basePrice,
             status: record.status,
@@ -88,6 +89,25 @@ export default function UnitsTable({ data, onRefresh }) {
                 const numB = parseInt(b.unitNumber.replace(/\D/g, '')) || 0;
                 return numA - numB;
             },
+        },
+        {
+            title: 'Unit Type',
+            dataIndex: 'unitType',
+            key: 'unitType',
+            width: 100,
+            render: (text) => text || '-',
+            filters: [
+                { text: '1 BHK', value: '1BHK' },
+                { text: '2 BHK', value: '2BHK' },
+                { text: '3 BHK', value: '3BHK' },
+                { text: '4 BHK', value: '4BHK' },
+                { text: 'Studio', value: 'Studio' },
+                { text: 'Penthouse', value: 'Penthouse' },
+                { text: 'Shop', value: 'Shop' },
+                { text: 'Office', value: 'Office' },
+                { text: 'Other', value: 'Other' },
+            ],
+            onFilter: (value, record) => record.unitType === value,
         },
         {
             title: 'Area (Sq Ft)',
@@ -204,6 +224,24 @@ export default function UnitsTable({ data, onRefresh }) {
                         rules={[{ required: true, message: 'Please enter unit number' }]}
                     >
                         <Input placeholder="e.g., A-502" />
+                    </Form.Item>
+
+                    <Form.Item
+                        name="unitType"
+                        label="Unit Type"
+                        rules={[{ required: true, message: 'Please select unit type' }]}
+                    >
+                        <Select placeholder="Select Unit Type">
+                            <Option value="1BHK">1 BHK</Option>
+                            <Option value="2BHK">2 BHK</Option>
+                            <Option value="3BHK">3 BHK</Option>
+                            <Option value="4BHK">4 BHK</Option>
+                            <Option value="Studio">Studio</Option>
+                            <Option value="Penthouse">Penthouse</Option>
+                            <Option value="Shop">Shop</Option>
+                            <Option value="Office">Office</Option>
+                            <Option value="Other">Other</Option>
+                        </Select>
                     </Form.Item>
 
                     <Form.Item

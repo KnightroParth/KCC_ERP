@@ -87,10 +87,10 @@ export default function Labour() {
   const deleteModalLabels = ['name', 'trade'];
 
   const Labels = {
-    PANEL_TITLE: 'Labour Master',
-    DATATABLE_TITLE: 'Labour List',
-    ADD_NEW_ENTITY: 'Add New Labour',
-    ENTITY_NAME: 'Labour',
+    PANEL_TITLE: 'Manage Staff',
+    DATATABLE_TITLE: 'Staff List',
+    ADD_NEW_ENTITY: 'Add New Staff',
+    ENTITY_NAME: 'Staff',
   };
 
   const tableActions = {
@@ -104,6 +104,18 @@ export default function Labour() {
       title: 'Name',
       dataIndex: 'name',
       key: 'name',
+    },
+    {
+      title: 'Type',
+      dataIndex: 'type',
+      key: 'type',
+      filters: [
+        { text: 'Contractors', value: 'Contractors' },
+        { text: 'Labours', value: 'Labours' },
+        { text: 'Supervisors', value: 'Supervisors' },
+        { text: 'Site Incharge', value: 'Site Incharge' },
+      ],
+      onFilter: (value, record) => record.type === value,
     },
     {
       title: 'Trade',

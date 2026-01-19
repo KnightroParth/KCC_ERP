@@ -39,7 +39,7 @@ const ActivitySchema = new mongoose.Schema(
     },
     unit: {
       type: String,
-      required: true,
+      required: false,
       trim: true,
     },
     defaultRate: {
@@ -50,6 +50,18 @@ const ActivitySchema = new mongoose.Schema(
       type: String,
       required: false,
       trim: true,
+    },
+
+    // Activity photos (before and after)
+    photos: {
+      before: {
+        type: String, // Base64 or file path/URL
+        required: false,
+      },
+      after: {
+        type: String, // Base64 or file path/URL
+        required: false,
+      },
     },
 
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'Admin' },

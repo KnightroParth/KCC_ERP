@@ -89,24 +89,26 @@ function Sidebar({ collapsible, isMobile = false }) {
     // ✅ WORK MODULE
     {
       key: 'work-module',
+      className: 'work-submenu',
       icon: <ToolOutlined style={iconStyle} />,
       label: <span style={parentModuleLabelStyle}>Work</span>,
       children: [
-        { key: 'work/planning', label: <Link to="/work/planning" style={subLinkStyle}>Planning</Link> },
-        { key: 'assign-work', label: <Link to="/assign-work" style={subLinkStyle}>Assign Work Titles</Link> },
-        { key: 'activities', label: <Link to="/activities" style={subLinkStyle}>Activities</Link> },
+        { key: 'work/planning', label: <Link to="/work/planning" style={{ ...subLinkStyle, color: currentPath === 'work/planning' ? '#ffffff' : '#1677ff' }}>Planning</Link> },
+        { key: 'assign-work', label: <Link to="/assign-work" style={{ ...subLinkStyle, color: currentPath === 'assign-work' ? '#ffffff' : '#1677ff' }}>Assign Work Titles</Link> },
+        { key: 'activities', label: <Link to="/activities" style={{ ...subLinkStyle, color: currentPath === 'activities' ? '#ffffff' : '#1677ff' }}>Activities</Link> },
       ],
     },
 
     // ✅ ATTENDANCE MODULE
     {
       key: 'attendance-module',
+      className: 'attendance-submenu',
       icon: <UserOutlined style={iconStyle} />,
       label: <span style={parentModuleLabelStyle}>Attendance</span>,
       children: [
-        { key: 'attendance', label: <Link to="/attendance" style={subLinkStyle}>Mark Attendance</Link> },
-        { key: 'labour', label: <Link to="/labour" style={subLinkStyle}>Labour Master</Link> },
-        { key: 'vendor', label: <Link to="/vendor" style={subLinkStyle}>Vendor Master</Link> },
+        { key: 'attendance', label: <Link to="/attendance" style={{ ...subLinkStyle, color: currentPath === 'attendance' ? '#ffffff' : '#1677ff' }}>Mark Attendance</Link> },
+        { key: 'labour', label: <Link to="/labour" style={{ ...subLinkStyle, color: currentPath === 'labour' ? '#ffffff' : '#1677ff' }}>Manage Staff</Link> },
+        { key: 'vendor', label: <Link to="/vendor" style={{ ...subLinkStyle, color: currentPath === 'vendor' ? '#ffffff' : '#1677ff' }}>Manage Vendor</Link> },
       ],
     },
 

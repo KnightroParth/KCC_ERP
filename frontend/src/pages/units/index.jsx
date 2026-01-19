@@ -163,6 +163,7 @@ export default function Units() {
         buildingName: selectedBuilding,
         unitNumber: values.unitNumber,
         floorNumber: values.floor,
+        unitType: values.unitType,
         areaSqft: values.saleableArea,
         basePrice: values.ratePerSqft,
         status: values.status,
@@ -489,6 +490,24 @@ export default function Units() {
             rules={[{ required: true, message: 'Please enter floor number' }]}
           >
             <Input placeholder="e.g., 5" />
+          </Form.Item>
+
+          <Form.Item
+            name="unitType"
+            label="Unit Type"
+            rules={[{ required: true, message: 'Please select unit type' }]}
+          >
+            <Select placeholder="Select Unit Type">
+              <Option value="1BHK">1 BHK</Option>
+              <Option value="2BHK">2 BHK</Option>
+              <Option value="3BHK">3 BHK</Option>
+              <Option value="4BHK">4 BHK</Option>
+              <Option value="Studio">Studio</Option>
+              <Option value="Penthouse">Penthouse</Option>
+              <Option value="Shop">Shop</Option>
+              <Option value="Office">Office</Option>
+              <Option value="Other">Other</Option>
+            </Select>
           </Form.Item>
 
           <Form.Item
