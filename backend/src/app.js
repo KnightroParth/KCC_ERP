@@ -21,6 +21,9 @@ const vendorRouter = require('./routes/appRoutes/vendorRoutes');
 // Load Inventory Router
 const inventoryRouter = require('./routes/appRoutes/inventoryRoutes');
 
+// Load AI Router
+const aiRouter = require('./routes/appRoutes/aiRoutes');
+
 const app = express();
 
 app.use(
@@ -58,6 +61,9 @@ app.use('/api/vendor', adminAuth.isValidAuthToken, vendorRouter);
 
 // ✅ Inventory custom routes
 app.use('/api/inventory', adminAuth.isValidAuthToken, inventoryRouter);
+
+// ✅ AI Assistant routes
+app.use('/api/ai', adminAuth.isValidAuthToken, aiRouter);
 
 app.use('/download', coreDownloadRouter);
 app.use('/public', corePublicRouter);

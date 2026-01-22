@@ -1,5 +1,6 @@
 import { ErpContextProvider } from '@/context/erp';
 import { Layout } from 'antd';
+import AiChat from '@/components/AiChat';
 
 const { Content } = Layout;
 
@@ -17,6 +18,7 @@ export default function ErpLayout({ children }) {
       >
         {children}
       </Content>
+      <AiChat />
     </ErpContextProvider>
   );
 }

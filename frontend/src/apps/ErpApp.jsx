@@ -11,6 +11,7 @@ import Navigation from '@/apps/Navigation/NavigationContainer';
 
 import HeaderContent from '@/apps/Header/HeaderContainer';
 import PageLoader from '@/components/PageLoader';
+import AiChat from '@/components/AiChat';
 
 import { settingsAction } from '@/redux/settings/actions';
 
@@ -84,7 +85,9 @@ export default function ErpCrmApp() {
             </Content>
           </Layout>
         )}
+        <AiChat />
       </Layout>
     );
   else return <PageLoader />;
 }
+
