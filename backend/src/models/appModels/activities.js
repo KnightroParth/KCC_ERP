@@ -25,6 +25,11 @@ const ActivitySchema = new mongoose.Schema(
       ref: 'Units',
       required: true,
     },
+    contractorId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Vendor',
+      required: false,
+    },
 
     // Activity identification
     activityCode: {
@@ -62,6 +67,10 @@ const ActivitySchema = new mongoose.Schema(
         type: String, // Base64 or file path/URL
         required: false,
       },
+    },
+    data: {
+      type: mongoose.Schema.Types.Mixed,
+      default: {},
     },
 
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'Admin' },

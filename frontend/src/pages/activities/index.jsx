@@ -3,8 +3,22 @@ import React, { useState, useEffect } from "react";
 import { Layout, Select, Typography, message, Empty, Button, Drawer, Form, Input, Table, Space, Tag, Modal } from "antd";
 import { PlusOutlined, EditOutlined, DeleteOutlined } from "@ant-design/icons";
 import { request } from "@/request";
-import { WORK_CATEGORIES } from "@/pages/AssignWork/config";
+import { WORK_CATEGORIES, COMPLEX_TASK_COMPONENTS } from "@/pages/AssignWork/config";
 import ImageUpload from "@/components/ImageUpload";
+
+// Import Complex Forms
+import SlabReinforcementForm from '@/pages/work/planning/components/SlabReinforcementForm';
+import MivanCenteringForm from '@/pages/work/planning/components/MivanCenteringForm';
+import ElectricalWorkIForm from '@/pages/work/planning/components/ElectricalWorkIForm';
+import ElectricalWorkEForm from '@/pages/work/planning/components/ElectricalWorkEForm';
+
+// Component Mapping
+const FORM_COMPONENTS = {
+  'SlabReinforcementForm': SlabReinforcementForm,
+  'MivanCenteringForm': MivanCenteringForm,
+  'ElectricalWorkIForm': ElectricalWorkIForm,
+  'ElectricalWorkEForm': ElectricalWorkEForm,
+};
 
 const { Content } = Layout;
 const { Option } = Select;
@@ -28,6 +42,9 @@ export default function Activities() {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isEditDrawerOpen, setIsEditDrawerOpen] = useState(false);
   const [editingActivity, setEditingActivity] = useState(null);
+  const [vendors, setVendors] = useState([]);
+  const [selectedContractor, setSelectedContractor] = useState(null);
+  const [checklistData, setChecklistData] = useState({});
   const [form] = Form.useForm();
   const [editForm] = Form.useForm();
   const [submitting, setSubmitting] = useState(false);
@@ -54,6 +71,11 @@ export default function Activities() {
         const activitiesResult = await request.listAll({ entity: "activities" });
         if (activitiesResult.success && activitiesResult.result) {
           setActivitiesList(activitiesResult.result);
+        }
+        // Fetch vendors
+        const vendorResult = await request.listAll({ entity: "vendor" });
+        if (vendorResult.success && vendorResult.result) {
+          setVendors(vendorResult.result);
         }
       } catch (error) {
         console.error("Error fetching initial data:", error);
@@ -118,8 +140,12 @@ export default function Activities() {
         return buildingName === selectedBuilding;
       });
     }
-
-
+    if (selectedContractor) {
+      filtered = filtered.filter(activity => {
+        const activityContractorId = activity.contractorId?._id || activity.contractorId;
+        return activityContractorId === selectedContractor;
+      });
+    }
 
     return filtered;
   };
@@ -157,6 +183,8 @@ export default function Activities() {
         remarks: values.remarks || '',
         defaultRate: 0,
         category: selectedCat ? selectedCat.label : values.category,
+        contractorId: values.contractorId,
+        data: checklistData,
         photos: {
           before: values.photoBefore || null,
           after: values.photoAfter || null,
@@ -203,9 +231,11 @@ export default function Activities() {
       activityName: record.activityName,
       remarks: record.remarks || '',
       category: cat ? cat.id : record.category,
+      contractorId: record.contractorId?._id || record.contractorId,
       photoBefore: record.photos?.before || null,
       photoAfter: record.photos?.after || null,
     });
+    setChecklistData(record.data || {});
     setIsEditDrawerOpen(true);
   };
 
@@ -296,6 +326,14 @@ export default function Activities() {
       dataIndex: 'category',
       key: 'category',
       render: (text) => text ? <Tag color="blue">{text}</Tag> : '-',
+    },
+    {
+      title: 'Contractor',
+      key: 'contractor',
+      render: (_, record) => {
+        const vendor = vendors.find(v => (v._id === (record.contractorId?._id || record.contractorId)));
+        return vendor ? vendor.name : '-';
+      }
     },
     {
       title: 'Activity Name',
@@ -442,7 +480,23 @@ export default function Activities() {
                 ))}
               </Select>
             </div>
-            {/* Category filter removed as requested */}
+            <div className="filter-bar-item" style={{ flex: 1, minWidth: 250 }}>
+              <label className="filter-bar-label">Contractor</label>
+              <Select
+                placeholder="Select Contractor"
+                style={{ width: "100%" }}
+                onChange={(value) => setSelectedContractor(value)}
+                size="large"
+                value={selectedContractor}
+                allowClear
+              >
+                {vendors.map((v) => (
+                  <Option key={v._id} value={v._id}>
+                    {v.name}
+                  </Option>
+                ))}
+              </Select>
+            </div>
           </div>
 
           {selectedProject && selectedBuilding ? (
@@ -508,11 +562,75 @@ export default function Activities() {
           </Form.Item>
 
           <Form.Item
-            name="activityName"
-            label="Activity Name"
-            rules={[{ required: true, message: 'Please enter activity name' }]}
+            name="contractorId"
+            label="Contractor"
+            rules={[{ required: true, message: 'Please select a contractor' }]}
           >
-            <Input placeholder="e.g., Plumbing, Electrical Work, Tile Fitting" />
+            <Select placeholder="Select Contractor">
+              {vendors.map((v) => (
+                <Option key={v._id} value={v._id}>
+                  {v.name}
+                </Option>
+              ))}
+            </Select>
+          </Form.Item>
+
+          <Form.Item
+            noStyle
+            shouldUpdate={(prevValues, currentValues) => prevValues.category !== currentValues.category}
+          >
+            {({ getFieldValue }) => {
+              const categoryId = getFieldValue('category');
+              const category = ACTIVITY_CATEGORIES.find(c => c.id === categoryId);
+              const subTasks = category?.fields || [];
+
+              return (
+                <Form.Item
+                  name="activityName"
+                  label="Activity Name"
+                  rules={[{ required: true, message: 'Please select or enter an activity name' }]}
+                >
+                  <Select
+                    showSearch
+                    placeholder="Select or enter activity name"
+                    options={subTasks.map(t => ({ label: t, value: t }))}
+                    dropdownRender={(menu) => (
+                      <>
+                        {menu}
+                        <div style={{ padding: '8px', borderTop: '1px solid #e8e8e8' }}>
+                          <Input
+                            placeholder="Or type custom activity name"
+                            onKeyDown={(e) => e.stopPropagation()}
+                            onChange={(e) => form.setFieldsValue({ activityName: e.target.value })}
+                          />
+                        </div>
+                      </>
+                    )}
+                  />
+                </Form.Item>
+              );
+            }}
+          </Form.Item>
+
+          <Form.Item
+            noStyle
+            shouldUpdate={(prevValues, currentValues) => prevValues.activityName !== currentValues.activityName}
+          >
+            {({ getFieldValue }) => {
+              const activityName = getFieldValue('activityName');
+              const formName = COMPLEX_TASK_COMPONENTS[activityName];
+              const ActiveForm = formName ? FORM_COMPONENTS[formName] : null;
+
+              if (ActiveForm) {
+                return (
+                  <div style={{ marginBottom: 24, padding: 16, border: '1px solid #d9d9d9', borderRadius: 8 }}>
+                    <h3 style={{ marginBottom: 16 }}>{activityName} Checklist</h3>
+                    <ActiveForm data={checklistData} setData={setChecklistData} currentTask={activityName} />
+                  </div>
+                );
+              }
+              return null;
+            }}
           </Form.Item>
 
           <Form.Item
@@ -600,11 +718,49 @@ export default function Activities() {
           </Form.Item>
 
           <Form.Item
-            name="activityName"
-            label="Activity Name"
-            rules={[{ required: true, message: 'Please enter activity name' }]}
+            noStyle
+            shouldUpdate={(prevValues, currentValues) => prevValues.category !== currentValues.category}
           >
-            <Input placeholder="e.g., Plumbing, Electrical Work, Tile Fitting" />
+            {({ getFieldValue }) => {
+              const categoryId = getFieldValue('category');
+              const category = ACTIVITY_CATEGORIES.find(c => c.id === categoryId);
+              const subTasks = category?.fields || [];
+
+              return (
+                <Form.Item
+                  name="activityName"
+                  label="Activity Name"
+                  rules={[{ required: true, message: 'Please select or enter an activity name' }]}
+                >
+                  <Select
+                    showSearch
+                    placeholder="Select or enter activity name"
+                    options={subTasks.map(t => ({ label: t, value: t }))}
+                  />
+                </Form.Item>
+              );
+            }}
+          </Form.Item>
+
+          <Form.Item
+            noStyle
+            shouldUpdate={(prevValues, currentValues) => prevValues.activityName !== currentValues.activityName}
+          >
+            {({ getFieldValue }) => {
+              const activityName = getFieldValue('activityName');
+              const formName = COMPLEX_TASK_COMPONENTS[activityName];
+              const ActiveForm = formName ? FORM_COMPONENTS[formName] : null;
+
+              if (ActiveForm) {
+                return (
+                  <div style={{ marginBottom: 24, padding: 16, border: '1px solid #d9d9d9', borderRadius: 8 }}>
+                    <h3 style={{ marginBottom: 16 }}>{activityName} Checklist</h3>
+                    <ActiveForm data={checklistData} setData={setChecklistData} currentTask={activityName} />
+                  </div>
+                );
+              }
+              return null;
+            }}
           </Form.Item>
 
           <Form.Item

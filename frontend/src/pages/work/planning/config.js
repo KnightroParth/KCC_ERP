@@ -12,22 +12,19 @@ export const PLANNING_LISTS = {
         "Individual Checklist"
     ],
     OTHER: [
-        "Extra Work",
-        "Outside Extra Work",
-        "A) Electrical Work",
-        "B) Electrical Line",
-        "Inside plaster / Gypsum",
-        "Plumbing Work",
-        "Waterproofing",
-        "Internal Plaster",
-        "Loft",
-        "Tile work",
-        "Painting Work",
-        "A) Door Frame Fitting",
-        "B) Door Panel Fitting",
-        "Aluminium Work",
+        "Mivan",
+        "Slab Beam Reinforcement",
+        "Electrical Work-I",
+        "Electrical Work-E",
+        "Water Proofing",
+        "Plumbing-I",
+        "Plumbing-E",
+        "Tiles",
+        "POP",
+        "Civil Work",
         "Fabrication Work",
-        "CivilWork Repair",
-        "ALL Work"
+        "Painting",
+        "Finishing-W",
+        "Finishing-D"
     ]
 };

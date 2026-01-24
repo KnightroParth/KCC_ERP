@@ -56,51 +56,51 @@ export default function AssignWork() {
                 // Debug: Log what we're working with
                 console.log('Selected Project:', selectedProject);
                 console.log('Units List available:', unitsList.length);
-                
+
                 let projectUnits = [];
-                
+
                 // First try: Filter from existing units list
                 if (unitsList.length > 0) {
                     projectUnits = unitsList.filter(u => {
                         if (!u) return false;
-                        
+
                         // Get the selected project identifiers
                         const selectedProjId = selectedProject._id;
                         const selectedProjCode = selectedProject.projectCode || selectedProject.code;
                         const selectedProjName = selectedProject.name;
-                        
+
                         console.log('Checking unit:', u.unitNumber, 'projectId:', u.projectId);
-                        
+
                         // Extract unit's project reference - handle multiple formats
-                        const unitProjectId = typeof u.projectId === 'object' 
-                            ? u.projectId._id || u.projectId 
+                        const unitProjectId = typeof u.projectId === 'object'
+                            ? u.projectId._id || u.projectId
                             : u.projectId;
-                        
+
                         // Try multiple matching strategies:
                         // 1. Match by MongoDB _id
                         const matchesById = unitProjectId === selectedProjId;
-                        
+
                         // 2. Match by project code (units often store projectCode not _id)
                         const matchesByCode = unitProjectId === selectedProjCode;
-                        
+
                         // 3. Match by projectCode field if it exists
                         const matchesByProjectCodeField = u.projectCode === selectedProjCode;
-                        
+
                         // 4. Match by project name field if it exists
                         const matchesByNameField = u.project === selectedProjName || u.projectName === selectedProjName;
-                        
+
                         const matches = matchesById || matchesByCode || matchesByProjectCodeField || matchesByNameField;
-                        
+
                         if (matches) {
                             console.log('✓ Unit matched:', u.unitNumber, 'Building:', u.buildingName || u.towerOrWing);
                         }
-                        
+
                         return matches;
                     });
-                    
+
                     console.log('Filtered project units from full list:', projectUnits.length);
                 }
-                
+
                 // Fallback: If no units found, try fetching units by project code
                 if (projectUnits.length === 0 && selectedProject.projectCode) {
                     try {
@@ -114,7 +114,7 @@ export default function AssignWork() {
                         console.log('Error fetching units by project code:', error);
                     }
                 }
-                
+
                 // Extract buildings from units
                 const getBuildingName = (unit) => unit.buildingName || unit.towerOrWing;
 
@@ -129,13 +129,13 @@ export default function AssignWork() {
             } else {
                 setBuildings([]);
             }
-            
+
             // Clear building selection when project changes
             setSelectedBuilding(null);
             // Clear table data when project changes
             setTableData([]);
         };
-        
+
         updateBuildingsForProject();
     }, [selectedProject, unitsList]);
 
@@ -189,24 +189,24 @@ export default function AssignWork() {
         // Filter units for the selected project and building
         const filteredUnits = unitsList.filter(u => {
             // Extract projectId - can be string or object
-            const unitProjectId = typeof u.projectId === 'object' 
-                ? u.projectId._id 
+            const unitProjectId = typeof u.projectId === 'object'
+                ? u.projectId._id
                 : u.projectId;
-            
+
             // Get the selected project identifiers
             const selectedProjId = selectedProject._id;
             const selectedProjCode = selectedProject.projectCode || selectedProject.code;
             const selectedProjName = selectedProject.name;
-            
+
             // Try multiple matching strategies for project
             const matchesById = unitProjectId === selectedProjId;
             const matchesByCode = unitProjectId === selectedProjCode;
             const matchesByProjectCodeField = u.projectCode === selectedProjCode;
             const matchesByNameField = u.project === selectedProjName || u.projectName === selectedProjName;
-            
+
             const matchesProject = matchesById || matchesByCode || matchesByProjectCodeField || matchesByNameField;
             const matchesBuilding = getBuildingName(u) === selectedBuilding;
-            
+
             return matchesProject && matchesBuilding;
         });
 
@@ -215,12 +215,12 @@ export default function AssignWork() {
             // Find existing assignment for this unit and category
             const assignment = assignments.find(a => {
                 if (!a || a.workCode !== selectedCategory.id) return false;
-                
+
                 // Match on unitId
                 const aUnitId = a.unitId;
                 const unitId = unit._id;
                 const matchesUnit = aUnitId === unitId || String(aUnitId) === String(unitId);
-                
+
                 return matchesUnit;
             });
 
@@ -323,7 +323,7 @@ export default function AssignWork() {
 
             if (result.success) {
                 const updatedAssignment = result.result;
-                
+
                 // Update assignments state
                 setAssignments(prev => {
                     if (unit.assignmentId) {
@@ -340,7 +340,7 @@ export default function AssignWork() {
                         return [...prev, updatedAssignment];
                     }
                 });
-                
+
                 message.success('Work assignment updated');
             } else {
                 message.error("Failed to update task assignment");
@@ -410,11 +410,11 @@ export default function AssignWork() {
                             <label className="filter-bar-label">Building</label>
                             <Select
                                 placeholder={
-                                    !selectedProject 
-                                        ? "Select a project first" 
-                                        : buildings.length === 0 
-                                        ? "No buildings found for this project" 
-                                        : "Select Building/Tower"
+                                    !selectedProject
+                                        ? "Select a project first"
+                                        : buildings.length === 0
+                                            ? "No buildings found for this project"
+                                            : "Select Building/Tower"
                                 }
                                 style={{ width: '100%' }}
                                 onChange={handleBuildingChange}
@@ -423,8 +423,8 @@ export default function AssignWork() {
                                 value={selectedBuilding}
                                 allowClear
                                 notFoundContent={
-                                    selectedProject && buildings.length === 0 
-                                        ? "No buildings available for this project" 
+                                    selectedProject && buildings.length === 0
+                                        ? "No buildings available for this project"
                                         : null
                                 }
                             >

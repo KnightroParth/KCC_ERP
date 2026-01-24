@@ -85,7 +85,7 @@ export default function WorkTable({
                         icon={<DeleteOutlined />}
                         size="small"
                         disabled={!record.assignedTasks || record.assignedTasks.length === 0}
-                        style={{ 
+                        style={{
                             backgroundColor: '#ff4d4f',
                             borderColor: '#ff4d4f',
                             color: '#fff'
@@ -104,7 +104,7 @@ export default function WorkTable({
             dataSource={data}
             rowKey="_id"
             style={{ marginTop: 20 }}
-            pagination={{ pageSize: 20 }}
+            pagination={{ pageSize: 12 }}
             loading={loading}
             scroll={{ x: 'max-content', y: 600 }}
             // Footer shows total count of units displayed
