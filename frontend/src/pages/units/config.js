@@ -37,7 +37,7 @@ export const fields = {
 
   saleableArea: {
     type: "number",
-    label: "Total Area (Sq Ft)",
+    label: "Total Area (Sq Mtr)",
     required: false,
   },
 

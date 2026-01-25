@@ -13,10 +13,12 @@ const UnitsSchema = new mongoose.Schema(
     // Also support buildingName for consistency with Unit model
     buildingName: { type: String },
     floor: { type: Number },
+    floorNumber: { type: Number }, // For frontend compatibility
 
     unitType: { type: String },
     carpetArea: { type: Number },
     saleableArea: { type: Number },
+    areaSqft: { type: Number }, // For frontend compatibility
 
     ratePerSqft: { type: Number, required: true },
     totalAmount: { type: Number },

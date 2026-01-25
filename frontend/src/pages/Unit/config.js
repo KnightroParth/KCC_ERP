@@ -35,7 +35,7 @@ export const fields = {
     placeholder: 'e.g., 2BHK / Office / Shop',
   },
   areaSqft: {
-    label: 'Area (Sq Ft)',
+    label: 'Area (Sq Mtr)',
     type: 'number',
     required: true,
     placeholder: 'e.g., 1220',

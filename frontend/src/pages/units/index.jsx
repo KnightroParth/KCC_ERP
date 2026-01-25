@@ -167,7 +167,7 @@ export default function Units() {
         areaSqft: values.saleableArea,
         basePrice: values.ratePerSqft,
         status: values.status,
-        buyerName: values.ownerName,
+        ownerName: values.ownerName,
       };
 
       const result = await request.create({ entity: "unit", jsonData: unitData });
@@ -512,7 +512,7 @@ export default function Units() {
 
           <Form.Item
             name="saleableArea"
-            label="Area (Sq Ft)"
+            label="Area (Sq Mtr)"
             rules={[{ required: true, message: 'Please enter area' }]}
           >
             <InputNumber min={0} step={0.01} placeholder="e.g., 1220" />

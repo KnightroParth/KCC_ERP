@@ -34,7 +34,7 @@ export default function UnitsTable({ data, onRefresh }) {
             areaSqft: record.areaSqft,
             basePrice: record.basePrice,
             status: record.status,
-            buyerName: record.buyerName,
+            buyerName: record.ownerName,
         });
         setIsEditModalOpen(true);
     };
@@ -110,7 +110,7 @@ export default function UnitsTable({ data, onRefresh }) {
             onFilter: (value, record) => record.unitType === value,
         },
         {
-            title: 'Area (Sq Ft)',
+            title: 'Area (Sq Mtr)',
             dataIndex: 'areaSqft',
             key: 'areaSqft',
             width: 130,
@@ -125,8 +125,8 @@ export default function UnitsTable({ data, onRefresh }) {
         },
         {
             title: 'Buyer Name',
-            dataIndex: 'buyerName',
-            key: 'buyerName',
+            dataIndex: 'ownerName',
+            key: 'ownerName',
             width: 150,
             render: (text) => text || '-',
         },
@@ -246,7 +246,7 @@ export default function UnitsTable({ data, onRefresh }) {
 
                     <Form.Item
                         name="areaSqft"
-                        label="Area (Sq Ft)"
+                        label="Area (Sq Mtr)"
                         rules={[{ required: true, message: 'Please enter area' }]}
                     >
                         <InputNumber min={0} step={0.01} placeholder="e.g., 1220" style={{ width: '100%' }} />
@@ -273,7 +273,7 @@ export default function UnitsTable({ data, onRefresh }) {
                     </Form.Item>
 
                     <Form.Item
-                        name="buyerName"
+                        name="ownerName"
                         label="Buyer Name (Optional)"
                     >
                         <Input placeholder="Buyer name if sold" />

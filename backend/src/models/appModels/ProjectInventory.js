@@ -16,13 +16,11 @@ const ProjectInventorySchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Project',
       required: true,
-      index: true,
     },
     material: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Material',
       required: true,
-      index: true,
     },
     currentStock: {
       type: Number,

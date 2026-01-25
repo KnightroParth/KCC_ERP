@@ -54,7 +54,7 @@ export const fields = {
 
   saleableArea: {
     type: "number",
-    label: "Area (Sq Ft)",
+    label: "Area (Sq Mtr)",
     required: false,
   },
 
