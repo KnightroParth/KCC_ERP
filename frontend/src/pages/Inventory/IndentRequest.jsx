@@ -1,6 +1,6 @@
-import React, { useEffect } from 'react';
-import { Form, InputNumber, Button, Table, Tag, Badge, DatePicker, Select, Input } from 'antd';
-import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
+import React, { useEffect, useState } from 'react';
+import { Form, InputNumber, Button, Table, Tag, Badge, DatePicker, Select, Input, Space } from 'antd';
+import { PlusOutlined, DeleteOutlined, FilePdfOutlined } from '@ant-design/icons';
 import { useSelector } from 'react-redux';
 import dayjs from 'dayjs';
 
@@ -9,6 +9,9 @@ import AutoCompleteAsync from '@/components/AutoCompleteAsync';
 import SelectAsync from '@/components/SelectAsync';
 import { selectCurrentItem } from '@/redux/crud/selectors';
 import useLanguage from '@/locale/useLanguage';
+import { generateIndentRequestPDF } from '@/utils/pdfGenerator';
+import { request } from '@/request';
+import { message } from 'antd';
 
 function IndentRequestForm({ isUpdateForm = false }) {
   const translate = useLanguage();
@@ -50,7 +53,8 @@ function IndentRequestForm({ isUpdateForm = false }) {
         form.resetFields(); 
         form.setFieldsValue(formattedData);
       } catch (error) {
-        console.error("Error populating form:", error);
+        const errorMessage = error?.message || 'Unknown error';
+        message.error('Error populating form: ' + errorMessage);
       }
     } else if (!isUpdateForm) {
       form.resetFields();
@@ -111,6 +115,7 @@ function IndentRequestForm({ isUpdateForm = false }) {
               size="small"
               rowKey="key" 
               scroll={{ x: 'max-content' }}
+              locale={{ emptyText: 'No materials added. Click "Add Material" to add items.' }}
               columns={[
                 {
                   title: 'Material',
@@ -223,6 +228,33 @@ function IndentRequestForm({ isUpdateForm = false }) {
 }
 
 export default function IndentRequest() {
+  const [pdfLoading, setPdfLoading] = useState(false);
+  const { result: currentItem } = useSelector(selectCurrentItem);
+
+  const handleExportPDF = async () => {
+    if (!currentItem?._id) {
+      message.warning('Please select an indent request to export');
+      return;
+    }
+
+    setPdfLoading(true);
+    try {
+      const res = await request.read({ entity: 'inventory/requirement', id: currentItem._id });
+      if (res?.success && res?.result) {
+        const indent = res.result;
+        await generateIndentRequestPDF(indent);
+        message.success('PDF exported successfully');
+      } else {
+        message.error('Failed to load indent request data');
+      }
+    } catch (error) {
+      const errorMessage = error?.message || 'Unknown error';
+      message.error('Failed to export PDF: ' + errorMessage);
+    } finally {
+      setPdfLoading(false);
+    }
+  };
+
   const config = {
     entity: 'inventory/requirement',
     PANEL_TITLE: 'Indent Request',
@@ -240,13 +272,88 @@ export default function IndentRequest() {
         {
           title: 'Project',
           dataIndex: ['projectId', 'name'],
+          sorter: (a, b) => {
+            const aName = a?.projectId?.name || '';
+            const bName = b?.projectId?.name || '';
+            if (!aName && !bName) return 0;
+            if (!aName) return 1;
+            if (!bName) return -1;
+            return aName.localeCompare(bName);
+          },
           render: (text, record) => record.projectId?.name || 'N/A'
         },
-        { title: 'Date', dataIndex: 'requiredDate', render: (d) => d ? dayjs(d).format('DD/MM/YYYY') : '-' },
-        { title: 'Priority', dataIndex: 'priority', render: (val) => <Tag color={val === 'Urgent' ? 'red' : 'blue'}>{val}</Tag> },
-        { title: 'Status', dataIndex: 'status', render: (val) => <Tag>{val}</Tag> },
-        { title: 'Items', render: (_, r) => r.items?.length || 0 }
-    ]
+        { 
+          title: 'Date', 
+          dataIndex: 'requiredDate',
+          sorter: (a, b) => {
+            if (!a?.requiredDate && !b?.requiredDate) return 0;
+            if (!a?.requiredDate) return 1;
+            if (!b?.requiredDate) return -1;
+            return new Date(a.requiredDate) - new Date(b.requiredDate);
+          },
+          render: (d) => d ? dayjs(d).format('DD/MM/YYYY') : '-' 
+        },
+        { 
+          title: 'Priority', 
+          dataIndex: 'priority',
+          filters: [
+            { text: 'Low', value: 'Low' },
+            { text: 'Medium', value: 'Medium' },
+            { text: 'High', value: 'High' },
+            { text: 'Urgent', value: 'Urgent' },
+          ],
+          onFilter: (value, record) => record.priority === value,
+          render: (val) => {
+            const colorMap = {
+              'Low': 'default',
+              'Medium': 'blue',
+              'High': 'orange',
+              'Urgent': 'red'
+            };
+            return <Tag color={colorMap[val] || 'default'}>{val}</Tag>;
+          }
+        },
+        { 
+          title: 'Status', 
+          dataIndex: 'status',
+          filters: [
+            { text: 'Pending', value: 'Pending' },
+            { text: 'Approved', value: 'Approved' },
+            { text: 'Rejected', value: 'Rejected' },
+            { text: 'Fulfilled', value: 'Fulfilled' },
+          ],
+          onFilter: (value, record) => record.status === value,
+          render: (val) => {
+            const colorMap = {
+              'Pending': 'orange',
+              'Approved': 'green',
+              'Rejected': 'red',
+              'Fulfilled': 'blue'
+            };
+            return <Tag color={colorMap[val] || 'default'}>{val}</Tag>;
+          }
+        },
+        { 
+          title: 'Items', 
+          sorter: (a, b) => {
+            const aLen = a?.items?.length || 0;
+            const bLen = b?.items?.length || 0;
+            return aLen - bLen;
+          },
+          render: (_, r) => r.items?.length || 0 
+        }
+    ],
+    fixHeaderPanel: (
+      <Button
+        type="primary"
+        icon={<FilePdfOutlined />}
+        onClick={handleExportPDF}
+        loading={pdfLoading}
+        disabled={!currentItem?._id}
+      >
+        Export PDF
+      </Button>
+    ),
   };
 
   return (

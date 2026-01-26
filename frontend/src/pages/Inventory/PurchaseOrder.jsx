@@ -32,7 +32,10 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
           setPendingRequirements(res.result || []);
         }
       } catch (error) {
-        console.error('Error loading requirements:', error);
+        // Silent fail for requirements - not critical
+        if (error?.response?.status === 401) {
+          message.error('Session expired. Please login again.');
+        }
         setPendingRequirements([]);
       }
     })();
@@ -52,7 +55,7 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
       form.setFieldValue('taxTotal', tax);
       form.setFieldValue('totalAmount', total);
     } catch (err) {
-      console.error('Error in recalculateTotals:', err);
+      // Silent fail - totals will be recalculated on next update
     }
   }, [form, taxRate]);
 
@@ -63,7 +66,7 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
       form.setFieldValue('taxRate', rate);
       recalculateTotals(items, rate);
     } catch (err) {
-      console.error('Error in handleTaxRateChange:', err);
+      message.error('Error updating tax rate');
     }
   }, [items, form, recalculateTotals]);
 
@@ -108,7 +111,8 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
         form.setFieldValue('leadTimeDays', 0);
       }
     } catch (err) {
-      console.error('Error in form population useEffect:', err);
+      const errorMessage = err?.message || 'Unknown error';
+      message.error('Error loading purchase order: ' + errorMessage);
     }
   }, [isUpdateForm, safeCurrentItem, form, recalculateTotals]);
 
@@ -124,7 +128,7 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
         form.setFieldValue('expiredDate', null);
       }
     } catch (err) {
-      console.error('Error in handleDateOrLeadTimeChange:', err);
+      // Silent fail - date calculation error
     }
   }, [form]);
 
@@ -144,8 +148,8 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
         setPdfLoading(false);
       }, 1000);
     } catch (error) {
-      console.error('Error downloading PDF:', error);
-      message.error('Failed to download PDF');
+      const errorMessage = error?.message || 'Unknown error';
+      message.error('Failed to download PDF: ' + errorMessage);
       setPdfLoading(false);
     }
   };
@@ -194,8 +198,8 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
         message.success(`Items loaded from requirement (${poItems.length} unique materials)`);
       }
     } catch (error) {
-      console.error('Error in convertFromRequirement:', error);
-      message.error('Failed to load requirement');
+      const errorMessage = error?.message || 'Unknown error';
+      message.error('Failed to load requirement: ' + errorMessage);
     }
   };
 
@@ -224,7 +228,7 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
       form.setFieldValue({ items: newItems });
       recalculateTotals(newItems, taxRate);
     } catch (err) {
-      console.error('Error in removeItem:', err);
+      message.error('Error removing item');
     }
   };
 
@@ -249,7 +253,7 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
       setItems(newItems);
       recalculateTotals(newItems, taxRate);
     } catch (err) {
-      console.error('Error in updateItem:', err);
+      message.error('Error updating item');
     }
   };
 
@@ -439,7 +443,8 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
           pagination={false}
           size="small"
           rowKey="key"
-          scroll={{ x: 'max-content' }} 
+          scroll={{ x: 'max-content' }}
+          locale={{ emptyText: 'No items added. Click "Add Material" to add items.' }}
           footer={() => <Button type="dashed" onClick={addItem} icon={<PlusOutlined />} block>Add Material</Button>}
         />
       </Form.Item>
@@ -491,11 +496,72 @@ export default function PurchaseOrder() {
     deleteModalLabels: ['number'],
     tableActions: { showEdit: true, showDelete: true },
     dataTableColumns: [
-        { title: 'PO Number', key: 'number', render: (_, record) => `PO-${record?.year || ''}-${String(record?.number || '').padStart(4, '0')}` },
-        { title: 'Supplier', key: 'supplier', render: (_, r) => (r?.supplier && typeof r.supplier === 'object') ? r.supplier?.name || '-' : r?.supplier || '-' },
-        { title: 'Date', dataIndex: 'date', render: (date) => (date ? dayjs(date).format('DD/MM/YYYY') : '-') },
-        { title: 'Status', dataIndex: 'status', render: (status) => <Tag>{status || '-'}</Tag> },
-        { title: 'Total', dataIndex: 'totalAmount', render: (val) => `₹${(val || 0).toLocaleString('en-IN')}` },
+        { 
+          title: 'PO Number', 
+          key: 'number',
+          sorter: (a, b) => {
+            const aNum = a?.number || 0;
+            const bNum = b?.number || 0;
+            return aNum - bNum;
+          },
+          render: (_, record) => `PO-${record?.year || ''}-${String(record?.number || '').padStart(4, '0')}` 
+        },
+        { 
+          title: 'Supplier', 
+          key: 'supplier',
+          sorter: (a, b) => {
+            const aName = a?.supplier?.name || '';
+            const bName = b?.supplier?.name || '';
+            if (!aName && !bName) return 0;
+            if (!aName) return 1;
+            if (!bName) return -1;
+            return aName.localeCompare(bName);
+          },
+          render: (_, r) => (r?.supplier && typeof r.supplier === 'object') ? r.supplier?.name || '-' : r?.supplier || '-' 
+        },
+        { 
+          title: 'Date', 
+          dataIndex: 'date',
+          sorter: (a, b) => {
+            if (!a?.date && !b?.date) return 0;
+            if (!a?.date) return 1;
+            if (!b?.date) return -1;
+            return new Date(a.date) - new Date(b.date);
+          },
+          render: (date) => (date ? dayjs(date).format('DD/MM/YYYY') : '-') 
+        },
+        { 
+          title: 'Status', 
+          dataIndex: 'status',
+          filters: [
+            { text: 'Draft', value: 'Draft' },
+            { text: 'Pending', value: 'Pending' },
+            { text: 'Issued', value: 'Issued' },
+            { text: 'Received', value: 'Received' },
+            { text: 'Closed', value: 'Closed' },
+          ],
+          onFilter: (value, record) => record.status === value,
+          render: (status) => {
+            const colorMap = {
+              'Draft': 'default',
+              'Pending': 'orange',
+              'Issued': 'blue',
+              'Received': 'green',
+              'Closed': 'gray'
+            };
+            return <Tag color={colorMap[status] || 'default'}>{status || '-'}</Tag>;
+          }
+        },
+        { 
+          title: 'Total', 
+          dataIndex: 'totalAmount',
+          sorter: (a, b) => {
+            const aVal = a?.totalAmount || 0;
+            const bVal = b?.totalAmount || 0;
+            return aVal - bVal;
+          },
+          render: (val) => `₹${(val || 0).toLocaleString('en-IN')}` 
+        },
     ],
   };
 

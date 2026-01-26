@@ -1,13 +1,16 @@
 // frontend/src/pages/Inventory/MaterialLibrary.jsx
 
-import React, { useState } from 'react';
-import { Button, Upload, message, Modal } from 'antd';
-import { UploadOutlined } from '@ant-design/icons';
+import React, { useState, useEffect } from 'react';
+import { Button, Upload, message, Modal, Table, Tag, Space, Tooltip, Input } from 'antd';
+import { UploadOutlined, FilePdfOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
 import axios from 'axios';
 import CrudModule from '@/modules/CrudModule/CrudModule';
 import DynamicForm from '@/forms/DynamicForm';
 import { request } from '@/request';
 import storePersist from '@/redux/storePersist';
+import { generateMaterialLibraryPDF } from '@/utils/pdfGenerator';
+
+const { Search } = Input;
 
 const fields = {
   name: {
@@ -44,9 +47,72 @@ const fields = {
   },
 };
 
+// Low stock threshold (configurable)
+const LOW_STOCK_THRESHOLD = 10;
+
 function MaterialLibrary() {
   const [importModalVisible, setImportModalVisible] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [materials, setMaterials] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [searchText, setSearchText] = useState('');
+  const [filteredCategory, setFilteredCategory] = useState(null);
+
+  // Load materials with current stock data
+  useEffect(() => {
+    loadMaterials();
+  }, []);
+
+  const loadMaterials = async () => {
+    setLoading(true);
+    try {
+      const res = await request.list({ 
+        entity: 'inventory/material',
+        options: { items: 1000 }
+      });
+      
+      if (res?.success && res?.result) {
+        // Fetch current stock for each material across all projects
+        const materialsWithStock = await Promise.all(
+          res.result.map(async (material) => {
+            try {
+              // Get total stock across all projects for this material
+              const stockRes = await request.list({
+                entity: 'inventory/inventory',
+                options: { 
+                  material: material._id,
+                  items: 1000
+                }
+              });
+              
+              const totalStock = stockRes?.result?.reduce((sum, inv) => {
+                return sum + (inv.currentStock || 0);
+              }, 0) || material.openingStock || 0;
+
+              return {
+                ...material,
+                currentStock: totalStock,
+                isLowStock: totalStock < LOW_STOCK_THRESHOLD,
+              };
+            } catch (e) {
+              return {
+                ...material,
+                currentStock: material.openingStock || 0,
+                isLowStock: (material.openingStock || 0) < LOW_STOCK_THRESHOLD,
+              };
+            }
+          })
+        );
+        
+        setMaterials(materialsWithStock);
+      }
+    } catch (error) {
+      const errorMessage = error?.response?.data?.message || error?.message || 'Unknown error';
+      message.error('Failed to load materials: ' + errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleImport = async (file) => {
     setUploading(true);
@@ -75,8 +141,7 @@ function MaterialLibrary() {
           `Import successful! ${result.result.imported} imported, ${result.result.updated} updated`
         );
         setImportModalVisible(false);
-        // Refresh the table
-        window.location.reload();
+        loadMaterials(); // Reload materials
       } else {
         message.error(result.message || 'Import failed');
       }
@@ -85,6 +150,35 @@ function MaterialLibrary() {
     } finally {
       setUploading(false);
     }
+  };
+
+  const handleExportPDF = async () => {
+    try {
+      const filtered = getFilteredMaterials();
+      await generateMaterialLibraryPDF(filtered, 'material-library.pdf');
+      message.success('PDF exported successfully');
+    } catch (error) {
+      const errorMessage = error?.message || 'Unknown error';
+      message.error('Failed to export PDF: ' + errorMessage);
+    }
+  };
+
+  const getFilteredMaterials = () => {
+    let filtered = [...materials];
+    
+    if (searchText) {
+      filtered = filtered.filter(m => 
+        m.name?.toLowerCase().includes(searchText.toLowerCase()) ||
+        m.category?.toLowerCase().includes(searchText.toLowerCase()) ||
+        m.specifications?.toLowerCase().includes(searchText.toLowerCase())
+      );
+    }
+    
+    if (filteredCategory) {
+      filtered = filtered.filter(m => m.category === filteredCategory);
+    }
+    
+    return filtered;
   };
 
   const uploadProps = {
@@ -99,10 +193,13 @@ function MaterialLibrary() {
         return Upload.LIST_IGNORE;
       }
       handleImport(file);
-      return false; // Prevent auto upload
+      return false;
     },
     showUploadList: false,
   };
+
+  // Get unique categories for filter
+  const categories = [...new Set(materials.map(m => m.category).filter(Boolean))];
 
   const entity = 'inventory/material';
   const searchConfig = {
@@ -118,32 +215,105 @@ function MaterialLibrary() {
     position: 'right',
   };
 
+  const filteredMaterials = getFilteredMaterials();
+  const lowStockCount = filteredMaterials.filter(m => m.isLowStock).length;
+
   const dataTableColumns = [
     {
       title: 'Material Name',
       dataIndex: 'name',
       key: 'name',
+      sorter: (a, b) => {
+        const aName = a?.name || '';
+        const bName = b?.name || '';
+        if (!aName && !bName) return 0;
+        if (!aName) return 1;
+        if (!bName) return -1;
+        return aName.localeCompare(bName);
+      },
+      render: (text, record) => (
+        <Space>
+          {text || '-'}
+          {record.isLowStock && (
+            <Tooltip title="Low Stock Alert">
+              <ExclamationCircleOutlined style={{ color: '#ff4d4f' }} />
+            </Tooltip>
+          )}
+        </Space>
+      ),
     },
     {
       title: 'Category',
       dataIndex: 'category',
       key: 'category',
+      sorter: (a, b) => {
+        const aCat = a?.category || '';
+        const bCat = b?.category || '';
+        if (!aCat && !bCat) return 0;
+        if (!aCat) return 1;
+        if (!bCat) return -1;
+        return aCat.localeCompare(bCat);
+      },
+      filters: categories.map(cat => ({ text: cat, value: cat })),
+      onFilter: (value, record) => record.category === value,
+      render: (text) => text ? <Tag color="blue">{text}</Tag> : '-',
     },
     {
-      title: 'UOM',
+      title: 'Unit',
       dataIndex: 'uom',
       key: 'uom',
+      sorter: (a, b) => {
+        const aUom = a?.uom || '';
+        const bUom = b?.uom || '';
+        if (!aUom && !bUom) return 0;
+        if (!aUom) return 1;
+        if (!bUom) return -1;
+        return aUom.localeCompare(bUom);
+      },
+      render: (text) => text ? <Tag>{text.toUpperCase()}</Tag> : '-',
+    },
+    {
+      title: 'Current Stock',
+      dataIndex: 'currentStock',
+      key: 'currentStock',
+      sorter: (a, b) => {
+        const aStock = a?.currentStock || 0;
+        const bStock = b?.currentStock || 0;
+        return aStock - bStock;
+      },
+      render: (stock, record) => {
+        const stockValue = stock || 0;
+        const color = record.isLowStock ? 'red' : stockValue > 0 ? 'green' : 'default';
+        return (
+          <Tag color={color}>
+            {stockValue.toFixed(2)} {record.uom || 'nos'}
+          </Tag>
+        );
+      },
     },
     {
       title: 'Opening Stock',
       dataIndex: 'openingStock',
       key: 'openingStock',
+      sorter: (a, b) => {
+        const aStock = a?.openingStock || 0;
+        const bStock = b?.openingStock || 0;
+        return aStock - bStock;
+      },
+      render: (stock) => (stock || 0).toFixed(2),
     },
     {
       title: 'Specifications',
       dataIndex: 'specifications',
       key: 'specifications',
-      ellipsis: true,
+      ellipsis: {
+        showTitle: false,
+      },
+      render: (text) => (
+        <Tooltip title={text}>
+          {text || '-'}
+        </Tooltip>
+      ),
     },
   ];
 
@@ -159,14 +329,28 @@ function MaterialLibrary() {
     tableActions,
     dataTableColumns,
     fixHeaderPanel: (
-      <Button
-        type="primary"
-        icon={<UploadOutlined />}
-        onClick={() => setImportModalVisible(true)}
-        style={{ marginLeft: 8 }}
-      >
-        Import CSV/Excel
-      </Button>
+      <Space>
+        <Button
+          type="primary"
+          icon={<FilePdfOutlined />}
+          onClick={handleExportPDF}
+          disabled={filteredMaterials.length === 0}
+        >
+          Export PDF
+        </Button>
+        <Button
+          type="default"
+          icon={<UploadOutlined />}
+          onClick={() => setImportModalVisible(true)}
+        >
+          Import CSV/Excel
+        </Button>
+        {lowStockCount > 0 && (
+          <Tag color="red" style={{ marginLeft: 8 }}>
+            {lowStockCount} Low Stock Items
+          </Tag>
+        )}
+      </Space>
     ),
   };
 
