@@ -1,9 +1,99 @@
-import React, { useState, useEffect } from 'react';
-import { Form, InputNumber, Table, Tag, message, Input, DatePicker } from 'antd';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { Form, InputNumber, Table, Tag, message, Input, DatePicker, Select } from 'antd';
 import CrudModule from '@/modules/CrudModule/CrudModule';
 import SelectAsync from '@/components/SelectAsync';
 import { request } from '@/request';
 import dayjs from 'dayjs';
+import useFetch from '@/hooks/useFetch';
+import useDebounce from '@/hooks/useDebounce';
+
+// Custom Purchase Order Select Component with proper formatting
+function PurchaseOrderSelect({ onChange, value }) {
+  const [searchValue, setSearchValue] = useState('');
+  const [debouncedSearchValue, setDebouncedSearchValue] = useState('');
+  const [currentValue, setCurrentValue] = useState(undefined);
+
+  useDebounce(
+    () => {
+      setDebouncedSearchValue(searchValue);
+    },
+    500,
+    [searchValue]
+  );
+
+  const fetchData = useCallback(() => {
+    const options = { items: 100 }; // Get more items for dropdown
+    if (debouncedSearchValue && debouncedSearchValue.trim()) {
+      options.fields = 'notes';
+      options.q = debouncedSearchValue.trim();
+      return request.search({ entity: 'inventory/purchase-order', options });
+    }
+    return request.list({ entity: 'inventory/purchase-order', options });
+  }, [debouncedSearchValue]);
+
+  const { result, isLoading } = useFetch(fetchData);
+
+  useEffect(() => {
+    // Handle value from Form.Item
+    if (value !== undefined && value !== null) {
+      const val = typeof value === 'object' ? value?._id || value : value;
+      setCurrentValue(val);
+    } else {
+      setCurrentValue(undefined);
+    }
+  }, [value]);
+
+  const handleSelectChange = useCallback((newValue) => {
+    setCurrentValue(newValue);
+    if (onChange) onChange(newValue);
+  }, [onChange]);
+
+  const handleSearch = useCallback((searchText) => {
+    setSearchValue(searchText || '');
+  }, []);
+
+  const options = useMemo(() => {
+    if (!Array.isArray(result)) return [];
+    return result.map((po) => {
+      const poNumber = po?.number ? String(po.number).padStart(4, '0') : '0000';
+      const poYear = po?.year || new Date().getFullYear();
+      const poDate = po?.date ? dayjs(po.date).format('DD/MM/YYYY') : '';
+      const supplierName = po?.supplier?.name || '';
+      
+      // Format: PO-2026-0001 | 26/01/2026 | Supplier Name
+      let label = `PO-${poYear}-${poNumber}`;
+      if (poDate) label += ` | ${poDate}`;
+      if (supplierName) label += ` | ${supplierName}`;
+
+      return {
+        value: po._id,
+        label: label,
+        po: po
+      };
+    });
+  }, [result]);
+
+  return (
+    <Select
+      loading={isLoading}
+      value={currentValue}
+      onChange={handleSelectChange}
+      onSearch={handleSearch}
+      showSearch
+      filterOption={false}
+      placeholder="Select Purchase Order"
+      notFoundContent={isLoading ? 'Loading...' : 'No purchase orders found'}
+      allowClear
+      getPopupContainer={(triggerNode) => triggerNode.parentElement || document.body}
+    >
+      {options.map((option) => (
+        <Select.Option key={option.value} value={option.value}>
+          {option.label}
+        </Select.Option>
+      ))}
+    </Select>
+  );
+}
 
 function GRNForm({ isUpdateForm = false }) {
   const form = Form.useFormInstance();
@@ -37,14 +127,14 @@ function GRNForm({ isUpdateForm = false }) {
 
         setPoItems(items);
 
-        // Pre-fill form
+        // Pre-fill form - include all items, but only set quantity for items with pending qty > 0
         form.setFieldsValue({
           purchaseOrder: poId,
           projectId: po?.referenceRequirement?.projectId?._id || po?.referenceRequirement?.projectId || null,
           date: dayjs(),
           items: items.map(item => ({
             material: item.material,
-            quantity: item.currentReceive,
+            quantity: item.pendingQty > 0 ? item.currentReceive : 0,
             rate: item.rate,
           })),
         });
@@ -171,6 +261,7 @@ function GRNForm({ isUpdateForm = false }) {
               style={{ width: '100%' }}
               onChange={(value) => updateReceivedQty(index, value)}
               disabled={maxQty <= 0}
+              placeholder={maxQty <= 0 ? "Fully received" : "Enter quantity"}
             />
           </Form.Item>
         );
@@ -203,11 +294,7 @@ function GRNForm({ isUpdateForm = false }) {
         name="purchaseOrder"
         rules={[{ required: true, message: 'Please select a Purchase Order' }]}
       >
-        <SelectAsync
-          entity="inventory/purchase-order"
-          displayLabels={['number', 'date']}
-          outputValue="_id"
-          placeholder="Select Purchase Order"
+        <PurchaseOrderSelect
           onChange={loadPO}
         />
       </Form.Item>
@@ -252,6 +339,23 @@ function GRNForm({ isUpdateForm = false }) {
 
       {poItems.length > 0 && (
         <>
+          {poItems.every(item => item.pendingQty <= 0) ? (
+            <div style={{ 
+              padding: '16px', 
+              background: '#fff7e6', 
+              border: '1px solid #ffd591', 
+              borderRadius: '4px',
+              marginBottom: '16px'
+            }}>
+              <div style={{ color: '#d46b08', fontWeight: 500, marginBottom: '8px' }}>
+                ⚠️ All items in this Purchase Order have been fully received
+              </div>
+              <div style={{ color: '#8c8c8c', fontSize: '13px' }}>
+                There are no pending quantities to receive. All items show 0.0 remaining.
+              </div>
+            </div>
+          ) : null}
+          
           <Form.Item label="Items to Receive" required>
             <Table
               dataSource={poItems}

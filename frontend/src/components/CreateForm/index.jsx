@@ -7,7 +7,7 @@ import { selectCreatedItem } from '@/redux/crud/selectors';
 
 import useLanguage from '@/locale/useLanguage';
 
-import { Button, Form } from 'antd';
+import { Button, Form, message } from 'antd';
 import Loading from '@/components/Loading';
 
 export default function CreateForm({ config, formElements, withUpload = false }) {
@@ -23,6 +23,19 @@ export default function CreateForm({ config, formElements, withUpload = false })
 
     if (fieldsValue.file && withUpload) {
       fieldsValue.file = fieldsValue.file[0].originFileObj;
+    }
+
+    // Filter out items with zero or negative quantity for inventory transactions
+    if (entity === 'inventory/transaction' && fieldsValue.items && Array.isArray(fieldsValue.items)) {
+      fieldsValue.items = fieldsValue.items.filter(
+        item => item && item.quantity && parseFloat(item.quantity) > 0
+      );
+      
+      // Validate that we have at least one item
+      if (fieldsValue.items.length === 0) {
+        message.error('At least one item with quantity greater than 0 is required');
+        return;
+      }
     }
 
     // const trimmedValues = Object.keys(fieldsValue).reduce((acc, key) => {

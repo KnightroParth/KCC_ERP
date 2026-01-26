@@ -15,7 +15,22 @@ const stockTransactionController = () => {
     session.startTransaction();
 
     try {
-      const { type, projectId, items, purchaseOrder, issuedTo, workActivity, date, notes } = req.body;
+      let { type, projectId, items, purchaseOrder, issuedTo, workActivity, date, notes } = req.body;
+
+      // Filter out items with zero or negative quantity before validation
+      if (items && Array.isArray(items)) {
+        items = items.filter(item => item && item.quantity && item.quantity > 0);
+      }
+
+      // Validation: Check if we have any items after filtering
+      if (!items || items.length === 0) {
+        await session.abortTransaction();
+        return res.status(400).json({
+          success: false,
+          result: null,
+          message: 'At least one item with quantity greater than 0 is required',
+        });
+      }
 
       // Validation
       if (type === 'IN' && !purchaseOrder) {

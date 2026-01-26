@@ -12,13 +12,11 @@ const PurchaseOrderSchema = new mongoose.Schema(
     },
     number: {
       type: Number,
-      required: true,
-      index: true,
+      required: false,
     },
     year: {
       type: Number,
-      required: true,
-      index: true,
+      required: false,
     },
     date: {
       type: Date,
@@ -115,21 +113,38 @@ const PurchaseOrderSchema = new mongoose.Schema(
 
 // Pre-save hook: Auto-generate PO number and calculate totals
 PurchaseOrderSchema.pre('save', async function (next) {
-  // Auto-generate PO number if not provided
+  // Auto-generate PO number and year if not provided
   if (!this.number || !this.year) {
     const now = new Date();
     const year = now.getFullYear();
     this.year = year;
 
-    const startOfYear = new Date(`${year}-01-01T00:00:00.000Z`);
-    const endOfYear = new Date(`${year}-12-31T23:59:59.999Z`);
+    // Find the maximum number for this year to ensure uniqueness
+    const maxDoc = await this.constructor
+      .findOne({ year: year })
+      .sort({ number: -1 })
+      .select('number')
+      .lean();
 
-    const count = await this.constructor.countDocuments({
-      year: year,
-      created: { $gte: startOfYear, $lte: endOfYear },
-    });
+    // Start from 1 if no documents exist for this year, otherwise increment
+    this.number = maxDoc && maxDoc.number ? maxDoc.number + 1 : 1;
 
-    this.number = count + 1;
+    // Handle race condition: check if this number already exists and increment if needed
+    let attempts = 0;
+    while (attempts < 10) {
+      const existing = await this.constructor.findOne({ 
+        year: this.year, 
+        number: this.number,
+        _id: { $ne: this._id } // Exclude current document if updating
+      });
+      
+      if (!existing) {
+        break; // Number is available
+      }
+      
+      this.number += 1;
+      attempts += 1;
+    }
   }
 
   // Calculate expiredDate (Expected Delivery Date) from leadTimeDays
@@ -164,6 +179,7 @@ PurchaseOrderSchema.pre('save', async function (next) {
 // Indexes
 PurchaseOrderSchema.index({ supplier: 1, status: 1 });
 PurchaseOrderSchema.index({ status: 1, date: -1 });
-PurchaseOrderSchema.index({ number: 1, year: 1 });
+// Unique compound index: number must be unique per year
+PurchaseOrderSchema.index({ number: 1, year: 1 }, { unique: true });
 
 module.exports = mongoose.model('PurchaseOrder', PurchaseOrderSchema);
