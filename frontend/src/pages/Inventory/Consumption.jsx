@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Form, InputNumber, Button, Table, Tag, message, Input, DatePicker, Space } from 'antd';
-import { PlusOutlined, DeleteOutlined, FilePdfOutlined } from '@ant-design/icons';
+import { Form, InputNumber, Button, Table, Tag, message, Input, DatePicker } from 'antd';
+import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
 import axios from 'axios';
 import CrudModule from '@/modules/CrudModule/CrudModule';
 import AutoCompleteAsync from '@/components/AutoCompleteAsync';
@@ -9,9 +9,6 @@ import { request } from '@/request';
 import { API_BASE_URL } from '@/config/serverApiConfig';
 import storePersist from '@/redux/storePersist';
 import dayjs from 'dayjs';
-import { generateConsumptionPDF } from '@/utils/pdfGenerator';
-import { useSelector } from 'react-redux';
-import { selectCurrentItem } from '@/redux/crud/selectors';
 
 // Helper function to include token
 function includeToken() {
@@ -37,15 +34,7 @@ function ConsumptionForm({ isUpdateForm = false }) {
       includeToken();
       const res = await axios.get(
         `inventory/inventory/getCurrentStock?projectId=${projectId}&materialId=${materialId}`
-      ).then(res => res.data).catch(err => {
-        // Handle 401/500 errors gracefully
-        if (err?.response?.status === 401) {
-          message.error('Session expired. Please login again.');
-        } else if (err?.response?.status === 500) {
-          message.error('Server error. Please try again.');
-        }
-        return { result: null };
-      });
+      ).then(res => res.data).catch(err => ({ result: null }));
       
       if (res?.result) {
         setStockInfo({
@@ -59,8 +48,7 @@ function ConsumptionForm({ isUpdateForm = false }) {
         });
       }
     } catch (error) {
-      const errorMessage = error?.response?.data?.message || error?.message || 'Unknown error';
-      message.error('Error checking stock: ' + errorMessage);
+      console.error('Error checking stock:', error);
       setStockInfo({
         ...stockInfo,
         [materialId]: { currentStock: 0, material: null },
@@ -68,7 +56,7 @@ function ConsumptionForm({ isUpdateForm = false }) {
     }
   };
 
-  // Check if any item exceeds available stock - runs on every change
+  // Check if any item exceeds available stock
   useEffect(() => {
     const projectId = form.getFieldValue('projectId');
     if (!projectId) {
@@ -80,15 +68,15 @@ function ConsumptionForm({ isUpdateForm = false }) {
     let hasInsufficientStock = false;
     const errors = {};
     
-    items.forEach((item, index) => {
-      if (item?.material) {
+    items.forEach(item => {
+      if (item.material) {
         const stock = stockInfo[item.material];
         const available = stock?.currentStock || 0;
-        const requested = parseFloat(item?.quantity) || 0;
+        const requested = parseFloat(item.quantity) || 0;
         
         if (requested > available) {
           hasInsufficientStock = true;
-          errors[item.material] = `Insufficient Stock. Available: ${available.toFixed(2)} ${stock?.material?.uom || 'nos'}`;
+          errors[item.material] = `Insufficient Stock for Construction Site. Available: ${available.toFixed(2)}`;
         }
       }
     });
@@ -213,11 +201,10 @@ function ConsumptionForm({ isUpdateForm = false }) {
               { required: true, message: 'Enter quantity' },
               {
                 validator: (_, value) => {
-                  const numValue = parseFloat(value) || 0;
-                  if (numValue > maxQty) {
-                    return Promise.reject(`Insufficient Stock. Available: ${maxQty.toFixed(2)}`);
+                  if (value > maxQty) {
+                    return Promise.reject(`Insufficient Stock for Construction Site. Available: ${maxQty.toFixed(2)}`);
                   }
-                  if (numValue <= 0) {
+                  if (value <= 0) {
                     return Promise.reject('Quantity must be greater than 0');
                   }
                   return Promise.resolve();
@@ -226,7 +213,7 @@ function ConsumptionForm({ isUpdateForm = false }) {
             ]}
             style={{ margin: 0 }}
             validateStatus={exceedsStock ? 'error' : ''}
-            help={exceedsStock ? `Insufficient Stock. Available: ${maxQty.toFixed(2)} ${info?.material?.uom || 'nos'}` : ''}
+            help={exceedsStock ? `Insufficient Stock for Construction Site. Available: ${maxQty.toFixed(2)}` : ''}
           >
             <InputNumber
               min={0.01}
@@ -279,14 +266,14 @@ function ConsumptionForm({ isUpdateForm = false }) {
   // Watch projectId changes to check stock for all items
   useEffect(() => {
     const projectId = form.getFieldValue('projectId');
-    if (projectId && items.length > 0) {
+    if (projectId) {
       items.forEach(item => {
-        if (item?.material) {
+        if (item.material) {
           checkStock(projectId, item.material);
         }
       });
     }
-  }, [form.getFieldValue('projectId'), items.length]);
+  }, [form.getFieldValue('projectId')]);
 
   return (
     <>
@@ -342,15 +329,11 @@ function ConsumptionForm({ isUpdateForm = false }) {
             pagination={false}
             size="small"
             rowKey="key"
-            locale={{ emptyText: 'No items added. Click "Add Material" to add items.' }}
           />
         </Form.Item>
         {!canSave && (
           <div style={{ marginTop: 8, padding: 8, background: '#fff2e8', border: '1px solid #ffbb96', borderRadius: 4 }}>
-            <Tag color="error">⚠️ Cannot save: One or more items exceed available stock</Tag>
-            <div style={{ marginTop: 4, fontSize: '12px', color: '#ff4d4f' }}>
-              Please adjust quantities to match available stock before saving.
-            </div>
+            <Tag color="error">Cannot save: Insufficient Stock for Construction Site</Tag>
           </div>
         )}
       </Form.Item>
@@ -367,33 +350,7 @@ function ConsumptionForm({ isUpdateForm = false }) {
 }
 
 export default function Consumption() {
-  const [pdfLoading, setPdfLoading] = useState(false);
-  const { result: currentItem } = useSelector(selectCurrentItem);
   const entity = 'inventory/transaction';
-
-  const handleExportPDF = async () => {
-    if (!currentItem?._id) {
-      message.warning('Please select a consumption record to export');
-      return;
-    }
-
-    setPdfLoading(true);
-    try {
-      const res = await request.read({ entity: 'inventory/transaction', id: currentItem._id });
-      if (res?.success && res?.result) {
-        const consumption = res.result;
-        await generateConsumptionPDF(consumption);
-        message.success('PDF exported successfully');
-      } else {
-        message.error('Failed to load consumption data');
-      }
-    } catch (error) {
-      const errorMessage = error?.message || 'Unknown error';
-      message.error('Failed to export PDF: ' + errorMessage);
-    } finally {
-      setPdfLoading(false);
-    }
-  };
 
   const searchConfig = {
     displayLabels: ['date', 'issuedTo'],
@@ -413,25 +370,11 @@ export default function Consumption() {
       title: 'Date',
       dataIndex: 'date',
       key: 'date',
-      sorter: (a, b) => {
-        if (!a?.date && !b?.date) return 0;
-        if (!a?.date) return 1;
-        if (!b?.date) return -1;
-        return new Date(a.date) - new Date(b.date);
-      },
       render: (date) => (date ? dayjs(date).format('DD/MM/YYYY') : '-'),
     },
     {
       title: 'Project',
       key: 'project',
-      sorter: (a, b) => {
-        const aName = a?.projectId?.name || '';
-        const bName = b?.projectId?.name || '';
-        if (!aName && !bName) return 0;
-        if (!aName) return 1;
-        if (!bName) return -1;
-        return aName.localeCompare(bName);
-      },
       render: (_, record) => {
         const project = record?.projectId;
         if (!project) return '-';
@@ -445,29 +388,15 @@ export default function Consumption() {
       title: 'Issued To',
       dataIndex: 'issuedTo',
       key: 'issuedTo',
-      sorter: (a, b) => {
-        const aVal = a?.issuedTo || '';
-        const bVal = b?.issuedTo || '';
-        if (!aVal && !bVal) return 0;
-        if (!aVal) return 1;
-        if (!bVal) return -1;
-        return aVal.localeCompare(bVal);
-      },
     },
     {
       title: 'Work Activity',
       dataIndex: 'workActivity',
       key: 'workActivity',
-      render: (activity) => activity ? <Tag color="blue">{activity}</Tag> : '-',
     },
     {
       title: 'Items Count',
       key: 'itemsCount',
-      sorter: (a, b) => {
-        const aLen = a?.items?.length || 0;
-        const bLen = b?.items?.length || 0;
-        return aLen - bLen;
-      },
       render: (_, record) => record?.items?.length || 0,
     },
   ];
@@ -483,17 +412,6 @@ export default function Consumption() {
     deleteModalLabels,
     tableActions,
     dataTableColumns,
-    fixHeaderPanel: (
-      <Button
-        type="primary"
-        icon={<FilePdfOutlined />}
-        onClick={handleExportPDF}
-        loading={pdfLoading}
-        disabled={!currentItem?._id}
-      >
-        Export PDF
-      </Button>
-    ),
   };
 
   return (

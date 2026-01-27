@@ -3,7 +3,7 @@ import React, { useState, useEffect } from "react";
 import { Layout, Select, Typography, message, Empty, Button, Drawer, Form, Input, Table, Space, Tag, Modal } from "antd";
 import { PlusOutlined, EditOutlined, DeleteOutlined } from "@ant-design/icons";
 import { request } from "@/request";
-import { WORK_CATEGORIES, COMPLEX_TASK_COMPONENTS } from "@/pages/AssignWork/config";
+import { WORK_CATEGORIES, COMPLEX_TASK_COMPONENTS } from "@/config/workConfig";
 import ImageUpload from "@/components/ImageUpload";
 
 // Import Complex Forms
@@ -11,6 +11,8 @@ import SlabReinforcementForm from '@/pages/work/planning/components/SlabReinforc
 import MivanCenteringForm from '@/pages/work/planning/components/MivanCenteringForm';
 import ElectricalWorkIForm from '@/pages/work/planning/components/ElectricalWorkIForm';
 import ElectricalWorkEForm from '@/pages/work/planning/components/ElectricalWorkEForm';
+import PlumbingForm from '@/pages/work/planning/components/PlumbingForm';
+import TilesForm from '@/pages/work/planning/components/TilesForm';
 
 // Component Mapping
 const FORM_COMPONENTS = {
@@ -18,6 +20,8 @@ const FORM_COMPONENTS = {
   'MivanCenteringForm': MivanCenteringForm,
   'ElectricalWorkIForm': ElectricalWorkIForm,
   'ElectricalWorkEForm': ElectricalWorkEForm,
+  'PlumbingForm': PlumbingForm,
+  'TilesForm': TilesForm,
 };
 
 const { Content } = Layout;
@@ -526,7 +530,7 @@ export default function Activities() {
         placement="right"
         onClose={() => setIsDrawerOpen(false)}
         open={isDrawerOpen}
-        width={500}
+        width={720}
       >
         <Form
           form={form}
@@ -682,7 +686,7 @@ export default function Activities() {
           editForm.resetFields();
         }}
         open={isEditDrawerOpen}
-        width={500}
+        width={720}
       >
         <Form
           form={editForm}

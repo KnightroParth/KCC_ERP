@@ -62,7 +62,7 @@ function Sidebar({ collapsible, isMobile = false }) {
     currentPath === 'vendor';
 
   const isWorkActive =
-    currentPath === 'assign-work' ||
+    currentPath === 'work/wip' ||
     currentPath === 'activities' ||
     currentPath.startsWith('work/');
 
@@ -94,7 +94,7 @@ function Sidebar({ collapsible, isMobile = false }) {
       label: <span style={parentModuleLabelStyle}>Work</span>,
       children: [
         { key: 'work/planning', label: <Link to="/work/planning" style={{ ...subLinkStyle, color: currentPath === 'work/planning' ? '#ffffff' : '#1677ff' }}>Planning</Link> },
-        { key: 'assign-work', label: <Link to="/assign-work" style={{ ...subLinkStyle, color: currentPath === 'assign-work' ? '#ffffff' : '#1677ff' }}>Assign Work Titles</Link> },
+        { key: 'work/wip', label: <Link to="/work/wip" style={{ ...subLinkStyle, color: currentPath === 'work/wip' ? '#ffffff' : '#1677ff' }}>Work in Progress</Link> },
         { key: 'activities', label: <Link to="/activities" style={{ ...subLinkStyle, color: currentPath === 'activities' ? '#ffffff' : '#1677ff' }}>Activities</Link> },
       ],
     },
@@ -121,6 +121,7 @@ function Sidebar({ collapsible, isMobile = false }) {
       children: [
         { key: 'inventory', label: <Link to="/inventory" style={{ ...subLinkStyle, color: currentPath === 'inventory' ? '#ffffff' : '#1677ff' }}>Stock Overview</Link> },
         { key: 'inventory/materials', label: <Link to="/inventory/materials" style={{ ...subLinkStyle, color: currentPath === 'inventory/materials' ? '#ffffff' : '#1677ff' }}>Material Library</Link> },
+        { key: 'inventory/set-rate', label: <Link to="/inventory/set-rate" style={{ ...subLinkStyle, color: currentPath === 'inventory/set-rate' ? '#ffffff' : '#1677ff' }}>Set Rate</Link> },
         { key: 'inventory/indent', label: <Link to="/inventory/indent" style={{ ...subLinkStyle, color: currentPath === 'inventory/indent' ? '#ffffff' : '#1677ff' }}>Indent Request</Link> },
         { key: 'inventory/purchase-order', label: <Link to="/inventory/purchase-order" style={{ ...subLinkStyle, color: currentPath === 'inventory/purchase-order' ? '#ffffff' : '#1677ff' }}>Purchase Orders</Link> },
         { key: 'inventory/grn', label: <Link to="/inventory/grn" style={{ ...subLinkStyle, color: currentPath === 'inventory/grn' ? '#ffffff' : '#1677ff' }}>Receive Stock (GRN)</Link> },
@@ -145,21 +146,26 @@ function Sidebar({ collapsible, isMobile = false }) {
       onCollapse={navMenu.collapse}
       className="kcc-sidebar"
       width={256}
-      style={{ overflow: 'auto', height: '100vh', position: 'fixed', left: 0, top: 0, bottom: 0 }}
-      theme="light"
+      theme="dark"
+      style={{
+        height: '100vh',
+        overflowY: 'auto',
+        backgroundColor: '#001529',
+        borderRight: '1px solid #f0f0f0'
+      }}
     >
-      <div className="kcc-logo-container" onClick={() => navigate('/')}>
+      <div className="kcc-logo-container" onClick={() => navigate('/')} style={{ background: '#001529' }}>
         <img src={logoText} alt="KCC Logo" className="kcc-logo" />
       </div>
 
       <Menu
         items={items}
         mode="inline"
-        theme="light"
+        theme="dark"
         selectedKeys={[currentPath]}
         openKeys={openKeys}
         onOpenChange={setOpenKeys}
-        style={{ width: 256 }}
+        style={{ width: 256, borderRight: 0, backgroundColor: '#001529' }}
       />
     </Sider>
   );

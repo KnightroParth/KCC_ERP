@@ -76,21 +76,6 @@ const ElectricalWorkIForm = ({ data, setData, currentTask }) => {
             )
         },
         {
-            title: 'Check Date',
-            dataIndex: 'checkDate',
-            width: 150,
-            align: 'center',
-            render: (text, record) => (
-                <DatePicker
-                    size="small"
-                    style={{ width: '100%' }}
-                    value={text && dayjs(text).isValid() ? dayjs(text) : null}
-                    onChange={(d) => handleUpdate(record.key, 'checkDate', d ? d.toISOString() : null)}
-                    format="DD/MM/YYYY"
-                />
-            )
-        },
-        {
             title: 'Remark',
             dataIndex: 'remark',
             align: 'center',

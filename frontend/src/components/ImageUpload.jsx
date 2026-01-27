@@ -43,7 +43,7 @@ const compressImage = (base64String, maxWidth = 1024, quality = 0.7) => {
 
           // Convert to base64 with quality compression
           const compressedBase64 = canvas.toDataURL('image/jpeg', quality);
-          
+
           if (!compressedBase64 || compressedBase64 === 'data:,') {
             throw new Error('Failed to convert canvas to base64');
           }
@@ -52,9 +52,9 @@ const compressImage = (base64String, maxWidth = 1024, quality = 0.7) => {
           const originalSize = base64String.length;
           const compressedSize = compressedBase64.length;
           const ratio = Math.round((1 - compressedSize / originalSize) * 100);
-          
+
           console.log(`Image compressed: ${ratio}% reduction (${Math.round(originalSize / 1024)}KB → ${Math.round(compressedSize / 1024)}KB)`);
-          
+
           resolve(compressedBase64);
         } catch (error) {
           console.error('Error during compression:', error);
@@ -97,23 +97,23 @@ const reverseGeocode = async (latitude, longitude) => {
     }
 
     const data = await response.json();
-    
+
     // Extract address components
     const address = data.address || {};
-    
+
     // Build address string from components
     let addressString = '';
     if (address.road) addressString += address.road + ', ';
     if (address.city) addressString += address.city + ', ';
     else if (address.town) addressString += address.town + ', ';
     else if (address.village) addressString += address.village + ', ';
-    
+
     if (address.state) addressString += address.state + ', ';
     if (address.country) addressString += address.country;
-    
+
     // Fallback to display_name if building string
     const finalAddress = addressString.trim().replace(/,\s*$/, '') || data.display_name;
-    
+
     console.log('Reverse geocoded address:', finalAddress);
     return finalAddress;
   } catch (error) {
@@ -170,14 +170,14 @@ export default function ImageUpload({ value, onChange, label = 'Upload Image' })
     try {
       setLoading(true);
       setGeoStatus('locating');
-      
+
       // Request geolocation with longer timeout
       if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
           async (position) => {
             try {
               const { latitude, longitude, accuracy } = position.coords;
-              
+
               // First set location
               setGeoLocation({
                 latitude: latitude.toFixed(6),
@@ -187,17 +187,17 @@ export default function ImageUpload({ value, onChange, label = 'Upload Image' })
                 address: null, // Will be filled after geocoding
               });
               setGeoError(null);
-              
+
               // Then fetch address
               setGeoStatus('getting-address');
               const address = await reverseGeocode(latitude, longitude);
-              
+
               // Update with address
               setGeoLocation(prev => ({
                 ...prev,
                 address: address || 'Address not found',
               }));
-              
+
               setGeoStatus('ready');
               console.log('Geolocation with address acquired:', { latitude, longitude, address });
             } catch (err) {
@@ -229,10 +229,10 @@ export default function ImageUpload({ value, onChange, label = 'Upload Image' })
 
       // First set camera active to render the video element
       setIsCameraActive(true);
-      
+
       // Wait a tick to ensure video element is in DOM
       await new Promise(resolve => setTimeout(resolve, 100));
-      
+
       // Try with minimal constraints first
       let stream;
       try {
@@ -248,7 +248,7 @@ export default function ImageUpload({ value, onChange, label = 'Upload Image' })
           audio: false,
         });
       }
-      
+
       if (!videoRef.current) {
         console.error('Video ref not available');
         message.error('Video element not ready');
@@ -259,7 +259,7 @@ export default function ImageUpload({ value, onChange, label = 'Upload Image' })
       // Attach stream to video element
       videoRef.current.srcObject = stream;
       setCameraStream(stream);
-      
+
       // Detect aspect ratio once metadata is loaded
       const handleLoadedMetadata = () => {
         const video = videoRef.current;
@@ -272,7 +272,7 @@ export default function ImageUpload({ value, onChange, label = 'Upload Image' })
       };
 
       videoRef.current.addEventListener('loadedmetadata', handleLoadedMetadata);
-      
+
       // Play video with error handling
       const playPromise = videoRef.current.play();
       if (playPromise !== undefined) {
@@ -282,12 +282,12 @@ export default function ImageUpload({ value, onChange, label = 'Upload Image' })
             message.error('Could not start video playback: ' + err.message);
           });
       }
-      
+
       setLoading(false);
     } catch (error) {
       console.error('Error accessing camera:', error);
       setIsCameraActive(false);
-      
+
       if (error.name === 'NotAllowedError') {
         message.error('Camera permission denied. Please allow camera access.');
       } else if (error.name === 'NotFoundError') {
@@ -318,7 +318,6 @@ export default function ImageUpload({ value, onChange, label = 'Upload Image' })
     if (!ctx || !geoData) return;
 
     const padding = 15;
-    const lineHeight = 24;
     const fontSize = 14;
     const textColor = '#FFFFFF';
     const bgColor = 'rgba(0, 0, 0, 0.7)';
@@ -328,30 +327,28 @@ export default function ImageUpload({ value, onChange, label = 'Upload Image' })
     ctx.fillStyle = textColor;
     ctx.strokeStyle = borderColor;
 
-    // Prepare text lines
-    const timestamp = geoData.timestamp.toLocaleString();
-    const lines = [];
-    
-    // Add address if available
-    if (geoData.address) {
-      lines.push(`📍 ${geoData.address}`);
-    }
-    
-    lines.push(`Lat: ${geoData.latitude}°`);
-    lines.push(`Long: ${geoData.longitude}°`);
-    lines.push(`📅 ${timestamp}`);
+    // Format timestamp in IST (Indian Standard Time)
+    const timestamp = new Date(geoData.timestamp);
+    const istTime = timestamp.toLocaleString('en-IN', {
+      timeZone: 'Asia/Kolkata',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: true
+    });
 
-    if (geoData.accuracy) {
-      lines.push(`🎯 Accuracy: ±${geoData.accuracy}m`);
-    }
+    // Create single line with all info
+    const geotagText = `Lat: ${geoData.latitude}° | Long: ${geoData.longitude}° | ${istTime} IST`;
 
-    // Calculate box dimensions
-    const measurements = lines.map(line => ctx.measureText(line));
-    const maxWidth = Math.max(...measurements.map(m => m.width));
-    const boxWidth = maxWidth + padding * 2;
-    const boxHeight = lines.length * lineHeight + padding * 2;
+    // Calculate box dimensions for single line
+    const textMetrics = ctx.measureText(geotagText);
+    const boxWidth = textMetrics.width + padding * 2;
+    const boxHeight = fontSize + padding * 2;
 
-    // Draw background box at bottom
+    // Draw background box at bottom-left
     const x = padding;
     const y = canvas.height - boxHeight - padding;
 
@@ -366,9 +363,7 @@ export default function ImageUpload({ value, onChange, label = 'Upload Image' })
     // Draw text
     ctx.fillStyle = textColor;
     ctx.font = `bold ${fontSize}px Arial`;
-    lines.forEach((line, index) => {
-      ctx.fillText(line, x + padding, y + padding + (index + 1) * lineHeight - 5);
-    });
+    ctx.fillText(geotagText, x + padding, y + padding + fontSize);
   };
 
   const capturePhoto = async () => {
@@ -400,19 +395,19 @@ export default function ImageUpload({ value, onChange, label = 'Upload Image' })
 
       // Convert canvas to base64
       const imageData = canvasRef.current.toDataURL('image/jpeg', 0.9);
-      
+
       if (!imageData || imageData === 'data:,') {
         message.error('Failed to capture image data');
         return;
       }
 
       setLoading(true);
-      
+
       // Compress the captured image
       const compressedImage = await compressImage(imageData, 1024, 0.7);
       onChange(compressedImage);
       message.success('Photo captured with geotag and compressed successfully');
-      
+
       // Stop camera
       stopCamera();
     } catch (error) {
@@ -475,8 +470,8 @@ export default function ImageUpload({ value, onChange, label = 'Upload Image' })
                   geoStatus === 'ready'
                     ? 'rgba(34, 139, 34, 0.8)'
                     : geoStatus === 'error'
-                    ? 'rgba(184, 134, 11, 0.8)'
-                    : 'rgba(30, 144, 255, 0.8)',
+                      ? 'rgba(184, 134, 11, 0.8)'
+                      : 'rgba(30, 144, 255, 0.8)',
                 color: '#fff',
                 padding: '8px 12px',
                 borderRadius: '4px',
@@ -488,10 +483,10 @@ export default function ImageUpload({ value, onChange, label = 'Upload Image' })
               {geoStatus === 'ready'
                 ? '✓ Geotag Ready'
                 : geoStatus === 'error'
-                ? '⚠ No Location'
-                : geoStatus === 'getting-address'
-                ? '⌛ Getting Address...'
-                : '◐ Detecting...'}
+                  ? '⚠ No Location'
+                  : geoStatus === 'getting-address'
+                    ? '⌛ Getting Address...'
+                    : '◐ Detecting...'}
             </div>
           </div>
           <canvas ref={canvasRef} style={{ display: 'none' }} />

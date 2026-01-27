@@ -1,5 +1,4 @@
 import { useEffect } from 'react';
-import dayjs from 'dayjs';
 
 import { useDispatch, useSelector } from 'react-redux';
 import { crud } from '@/redux/crud/actions';
@@ -8,7 +7,7 @@ import { selectCreatedItem } from '@/redux/crud/selectors';
 
 import useLanguage from '@/locale/useLanguage';
 
-import { Button, Form, message } from 'antd';
+import { Button, Form } from 'antd';
 import Loading from '@/components/Loading';
 
 export default function CreateForm({ config, formElements, withUpload = false }) {
@@ -20,40 +19,18 @@ export default function CreateForm({ config, formElements, withUpload = false })
   const [form] = Form.useForm();
   const translate = useLanguage();
   const onSubmit = (fieldsValue) => {
-    try {
-      // Format date fields for backend (convert dayjs to ISO string)
-      const dateFields = ['date', 'requiredDate', 'requestDate', 'expiredDate'];
-      dateFields.forEach(field => {
-        if (fieldsValue[field] && dayjs.isDayjs(fieldsValue[field])) {
-          fieldsValue[field] = fieldsValue[field].toISOString();
-        }
-      });
+    // Manually trim values before submission
 
-      if (fieldsValue.file && withUpload) {
-        fieldsValue.file = fieldsValue.file[0].originFileObj;
-      }
-
-      // Filter out items with zero or negative quantity for inventory transactions
-      if (entity === 'inventory/transaction' && fieldsValue.items && Array.isArray(fieldsValue.items)) {
-        // Filter out zero/negative quantities
-        const validItems = fieldsValue.items.filter(
-          item => item && item.quantity && parseFloat(item.quantity) > 0
-        );
-        
-        // Validate that we have at least one item
-        if (validItems.length === 0) {
-          message.error('At least one item with quantity greater than 0 is required');
-          return;
-        }
-        
-        fieldsValue.items = validItems;
-      }
-
-      dispatch(crud.create({ entity, jsonData: fieldsValue, withUpload }));
-    } catch (error) {
-      const errorMessage = error?.message || 'Unknown error';
-      message.error('Error submitting form: ' + errorMessage);
+    if (fieldsValue.file && withUpload) {
+      fieldsValue.file = fieldsValue.file[0].originFileObj;
     }
+
+    // const trimmedValues = Object.keys(fieldsValue).reduce((acc, key) => {
+    //   acc[key] = typeof fieldsValue[key] === 'string' ? fieldsValue[key].trim() : fieldsValue[key];
+    //   return acc;
+    // }, {});
+
+    dispatch(crud.create({ entity, jsonData: fieldsValue, withUpload }));
   };
 
   useEffect(() => {
@@ -72,7 +49,7 @@ export default function CreateForm({ config, formElements, withUpload = false })
       <Form form={form} layout="vertical" onFinish={onSubmit}>
         {formElements}
         <Form.Item>
-          <Button type="primary" htmlType="submit" loading={isLoading} disabled={isLoading}>
+          <Button type="primary" htmlType="submit">
             {translate('Submit')}
           </Button>
         </Form.Item>

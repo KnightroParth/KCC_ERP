@@ -57,7 +57,7 @@ const SlabReinforcementForm = ({ data, setData }) => {
         setData({ ...data, rows: newData });
     };
 
-    // Helper to create column group with No. Bar., dia. of bar, Check Date
+    // Helper to create column group with No. Bar., dia. of bar
     const createCol = (title, fieldPrefix, width = 80, type = 'number') => ({
         title,
         children: [
@@ -74,13 +74,6 @@ const SlabReinforcementForm = ({ data, setData }) => {
                 width: 100,
                 align: 'center',
                 render: (text, record) => <InputNumber size="small" style={{ width: '100%' }} value={text} onChange={v => handleChange(record.key, `${fieldPrefix}Dia`, v)} />
-            },
-            {
-                title: 'Check Date',
-                dataIndex: `${fieldPrefix}Date`,
-                width: 140,
-                align: 'center',
-                render: (text, record) => <DatePicker size="small" style={{ width: '100%' }} value={text && dayjs(text).isValid() ? dayjs(text) : null} onChange={(d) => handleChange(record.key, `${fieldPrefix}Date`, d ? d.toISOString() : null)} format="DD/MM/YYYY" />
             },
         ]
     });
@@ -106,7 +99,6 @@ const SlabReinforcementForm = ({ data, setData }) => {
             children: [
                 { title: 'L', dataIndex: 'sizeL', width: 90, align: 'center', render: (t, r) => <InputNumber size="small" style={{ width: '100%' }} value={t} onChange={v => handleChange(r.key, 'sizeL', v)} /> },
                 { title: 'B', dataIndex: 'sizeB', width: 90, align: 'center', render: (t, r) => <InputNumber size="small" style={{ width: '100%' }} value={t} onChange={v => handleChange(r.key, 'sizeB', v)} /> },
-                { title: 'Check Date', dataIndex: 'sizeCheck', width: 140, align: 'center', render: (t, r) => <DatePicker size="small" style={{ width: '100%' }} value={t && dayjs(t).isValid() ? dayjs(t) : null} onChange={(d) => handleChange(r.key, 'sizeCheck', d ? d.toISOString() : null)} format="DD/MM/YYYY" /> },
             ]
         },
         {
@@ -132,7 +124,6 @@ const SlabReinforcementForm = ({ data, setData }) => {
                     children: [
                         { title: 'dia. of Stirrups', width: 110, align: 'center', dataIndex: 'stirrupSupportDia', render: (t, r) => <InputNumber size="small" style={{ width: '100%' }} value={t} onChange={v => handleChange(r.key, 'stirrupSupportDia', v)} /> },
                         { title: 'Spacing of Stirrups', width: 120, align: 'center', dataIndex: 'stirrupSupportSpa', render: (t, r) => <InputNumber size="small" style={{ width: '100%' }} value={t} onChange={v => handleChange(r.key, 'stirrupSupportSpa', v)} /> },
-                        { title: 'Check Date', width: 140, align: 'center', dataIndex: 'stirrupSupportDate', render: (t, r) => <DatePicker size="small" style={{ width: '100%' }} value={t && dayjs(t).isValid() ? dayjs(t) : null} onChange={(d) => handleChange(r.key, 'stirrupSupportDate', d ? d.toISOString() : null)} format="DD/MM/YYYY" /> },
                     ]
                 },
                 {
@@ -140,7 +131,6 @@ const SlabReinforcementForm = ({ data, setData }) => {
                     children: [
                         { title: 'dia. of Stirrups', width: 110, align: 'center', dataIndex: 'stirrupMidDia', render: (t, r) => <InputNumber size="small" style={{ width: '100%' }} value={t} onChange={v => handleChange(r.key, 'stirrupMidDia', v)} /> },
                         { title: 'Spacing of Stirrups', width: 120, align: 'center', dataIndex: 'stirrupMidSpa', render: (t, r) => <InputNumber size="small" style={{ width: '100%' }} value={t} onChange={v => handleChange(r.key, 'stirrupMidSpa', v)} /> },
-                        { title: 'Check Date', width: 140, align: 'center', dataIndex: 'stirrupMidCheck', render: (t, r) => <DatePicker size="small" style={{ width: '100%' }} value={t && dayjs(t).isValid() ? dayjs(t) : null} onChange={(d) => handleChange(r.key, 'stirrupMidCheck', d ? d.toISOString() : null)} format="DD/MM/YYYY" /> },
                     ]
                 }
             ]
@@ -151,13 +141,6 @@ const SlabReinforcementForm = ({ data, setData }) => {
                 { title: 'Side cover', width: 100, align: 'center', dataIndex: 'coverSide', render: (t, r) => <InputNumber size="small" style={{ width: '100%' }} value={t} onChange={v => handleChange(r.key, 'coverSide', v)} /> },
                 { title: 'Bottom cover', width: 110, align: 'center', dataIndex: 'coverBottom', render: (t, r) => <InputNumber size="small" style={{ width: '100%' }} value={t} onChange={v => handleChange(r.key, 'coverBottom', v)} /> },
             ]
-        },
-        {
-            title: 'Check Date',
-            dataIndex: 'checkDate',
-            width: 140,
-            align: 'center',
-            render: (t, r) => <DatePicker size="small" style={{ width: '100%' }} value={t && dayjs(t).isValid() ? dayjs(t) : null} onChange={(d) => handleChange(r.key, 'checkDate', d ? d.toISOString() : null)} format="DD/MM/YYYY" />
         },
         {
             title: 'Remark',
@@ -189,7 +172,7 @@ const SlabReinforcementForm = ({ data, setData }) => {
                 dataSource={dataSource}
                 columns={columns}
                 pagination={false}
-                scroll={{ x: 4500, y: 500 }}
+                scroll={{ x: 'max-content', y: 600 }}
                 size="small"
                 bordered
             />

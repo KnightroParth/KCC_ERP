@@ -36,7 +36,9 @@ const Units = lazy(() => import('@/pages/units'));
 const Project = lazy(() => import('@/modules/ProjectModule'));
 
 const Activities = lazy(() => import('@/pages/activities'));
-const AssignWork = lazy(() => import('@/pages/AssignWork'));
+// Removed AssignWork import
+const WorkInProgress = lazy(() => import('@/pages/work/WorkInProgress'));
+const SetRate = lazy(() => import('@/pages/Inventory/SetRate'));
 
 // ✅ Work Planning UI (friend)
 const Planning = lazy(() => import('@/pages/work/planning'));
@@ -97,7 +99,7 @@ let routes = {
 
     // Work & Activities
     { path: '/activities', element: <Activities /> },
-    { path: '/assign-work', element: <AssignWork /> },
+    { path: '/work/wip', element: <WorkInProgress /> },
     { path: '/work/planning', element: <Planning /> },
 
     { path: '/attendance', element: <Attendance /> },
@@ -107,6 +109,7 @@ let routes = {
     // Inventory Module (Supplier moved here as last child)
     { path: '/inventory', element: <InventoryDashboard /> },
     { path: '/inventory/materials', element: <MaterialLibrary /> },
+    { path: '/inventory/set-rate', element: <SetRate /> },
     { path: '/inventory/indent', element: <IndentRequest /> },
     { path: '/inventory/purchase-order', element: <PurchaseOrder /> },
     { path: '/inventory/grn', element: <GRN /> },

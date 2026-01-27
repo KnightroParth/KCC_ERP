@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 
-const ChecklistSchema = new mongoose.Schema(
+const PlannedWorkSchema = new mongoose.Schema(
     {
         removed: {
             type: Boolean,
@@ -15,13 +15,20 @@ const ChecklistSchema = new mongoose.Schema(
             ref: 'Project',
             required: true,
         },
-        type: {
+        buildingName: {
             type: String,
             required: true,
         },
+        category: {
+            type: String, // Work Type / Category Label
+            required: true,
+        },
+        workType: {
+            type: String, // Specific task name if applicable
+        },
         unitNumber: {
             type: String,
-            required: true, // Stores "Building No" or "Flat No"
+            required: true,
         },
         startDate: {
             type: Date,
@@ -29,15 +36,16 @@ const ChecklistSchema = new mongoose.Schema(
         endDate: {
             type: Date,
         },
-        personnel: {
-            siteEngineer: { type: mongoose.Schema.Types.ObjectId, ref: 'LabourMaster' },
-            supervisor: { type: mongoose.Schema.Types.ObjectId, ref: 'LabourMaster' },
-            incharge: { type: mongoose.Schema.Types.ObjectId, ref: 'LabourMaster' },
-            contractor: { type: mongoose.Schema.Types.ObjectId, ref: 'Vendor' },
+        contractorId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'Vendor',
         },
-        data: {
-            type: mongoose.Schema.Types.Mixed,
-            default: {}, // Flexible storage for the complex table rows
+        siteEngineer: { type: mongoose.Schema.Types.ObjectId, ref: 'LabourMaster' },
+        supervisor: { type: mongoose.Schema.Types.ObjectId, ref: 'LabourMaster' },
+        incharge: { type: mongoose.Schema.Types.ObjectId, ref: 'LabourMaster' },
+        rate: {
+            type: Number,
+            default: 0
         },
         created: {
             type: Date,
@@ -53,9 +61,9 @@ const ChecklistSchema = new mongoose.Schema(
     }
 );
 
-ChecklistSchema.pre('save', async function (next) {
+PlannedWorkSchema.pre('save', function (next) {
     this.updated = new Date();
     next();
 });
 
-module.exports = mongoose.model('Checklist', ChecklistSchema);
+module.exports = mongoose.model('PlannedWork', PlannedWorkSchema);

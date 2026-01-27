@@ -25,6 +25,12 @@ export const COMPLEX_TASK_COMPONENTS = {
     "Block to parking meter panel pipe fitting": "ElectricalWorkEForm",
     "Block to parking meter panel wiring": "ElectricalWorkEForm",
     "Block Panel Fitting": "ElectricalWorkEForm",
+    "Slab Pipeing": "PlumbingForm",
+    "Zari Cutting + Holes": "PlumbingForm",
+    "Internal Pipe Line Fitting": "PlumbingForm",
+    "Floor": "TilesForm",
+    "Kitchen- Wall": "TilesForm",
+    "Toilet-1 Wall": "TilesForm",
 };
 
 export const WORK_CATEGORIES = [

@@ -2,25 +2,36 @@ const listAll = async (Model, req, res) => {
   const sort = req.query.sort || 'desc';
   const enabled = req.query.enabled || undefined;
 
-  //  Query the database for a list of all results
+  // Flatten nested objects for mongoose queries (e.g. personnel: { contractor: id } -> 'personnel.contractor': id)
+  const flatten = (obj, prefix = '', res = {}) => {
+    for (const key in obj) {
+      if (typeof obj[key] === 'object' && obj[key] !== null && !Array.isArray(obj[key])) {
+        flatten(obj[key], prefix + key + '.', res);
+      } else {
+        res[prefix + key] = obj[key];
+      }
+    }
+    return res;
+  };
 
-  let result;
-  if (enabled === undefined) {
-    result = await Model.find({
-      removed: false,
-    })
-      .sort({ created: sort })
-      .populate()
-      .exec();
-  } else {
-    result = await Model.find({
-      removed: false,
-      enabled: enabled,
-    })
-      .sort({ created: sort })
-      .populate()
-      .exec();
+  const filters = flatten(req.query);
+  const query = { removed: false };
+
+  if (enabled !== undefined) {
+    query.enabled = enabled === 'true';
   }
+
+  // Add other query params to filter
+  for (const key in filters) {
+    if (key !== 'sort' && key !== 'enabled') {
+      query[key] = filters[key];
+    }
+  }
+
+  const result = await Model.find(query)
+    .sort({ created: sort })
+    .populate()
+    .exec();
 
   if (result.length > 0) {
     return res.status(200).json({
@@ -29,8 +40,9 @@ const listAll = async (Model, req, res) => {
       message: 'Successfully found all documents',
     });
   } else {
-    return res.status(203).json({
-      success: false,
+    // Return empty array with success true for listAll (it's not an error to find nothing)
+    return res.status(200).json({
+      success: true,
       result: [],
       message: 'Collection is Empty',
     });

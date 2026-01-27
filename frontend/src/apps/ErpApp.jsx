@@ -51,7 +51,7 @@ export default function ErpCrmApp() {
 
   if (settingIsloaded)
     return (
-      <Layout hasSider>
+      <Layout hasSider style={{ height: '100vh', overflow: 'hidden' }}>
         <Navigation />
 
         {isMobile ? (
@@ -70,7 +70,7 @@ export default function ErpCrmApp() {
             </Content>
           </Layout>
         ) : (
-          <Layout>
+          <Layout style={{ overflowY: 'auto', height: '100vh', background: '#f0f2f5' }}>
             <HeaderContent />
             <Content
               style={{
