@@ -43,10 +43,10 @@ const invoiceSchema = new mongoose.Schema({
       type: mongoose.Schema.ObjectId,
       ref: 'Offer',
     },
-    quote: {
-      type: mongoose.Schema.ObjectId,
-      ref: 'Quote',
-    },
+    // quote: {
+    //   type: mongoose.Schema.ObjectId,
+    //   ref: 'Quote',
+    // },
   },
   items: [
     {
@@ -123,12 +123,12 @@ const invoiceSchema = new mongoose.Schema({
     type: Number,
     default: 0,
   },
-  payment: [
-    {
-      type: mongoose.Schema.ObjectId,
-      ref: 'Payment',
-    },
-  ],
+  // payment: [
+  //   {
+  //     type: mongoose.Schema.ObjectId,
+  //     ref: 'Payment',
+  //   },
+  // ],
   paymentStatus: {
     type: String,
     default: 'unpaid',
