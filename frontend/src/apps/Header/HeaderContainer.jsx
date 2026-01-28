@@ -1,7 +1,7 @@
 import { useSelector } from 'react-redux';
 import { Link, useNavigate } from 'react-router-dom';
 import { Avatar, Dropdown, Layout } from 'antd';
-import { LogoutOutlined, ToolOutlined, UserOutlined } from '@ant-design/icons';
+import { LogoutOutlined, UserOutlined } from '@ant-design/icons';
 
 import { selectCurrentAdmin } from '@/redux/auth/selectors';
 import { FILE_BASE_URL } from '@/config/serverApiConfig';
@@ -56,11 +56,6 @@ export default function HeaderContent() {
           <DropdownMenu text={translate('profile_settings')} />
         </Link>
       ),
-    },
-    {
-      icon: <ToolOutlined />,
-      key: 'settingApp',
-      label: <Link to="/settings">{translate('app_settings')}</Link>,
     },
     { type: 'divider' },
     {

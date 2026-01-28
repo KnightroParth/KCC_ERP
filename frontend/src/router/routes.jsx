@@ -13,18 +13,6 @@ const InvoiceRead = lazy(() => import('@/pages/Invoice/InvoiceRead'));
 const InvoiceUpdate = lazy(() => import('@/pages/Invoice/InvoiceUpdate'));
 const InvoiceRecordPayment = lazy(() => import('@/pages/Invoice/InvoiceRecordPayment'));
 
-const Quote = lazy(() => import('@/pages/Quote/index'));
-const QuoteCreate = lazy(() => import('@/pages/Quote/QuoteCreate'));
-const QuoteRead = lazy(() => import('@/pages/Quote/QuoteRead'));
-const QuoteUpdate = lazy(() => import('@/pages/Quote/QuoteUpdate'));
-
-const Payment = lazy(() => import('@/pages/Payment/index'));
-const PaymentRead = lazy(() => import('@/pages/Payment/PaymentRead'));
-const PaymentUpdate = lazy(() => import('@/pages/Payment/PaymentUpdate'));
-
-const Settings = lazy(() => import('@/pages/Settings/Settings'));
-const PaymentMode = lazy(() => import('@/pages/PaymentMode'));
-const Taxes = lazy(() => import('@/pages/Taxes'));
 
 const Profile = lazy(() => import('@/pages/Profile'));
 const About = lazy(() => import('@/pages/About'));
@@ -80,22 +68,6 @@ let routes = {
     { path: '/invoice/update/:id', element: <InvoiceUpdate /> },
     { path: '/invoice/pay/:id', element: <InvoiceRecordPayment /> },
 
-    // Quote
-    { path: '/quote', element: <Quote /> },
-    { path: '/quote/create', element: <QuoteCreate /> },
-    { path: '/quote/read/:id', element: <QuoteRead /> },
-    { path: '/quote/update/:id', element: <QuoteUpdate /> },
-
-    // Payment
-    { path: '/payment', element: <Payment /> },
-    { path: '/payment/read/:id', element: <PaymentRead /> },
-    { path: '/payment/update/:id', element: <PaymentUpdate /> },
-
-    // Settings
-    { path: '/settings', element: <Settings /> },
-    { path: '/settings/edit/:settingsKey', element: <Settings /> },
-    { path: '/payment/mode', element: <PaymentMode /> },
-    { path: '/taxes', element: <Taxes /> },
 
     // Work & Activities
     { path: '/activities', element: <Activities /> },

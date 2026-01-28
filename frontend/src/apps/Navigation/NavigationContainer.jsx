@@ -9,15 +9,11 @@ import logoText from '@/style/images/logo-text.png';
 import "@/style/custom/kcc-brand.css";
 
 import {
-  SettingOutlined,
   CustomerServiceOutlined,
   ContainerOutlined,
   FileSyncOutlined,
   DashboardOutlined,
-  CreditCardOutlined,
   MenuOutlined,
-  ShopOutlined,
-  WalletOutlined,
   ReconciliationOutlined,
   ToolOutlined,
   UserOutlined,
@@ -132,10 +128,6 @@ function Sidebar({ collapsible, isMobile = false }) {
     },
 
     { key: 'invoice', icon: <FileSyncOutlined style={iconStyle} />, label: <Link to="/invoice" style={parentLabelStyle}>Billing</Link> },
-    { key: 'quote', icon: <CreditCardOutlined style={iconStyle} />, label: <Link to="/quote" style={parentLabelStyle}>Work Progress</Link> },
-    { key: 'payment', icon: <WalletOutlined style={iconStyle} />, label: <Link to="/payment" style={parentLabelStyle}>Contractor Payments</Link> },
-    { key: 'taxes', icon: <ShopOutlined style={iconStyle} />, label: <Link to="/taxes" style={parentLabelStyle}>Taxes</Link> },
-    { key: 'settings', icon: <SettingOutlined style={iconStyle} />, label: <Link to="/settings" style={parentLabelStyle}>Settings</Link> },
     { key: 'about', icon: <ReconciliationOutlined style={iconStyle} />, label: <Link to="/about" style={parentLabelStyle}>About</Link> },
   ];
 
