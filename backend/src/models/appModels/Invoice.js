@@ -39,10 +39,10 @@ const invoiceSchema = new mongoose.Schema({
       type: String,
       enum: ['quote', 'offer'],
     },
-    offer: {
-      type: mongoose.Schema.ObjectId,
-      ref: 'Offer',
-    },
+    // offer: {
+    //   type: mongoose.Schema.ObjectId,
+    //   ref: 'Offer',
+    // },
     // quote: {
     //   type: mongoose.Schema.ObjectId,
     //   ref: 'Quote',
