@@ -3,6 +3,7 @@
 const mongoose = require('mongoose');
 const createCRUDController = require('@/controllers/middlewaresControllers/createCRUDController');
 const PurchaseOrder = mongoose.model('PurchaseOrder');
+const StockRequirement = mongoose.model('StockRequirement');
 const pug = require('pug');
 const path = require('path');
 const fs = require('fs');
@@ -113,7 +114,38 @@ const purchaseOrderController = () => {
         body.createdBy = req.admin._id;
       }
 
+      // Auto-generate year and number if not provided (before validation)
+      if (!body.year || !body.number) {
+        const now = new Date();
+        const year = now.getFullYear();
+        body.year = year;
+
+        const startOfYear = new Date(`${year}-01-01T00:00:00.000Z`);
+        const endOfYear = new Date(`${year}-12-31T23:59:59.999Z`);
+
+        const count = await PurchaseOrder.countDocuments({
+          year: year,
+          created: { $gte: startOfYear, $lte: endOfYear },
+        });
+
+        body.number = count + 1;
+      }
+
       const result = await PurchaseOrder.create(body);
+
+      // Update requirement status to 'Approved' if PO was created from a requirement
+      if (body.referenceRequirement) {
+        try {
+          const requirement = await StockRequirement.findById(body.referenceRequirement);
+          if (requirement && requirement.status === 'Pending') {
+            requirement.status = 'Approved';
+            await requirement.save();
+          }
+        } catch (reqError) {
+          // Log error but don't fail the PO creation
+          console.error('Error updating requirement status:', reqError);
+        }
+      }
 
       return res.status(200).json({
         success: true,

@@ -305,7 +305,7 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
       title: 'Quantity',
       dataIndex: 'quantity',
       key: 'quantity',
-      width: 180,
+      width: 220,
       render: (_, record, index) => {
         const currentQty = parseFloat(items[index]?.quantity) || 0;
         const originalQty = items[index]?.originalIndentQty;
@@ -313,8 +313,21 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
         
         return (
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Form.Item name={['items', index, 'quantity']} rules={[{ required: true, message: 'Required' }]} style={{ margin: 0, flex: 1 }}>
-              <InputNumber min={0.01} style={{ width: '100%' }} placeholder="Qty" onChange={(value) => updateItem(record?.key, 'quantity', value)} />
+            <Form.Item 
+              name={['items', index, 'quantity']} 
+              rules={[{ required: true, message: 'Required' }]} 
+              style={{ margin: 0, minWidth: '200px', flex: 1 }}
+              getValueProps={(value) => ({ value: value !== undefined && value !== null ? parseFloat(value) : undefined })}
+              normalize={(value) => value !== undefined && value !== null ? parseFloat(value) : undefined}
+            >
+              <InputNumber 
+                min={0.01} 
+                step={0.01}
+                style={{ width: '100%', minWidth: '180px', fontSize: '14px' }} 
+                placeholder="Qty" 
+                precision={2}
+                onChange={(value) => updateItem(record?.key, 'quantity', value)} 
+              />
             </Form.Item>
             {variance && (
               <Tooltip title={variance.type === 'over' ? `Over-ordering by ${variance.diff}` : `${variance.text}`}>
@@ -332,10 +345,17 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
       title: 'Rate',
       dataIndex: 'rate',
       key: 'rate',
-      width: 150,
+      width: 200,
       render: (_, record, index) => (
         <Form.Item name={['items', index, 'rate']} rules={[{ required: true, message: 'Required' }]} style={{ margin: 0 }}>
-          <InputNumber min={0} step={0.01} style={{ width: '100%' }} prefix="₹" placeholder="Rate" onChange={(value) => updateItem(record?.key, 'rate', value)} />
+          <InputNumber 
+            min={0} 
+            step={0.01} 
+            style={{ width: '100%', minWidth: '150px', fontSize: '14px' }} 
+            prefix="₹" 
+            placeholder="Rate" 
+            onChange={(value) => updateItem(record?.key, 'rate', value)} 
+          />
         </Form.Item>
       ),
     },

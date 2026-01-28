@@ -28,18 +28,22 @@ function ConsumptionForm({ isUpdateForm = false }) {
   const [stockErrors, setStockErrors] = useState({});
 
   const checkStock = async (projectId, materialId) => {
-    if (!projectId || !materialId) return;
+    if (!materialId) return;
 
     try {
       includeToken();
+      // Check Material Library (Central Warehouse) stock instead of Project Inventory
       const res = await axios.get(
-        `inventory/inventory/getCurrentStock?projectId=${projectId}&materialId=${materialId}`
+        `inventory/material/stock?materialId=${materialId}`
       ).then(res => res.data).catch(err => ({ result: null }));
       
       if (res?.result) {
         setStockInfo({
           ...stockInfo,
-          [materialId]: res.result,
+          [materialId]: {
+            currentStock: res.result.openingStock || 0,
+            material: res.result.material,
+          },
         });
       } else {
         setStockInfo({
@@ -48,7 +52,7 @@ function ConsumptionForm({ isUpdateForm = false }) {
         });
       }
     } catch (error) {
-      console.error('Error checking stock:', error);
+      console.error('Error checking Material Library stock:', error);
       setStockInfo({
         ...stockInfo,
         [materialId]: { currentStock: 0, material: null },
@@ -56,34 +60,27 @@ function ConsumptionForm({ isUpdateForm = false }) {
     }
   };
 
-  // Check if any item exceeds available stock
+  // Check if any item exceeds available stock in Material Library
   useEffect(() => {
-    const projectId = form.getFieldValue('projectId');
-    if (!projectId) {
-      setCanSave(true);
-      setStockErrors({});
-      return;
-    }
-
     let hasInsufficientStock = false;
     const errors = {};
     
     items.forEach(item => {
       if (item.material) {
         const stock = stockInfo[item.material];
-        const available = stock?.currentStock || 0;
+        const available = stock?.currentStock || 0; // Material Library openingStock
         const requested = parseFloat(item.quantity) || 0;
         
         if (requested > available) {
           hasInsufficientStock = true;
-          errors[item.material] = `Insufficient Stock for Construction Site. Available: ${available.toFixed(2)}`;
+          errors[item.material] = `Insufficient Stock in Material Library. Available: ${available.toFixed(2)}`;
         }
       }
     });
 
     setCanSave(!hasInsufficientStock);
     setStockErrors(errors);
-  }, [items, stockInfo, form]);
+  }, [items, stockInfo]);
 
   const addItem = () => {
     setItems([
@@ -152,12 +149,17 @@ function ConsumptionForm({ isUpdateForm = false }) {
                 searchFields="name,category"
                 outputValue="_id"
                 placeholder="Search material..."
-                onChange={(value) => updateItem(record.key, 'material', value)}
+                onChange={(value) => {
+                  updateItem(record.key, 'material', value);
+                  if (value) {
+                    checkStock(null, value); // Check Material Library stock when material is selected
+                  }
+                }}
               />
             </Form.Item>
             {record.material && stock && (
               <div style={{ marginTop: 4, fontSize: '12px', color: available > 0 ? '#52c41a' : '#ff4d4f' }}>
-                Available: {available.toFixed(2)} {stock.material?.uom || 'nos'}
+                Available in Material Library: {available.toFixed(2)} {stock.material?.uom || 'nos'}
               </div>
             )}
             {error && (
@@ -170,9 +172,9 @@ function ConsumptionForm({ isUpdateForm = false }) {
       },
     },
     {
-      title: 'Available Stock',
+      title: 'Available in Material Library',
       key: 'stock',
-      width: '15%',
+      width: '18%',
       render: (_, record) => {
         const info = stockInfo[record.material];
         if (!info || !record.material) return <Tag>-</Tag>;
@@ -229,7 +231,7 @@ function ConsumptionForm({ isUpdateForm = false }) {
     {
       title: 'Unit',
       key: 'unit',
-      width: '15%',
+      width: '200px',
       render: (_, record, index) => {
         const info = stockInfo[record.material];
         return (
@@ -241,6 +243,7 @@ function ConsumptionForm({ isUpdateForm = false }) {
               placeholder="Unit"
               value={info?.material?.uom || 'nos'}
               readOnly
+              style={{ minWidth: '150px', fontSize: '14px' }}
             />
           </Form.Item>
         );
@@ -263,17 +266,14 @@ function ConsumptionForm({ isUpdateForm = false }) {
     },
   ];
 
-  // Watch projectId changes to check stock for all items
+  // Watch material changes to check Material Library stock
   useEffect(() => {
-    const projectId = form.getFieldValue('projectId');
-    if (projectId) {
-      items.forEach(item => {
-        if (item.material) {
-          checkStock(projectId, item.material);
-        }
-      });
-    }
-  }, [form.getFieldValue('projectId')]);
+    items.forEach(item => {
+      if (item.material) {
+        checkStock(null, item.material); // No projectId needed, checking Material Library
+      }
+    });
+  }, [items]);
 
   return (
     <>
@@ -333,7 +333,7 @@ function ConsumptionForm({ isUpdateForm = false }) {
         </Form.Item>
         {!canSave && (
           <div style={{ marginTop: 8, padding: 8, background: '#fff2e8', border: '1px solid #ffbb96', borderRadius: 4 }}>
-            <Tag color="error">Cannot save: Insufficient Stock for Construction Site</Tag>
+            <Tag color="error">Cannot save: Insufficient Stock in Material Library (Central Warehouse)</Tag>
           </div>
         )}
       </Form.Item>

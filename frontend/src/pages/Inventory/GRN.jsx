@@ -24,7 +24,8 @@ function GRNForm({ isUpdateForm = false }) {
         }
         
         // SAFETY: Map Items with optional chaining - prevent crashes
-        const items = (po?.items || []).map((item, idx) => ({
+        // Filter out items that are already fully received (pendingQty <= 0)
+        const allItems = (po?.items || []).map((item, idx) => ({
           key: idx,
           material: item?.material?._id || item?.material || null,
           materialName: item?.material?.name || 'Unknown',
@@ -35,19 +36,45 @@ function GRNForm({ isUpdateForm = false }) {
           currentReceive: Math.max(0, (parseFloat(item?.quantity) || 0) - (parseFloat(item?.receivedQuantity) || 0))
         }));
 
-        setPoItems(items);
+        // Only show items with pending quantity > 0
+        const itemsWithPending = allItems.filter(item => item.pendingQty > 0);
 
-        // Pre-fill form
-        form.setFieldsValue({
-          purchaseOrder: poId,
-          projectId: po?.referenceRequirement?.projectId?._id || po?.referenceRequirement?.projectId || null,
-          date: dayjs(),
-          items: items.map(item => ({
+        if (itemsWithPending.length === 0) {
+          message.warning('All items in this Purchase Order have been fully received. No items to receive.');
+          setPoItems([]);
+          form.setFieldsValue({
+            purchaseOrder: poId,
+            projectId: po?.referenceRequirement?.projectId?._id || po?.referenceRequirement?.projectId || null,
+            date: dayjs(),
+            items: [],
+          });
+        } else {
+          setPoItems(itemsWithPending);
+
+          // Pre-fill form with only items that have pending quantity
+          // Set quantity to pendingQty (or 0.01 minimum) so user can see and edit it
+          const formItems = itemsWithPending.map(item => ({
             material: item.material,
-            quantity: item.currentReceive,
+            quantity: item.currentReceive > 0 ? item.currentReceive : (item.pendingQty > 0 ? Math.min(item.pendingQty, item.pendingQty) : 0.01),
             rate: item.rate,
-          })),
-        });
+          }));
+          
+          // Ensure all quantities are at least 0.01
+          const validatedFormItems = formItems.map(item => ({
+            ...item,
+            quantity: Math.max(parseFloat(item.quantity) || 0.01, 0.01)
+          }));
+          
+          form.setFieldsValue({
+            purchaseOrder: poId,
+            projectId: po?.referenceRequirement?.projectId?._id || po?.referenceRequirement?.projectId || null,
+            date: dayjs(),
+            items: validatedFormItems,
+          });
+          
+          // Force form to recognize the items field
+          form.setFieldValue('items', validatedFormItems);
+        }
         message.success('Purchase Order loaded');
       }
     } catch (error) {
@@ -91,30 +118,80 @@ function GRNForm({ isUpdateForm = false }) {
     // Trigger re-render when date changes
   }, [grnDate]);
 
+  // Sync poItems to form items field whenever poItems changes
+  useEffect(() => {
+    if (poItems.length > 0) {
+      const formItems = poItems.map(item => ({
+        material: item.material,
+        quantity: item.currentReceive >= 0.01 ? item.currentReceive : (item.pendingQty > 0 ? item.pendingQty : 0.01),
+        rate: item.rate,
+      }));
+      form.setFieldValue('items', formItems);
+    }
+  }, [poItems, form]);
+
   const updateReceivedQty = (index, value) => {
     const newItems = [...poItems];
     const item = newItems[index];
     const maxQty = item?.pendingQty || 0;
     
     // VALIDATION: Strict limit - if user types more than pending, reset and show error
-    if (value > maxQty) {
-      message.error(`Cannot receive more than pending quantity: ${maxQty.toFixed(2)}`);
-      form.setFieldValue(['items', index, 'quantity'], maxQty);
-      item.currentReceive = maxQty;
-      setPoItems(newItems);
-      return;
+    if (value !== null && value !== undefined) {
+      const qty = parseFloat(value);
+      
+      if (isNaN(qty)) {
+        return; // Invalid input, don't update
+      }
+      
+      if (qty > maxQty) {
+        message.error(`Cannot receive more than pending quantity: ${maxQty.toFixed(2)}`);
+        const validQty = maxQty > 0 ? maxQty : 0.01;
+        form.setFieldValue(['items', index, 'quantity'], validQty);
+        item.currentReceive = validQty;
+        setPoItems(newItems);
+        // Sync back to form items
+        syncItemsToForm(newItems);
+        return;
+      }
+      
+      if (qty < 0.01 && qty !== 0) {
+        message.error('Minimum quantity is 0.01');
+        form.setFieldValue(['items', index, 'quantity'], 0.01);
+        item.currentReceive = 0.01;
+        setPoItems(newItems);
+        // Sync back to form items
+        syncItemsToForm(newItems);
+        return;
+      }
+      
+      if (qty < 0) {
+        message.error('Quantity cannot be negative');
+        form.setFieldValue(['items', index, 'quantity'], 0.01);
+        item.currentReceive = 0.01;
+        setPoItems(newItems);
+        // Sync back to form items
+        syncItemsToForm(newItems);
+        return;
+      }
+      
+      // Only update if value is valid (>= 0.01 or exactly 0 for clearing)
+      if (qty >= 0.01 || qty === 0) {
+        item.currentReceive = qty;
+        setPoItems(newItems);
+        // Sync back to form items
+        syncItemsToForm(newItems);
+      }
     }
-    
-    if (value < 0) {
-      message.error('Quantity cannot be negative');
-      form.setFieldValue(['items', index, 'quantity'], 0);
-      item.currentReceive = 0;
-      setPoItems(newItems);
-      return;
-    }
-    
-    item.currentReceive = value;
-    setPoItems(newItems);
+  };
+
+  // Helper function to sync poItems state to form items field
+  const syncItemsToForm = (items) => {
+    const formItems = items.map(item => ({
+      material: item.material,
+      quantity: item.currentReceive >= 0.01 ? item.currentReceive : 0.01,
+      rate: item.rate,
+    }));
+    form.setFieldValue('items', formItems);
   };
 
   const columns = [
@@ -152,10 +229,17 @@ function GRNForm({ isUpdateForm = false }) {
               { required: true, message: 'Required' },
               {
                 validator: (_, value) => {
-                  if (value > maxQty) {
+                  const qty = parseFloat(value);
+                  if (value === null || value === undefined || isNaN(qty)) {
+                    return Promise.reject('Quantity is required');
+                  }
+                  if (qty < 0.01) {
+                    return Promise.reject('Minimum quantity is 0.01');
+                  }
+                  if (qty > maxQty) {
                     return Promise.reject(`Max: ${maxQty.toFixed(2)}`);
                   }
-                  if (value < 0) {
+                  if (qty < 0) {
                     return Promise.reject('Cannot be negative');
                   }
                   return Promise.resolve();
@@ -165,11 +249,15 @@ function GRNForm({ isUpdateForm = false }) {
             style={{ margin: 0 }}
           >
             <InputNumber
-              min={0}
+              min={0.01}
               max={maxQty}
               step={0.01}
               style={{ width: '100%' }}
-              onChange={(value) => updateReceivedQty(index, value)}
+              onChange={(value) => {
+                updateReceivedQty(index, value);
+                // Also update form field directly
+                form.setFieldValue(['items', index, 'quantity'], value || 0.01);
+              }}
               disabled={maxQty <= 0}
             />
           </Form.Item>
@@ -205,10 +293,19 @@ function GRNForm({ isUpdateForm = false }) {
       >
         <SelectAsync
           entity="inventory/purchase-order"
-          displayLabels={['number', 'date']}
+          displayLabels={['number', 'year']}
           outputValue="_id"
           placeholder="Select Purchase Order"
           onChange={loadPO}
+          formatter={(po) => {
+            if (po?.year && po?.number) {
+              return `PO-${po.year}-${String(po.number).padStart(4, '0')}`;
+            }
+            if (po?.number) {
+              return `PO-${po.number}`;
+            }
+            return 'Unknown PO';
+          }}
         />
       </Form.Item>
 
@@ -250,7 +347,7 @@ function GRNForm({ isUpdateForm = false }) {
         </div>
       </Form.Item>
 
-      {poItems.length > 0 && (
+      {poItems.length > 0 ? (
         <>
           <Form.Item label="Items to Receive" required>
             <Table
@@ -262,7 +359,29 @@ function GRNForm({ isUpdateForm = false }) {
             />
           </Form.Item>
 
-          <Form.Item name="items" hidden>
+          <Form.Item 
+            name="items" 
+            hidden
+            rules={[
+              {
+                validator: () => {
+                  const items = form.getFieldValue('items');
+                  if (!items || !Array.isArray(items) || items.length === 0) {
+                    return Promise.reject('Please select a Purchase Order with items to receive');
+                  }
+                  const validItems = items.filter(item => {
+                    if (!item || !item.material) return false;
+                    const qty = parseFloat(item.quantity);
+                    return qty !== null && qty !== undefined && !isNaN(qty) && qty >= 0.01;
+                  });
+                  if (validItems.length === 0) {
+                    return Promise.reject('Please enter quantity (>= 0.01) for at least one item');
+                  }
+                  return Promise.resolve();
+                }
+              }
+            ]}
+          >
             <Input />
           </Form.Item>
 
@@ -270,6 +389,22 @@ function GRNForm({ isUpdateForm = false }) {
             <Input />
           </Form.Item>
         </>
+      ) : (
+        <Form.Item>
+          <div style={{ padding: '20px', textAlign: 'center', background: '#fff7e6', border: '1px solid #ffd591', borderRadius: '4px' }}>
+            <p style={{ margin: 0, color: '#d46b08' }}>
+              <strong>No items available to receive.</strong>
+              <br />
+              All items in this Purchase Order have been fully received, or please select a Purchase Order with pending items.
+            </p>
+          </div>
+          <Form.Item name="items" hidden initialValue={[]}>
+            <Input />
+          </Form.Item>
+          <Form.Item name="type" initialValue="IN" hidden>
+            <Input />
+          </Form.Item>
+        </Form.Item>
       )}
 
       <Form.Item label="Notes" name="notes">
@@ -294,6 +429,20 @@ export default function GRN() {
   };
 
   const dataTableColumns = [
+    {
+      title: 'GRN Number',
+      key: 'grnNumber',
+      width: 150,
+      render: (_, record) => {
+        if (record?._id && record?.date) {
+          const year = dayjs(record.date).year();
+          // Extract last 6 chars of _id for unique identifier
+          const idSuffix = record._id.toString().slice(-6).toUpperCase();
+          return `GRN-${year}-${idSuffix}`;
+        }
+        return '-';
+      },
+    },
     {
       title: 'Date',
       dataIndex: 'date',
@@ -326,8 +475,23 @@ export default function GRN() {
       render: (_, record) => {
         if (record?.type === 'IN' && record?.purchaseOrder) {
           const po = record.purchaseOrder;
-          if (typeof po === 'object' && po?.number) {
-            return `PO-${po?.year}-${String(po.number).padStart(4, '0')}`;
+          if (typeof po === 'object' && po !== null) {
+            // Check if year exists, if not try to get from date or use current year
+            let year = po.year;
+            if (!year && po.date) {
+              year = dayjs(po.date).year();
+            }
+            if (!year) {
+              year = dayjs().year(); // Fallback to current year
+            }
+            if (po.number !== undefined && po.number !== null) {
+              return `PO-${year}-${String(po.number).padStart(4, '0')}`;
+            }
+            // If number is missing, show what we have
+            return `PO-${year}-XXXX`;
+          } else if (typeof po === 'string') {
+            // If it's just an ID string, show a placeholder
+            return 'PO-XXXX-XXXX';
           }
         }
         return '-';

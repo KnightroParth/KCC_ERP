@@ -7,7 +7,7 @@ import { selectCreatedItem } from '@/redux/crud/selectors';
 
 import useLanguage from '@/locale/useLanguage';
 
-import { Button, Form } from 'antd';
+import { Button, Form, message } from 'antd';
 import Loading from '@/components/Loading';
 
 export default function CreateForm({ config, formElements, withUpload = false }) {
@@ -18,11 +18,48 @@ export default function CreateForm({ config, formElements, withUpload = false })
   const { panel, collapsedBox, readBox } = crudContextAction;
   const [form] = Form.useForm();
   const translate = useLanguage();
-  const onSubmit = (fieldsValue) => {
+  const onSubmit = async (fieldsValue) => {
     // Manually trim values before submission
 
     if (fieldsValue.file && withUpload) {
       fieldsValue.file = fieldsValue.file[0].originFileObj;
+    }
+
+    // Filter out items with zero or invalid quantities for inventory transactions
+    if (entity === 'inventory/transaction') {
+      // Check if items field exists and is an array
+      if (!fieldsValue.items) {
+        message.error('Please select a Purchase Order to load items.');
+        return Promise.reject(new Error('No items field in form'));
+      }
+
+      if (!Array.isArray(fieldsValue.items)) {
+        message.error('Items data is invalid. Please reload the Purchase Order.');
+        return Promise.reject(new Error('Items is not an array'));
+      }
+
+      if (fieldsValue.items.length === 0) {
+        message.error('No items available to receive. Please select a Purchase Order with pending items.');
+        return Promise.reject(new Error('No items to receive'));
+      }
+
+      // Filter valid items
+      const validItems = fieldsValue.items.filter(item => {
+        if (!item) return false;
+        if (!item.material) return false;
+        const qty = parseFloat(item.quantity);
+        // Only include items with valid quantity >= 0.01
+        return qty !== null && qty !== undefined && !isNaN(qty) && qty >= 0.01;
+      });
+      
+      // If no valid items remain, show error and prevent submission
+      if (validItems.length === 0) {
+        message.error('Please enter quantity (>= 0.01) for at least one item to receive.');
+        return Promise.reject(new Error('No valid items with quantity >= 0.01'));
+      }
+
+      // Update fieldsValue with filtered items
+      fieldsValue.items = validItems;
     }
 
     // const trimmedValues = Object.keys(fieldsValue).reduce((acc, key) => {

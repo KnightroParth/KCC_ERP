@@ -23,6 +23,7 @@ router.route('/material/listAll').get(catchErrors(materialController.listAll));
 router.route('/material/search').get(catchErrors(materialController.search));
 router.route('/material/filter').get(catchErrors(materialController.filter));
 router.route('/material/summary').get(catchErrors(materialController.summary));
+router.route('/material/stock').get(catchErrors(materialController.getStock));
 
 // Supplier routes
 router.route('/supplier/create').post(catchErrors(supplierController.create));

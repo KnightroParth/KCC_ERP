@@ -80,6 +80,52 @@ const materialController = () => {
     }
   };
 
+  // Get Material Library stock for a material (for Issue Stock validation)
+  methods.getStock = async (req, res) => {
+    try {
+      const { materialId } = req.query;
+
+      if (!materialId) {
+        return res.status(400).json({
+          success: false,
+          result: null,
+          message: 'materialId is required',
+        });
+      }
+
+      const material = await Material.findById(materialId)
+        .select('name category uom openingStock');
+
+      if (!material) {
+        return res.status(404).json({
+          success: false,
+          result: null,
+          message: 'Material not found',
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        result: {
+          openingStock: material.openingStock || 0,
+          material: {
+            _id: material._id,
+            name: material.name,
+            category: material.category,
+            uom: material.uom,
+          },
+        },
+        message: 'Material stock retrieved',
+      });
+    } catch (error) {
+      return res.status(500).json({
+        success: false,
+        result: null,
+        message: error.message,
+      });
+    }
+  };
+
   return methods;
 };
 

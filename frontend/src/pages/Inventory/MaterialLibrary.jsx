@@ -38,9 +38,10 @@ const fields = {
     placeholder: 'e.g., nos, kg, mt, m, sqm',
   },
   openingStock: {
-    label: 'Opening Stock',
+    label: 'Opening Stock / Current Stock',
     type: 'number',
     defaultValue: 0,
+    help: 'Initial stock when creating material. This will be updated automatically when stock is received (GRN) or issued.',
   },
 };
 
@@ -135,9 +136,14 @@ function MaterialLibrary() {
       key: 'uom',
     },
     {
-      title: 'Opening Stock',
+      title: 'Current Stock',
       dataIndex: 'openingStock',
       key: 'openingStock',
+      render: (stock) => {
+        const stockValue = parseFloat(stock) || 0;
+        const color = stockValue > 0 ? 'green' : 'default';
+        return <Tag color={color}>{stockValue.toFixed(2)}</Tag>;
+      },
     },
     {
       title: 'Specifications',

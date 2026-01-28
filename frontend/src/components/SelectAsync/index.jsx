@@ -19,6 +19,7 @@ const SelectAsync = ({
   value,
   onChange,
   searchFields,
+  formatter,
 }) => {
   const translate = useLanguage();
   const [selectOptions, setOptions] = useState([]);
@@ -70,11 +71,6 @@ const SelectAsync = ({
     }
   }, [isSuccess, result, error, fetchIsLoading]);
 
-  const labels = (optionField) => {
-    if (!optionField) return '';
-    return displayLabels.map((x) => optionField[x] || '').filter(Boolean).join(' ') || 'Unknown';
-  };
-  
   useEffect(() => {
     if (value !== undefined && value !== null) {
       let val;
@@ -105,6 +101,17 @@ const SelectAsync = ({
 
   const options = useMemo(() => {
     if (!Array.isArray(selectOptions)) return [];
+    
+    const labels = (optionField) => {
+      if (!optionField) return '';
+      // If custom formatter is provided, use it
+      if (formatter && typeof formatter === 'function') {
+        return formatter(optionField) || 'Unknown';
+      }
+      // Otherwise use default displayLabels logic
+      return displayLabels.map((x) => optionField[x] || '').filter(Boolean).join(' ') || 'Unknown';
+    };
+    
     return selectOptions.map((optionField) => {
       const value = optionField[outputValue] ?? optionField;
       const label = labels(optionField);
@@ -112,7 +119,7 @@ const SelectAsync = ({
       const labelColor = color.find((x) => x.color === currentColor);
       return { value, label, color: labelColor?.color };
     });
-  }, [selectOptions, outputValue, displayLabels]);
+  }, [selectOptions, outputValue, displayLabels, formatter]);
   
   return (
     <Select
