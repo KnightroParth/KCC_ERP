@@ -25,6 +25,11 @@ export default function CreateForm({ config, formElements, withUpload = false })
       fieldsValue.file = fieldsValue.file[0].originFileObj;
     }
 
+    // Ensure material price (rate) is sent as number for inventory/material
+    if (entity === 'inventory/material' && fieldsValue.price !== undefined) {
+      fieldsValue.price = Number(fieldsValue.price) || 0;
+    }
+
     // Filter out items with zero or invalid quantities for inventory transactions
     if (entity === 'inventory/transaction') {
       // Check if items field exists and is an array

@@ -1,7 +1,7 @@
 // frontend/src/pages/Inventory/MaterialLibrary.jsx
 
 import React, { useState } from 'react';
-import { Button, Upload, message, Modal } from 'antd';
+import { Button, Upload, message, Modal, Tag } from 'antd';
 import { UploadOutlined } from '@ant-design/icons';
 import axios from 'axios';
 import CrudModule from '@/modules/CrudModule/CrudModule';
@@ -21,10 +21,15 @@ const fields = {
     type: 'textarea',
     placeholder: 'e.g., Grade 43, 12mm diameter',
   },
-  additionalSpec: {
-    label: 'Additional Specifications',
-    type: 'textarea',
-    placeholder: 'Additional details',
+  price: {
+    label: 'Rate (₹)',
+    type: 'number',
+    defaultValue: 0,
+    placeholder: 'Unit rate',
+    render: (val) => {
+      const n = Number(val);
+      return typeof n === 'number' && !isNaN(n) ? `₹${n.toFixed(2)}` : '—';
+    },
   },
   category: {
     label: 'Category',
@@ -136,6 +141,12 @@ function MaterialLibrary() {
       key: 'uom',
     },
     {
+      title: 'Rate (₹)',
+      dataIndex: 'price',
+      key: 'price',
+      render: (val) => (val != null ? `₹${Number(val).toFixed(2)}` : '—'),
+    },
+    {
       title: 'Current Stock',
       dataIndex: 'openingStock',
       key: 'openingStock',
@@ -197,7 +208,7 @@ function MaterialLibrary() {
         <p style={{ marginTop: 16, color: '#666' }}>
           Supported formats: .xlsx, .xls, .csv
           <br />
-          Required columns: Material Name, Category, UOM, In Stock
+          Required columns: Material Name, Category, UOM, In Stock. Optional: Rate/Price, Specifications
         </p>
       </Modal>
     </>

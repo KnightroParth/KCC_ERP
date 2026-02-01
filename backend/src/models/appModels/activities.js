@@ -68,6 +68,16 @@ const ActivitySchema = new mongoose.Schema(
         required: false,
       },
     },
+    progress: {
+      type: String,
+      enum: ['0%', '25%', '50%', '75%', '100%'],
+      default: '0%',
+    },
+    status: {
+      type: String,
+      enum: ['Pending', 'In Progress', 'Completed'],
+      default: 'Pending',
+    },
     data: {
       type: mongoose.Schema.Types.Mixed,
       default: {},

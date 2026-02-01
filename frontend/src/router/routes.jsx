@@ -26,8 +26,6 @@ const Project = lazy(() => import('@/modules/ProjectModule'));
 const Activities = lazy(() => import('@/pages/activities'));
 // Removed AssignWork import
 const WorkInProgress = lazy(() => import('@/pages/work/WorkInProgress'));
-const SetRate = lazy(() => import('@/pages/Inventory/SetRate'));
-
 // ✅ Work Planning UI (friend)
 const Planning = lazy(() => import('@/pages/work/planning'));
 
@@ -45,6 +43,7 @@ const IndentRequest = lazy(() => import('@/pages/Inventory/IndentRequest'));
 const PurchaseOrder = lazy(() => import('@/pages/Inventory/PurchaseOrder'));
 const GRN = lazy(() => import('@/pages/Inventory/GRN'));
 const Consumption = lazy(() => import('@/pages/Inventory/Consumption'));
+const SiteTransfer = lazy(() => import('@/pages/Inventory/SiteTransfer'));
 
 let routes = {
   expense: [],
@@ -81,11 +80,11 @@ let routes = {
     // Inventory Module (Supplier moved here as last child)
     { path: '/inventory', element: <InventoryDashboard /> },
     { path: '/inventory/materials', element: <MaterialLibrary /> },
-    { path: '/inventory/set-rate', element: <SetRate /> },
     { path: '/inventory/indent', element: <IndentRequest /> },
     { path: '/inventory/purchase-order', element: <PurchaseOrder /> },
     { path: '/inventory/grn', element: <GRN /> },
     { path: '/inventory/consumption', element: <Consumption /> },
+    { path: '/inventory/site-transfer', element: <SiteTransfer /> },
     { path: '/inventory/supplier', element: <Supplier /> },
 
     { path: '/profile', element: <Profile /> },

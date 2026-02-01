@@ -22,9 +22,9 @@ const MaterialSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
-    additionalSpec: {
-      type: String,
-      trim: true,
+    price: {
+      type: Number,
+      default: 0,
     },
     category: {
       type: String,

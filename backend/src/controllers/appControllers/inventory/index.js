@@ -5,6 +5,7 @@ const stockRequirementController = require('./stockRequirementController')();
 const purchaseOrderController = require('./purchaseOrderController')();
 const stockTransactionController = require('./stockTransactionController')();
 const projectInventoryController = require('./projectInventoryController')();
+const siteTransferController = require('./siteTransferController')();
 
 module.exports = {
   materialController,
@@ -12,4 +13,5 @@ module.exports = {
   purchaseOrderController,
   stockTransactionController,
   projectInventoryController,
+  siteTransferController,
 };

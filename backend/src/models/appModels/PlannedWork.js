@@ -30,6 +30,12 @@ const PlannedWorkSchema = new mongoose.Schema(
             type: String,
             required: true,
         },
+        floor: {
+            type: String,
+        },
+        unitType: {
+            type: String,
+        },
         startDate: {
             type: Date,
         },

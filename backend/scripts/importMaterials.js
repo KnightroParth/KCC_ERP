@@ -180,15 +180,16 @@ async function importMaterials(filePath) {
           'Description'
         ]);
         
-        const additionalSpecCol = findColumn(row, [
-          'Additional Specification',
-          'AdditionalSpecification',
-          'Additional Spec',
-          'AdditionalSpec',
-          'Additional Details',
-          'AdditionalDetails'
+        const priceCol = findColumn(row, [
+          'Rate',
+          'Price',
+          'Unit Rate',
+          'UnitRate',
+          'Cost',
+          'Rate (₹)',
+          'Price (₹)'
         ]);
-        
+
         const categoryCol = findColumn(row, [
           'Category',
           'Cat',
@@ -224,23 +225,18 @@ async function importMaterials(filePath) {
         }
 
         const specifications = row[specsCol]?.toString().trim() || '';
-        const additionalSpec = row[additionalSpecCol]?.toString().trim() || '';
         const category = normalizeCategory(row[categoryCol]?.toString().trim() || 'Other');
         const uom = normalizeUOM(row[uomCol]?.toString().trim() || 'nos');
         const openingStock = parseNumber(row[stockCol] || 0);
-
-        // Combine specifications
-        const combinedSpecs = [specifications, additionalSpec]
-          .filter(s => s)
-          .join(' | ');
+        const price = parseNumber(row[priceCol] || 0);
 
         // Upsert material
         const material = await Material.findOneAndUpdate(
           { name: materialName, removed: false },
           {
             name: materialName,
-            specifications: combinedSpecs || undefined,
-            additionalSpec: additionalSpec || undefined,
+            specifications: specifications || undefined,
+            price: price,
             category: category,
             uom: uom,
             openingStock: openingStock,

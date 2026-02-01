@@ -117,11 +117,11 @@ function Sidebar({ collapsible, isMobile = false }) {
       children: [
         { key: 'inventory', label: <Link to="/inventory" style={{ ...subLinkStyle, color: currentPath === 'inventory' ? '#ffffff' : '#1677ff' }}>Stock Overview</Link> },
         { key: 'inventory/materials', label: <Link to="/inventory/materials" style={{ ...subLinkStyle, color: currentPath === 'inventory/materials' ? '#ffffff' : '#1677ff' }}>Material Library</Link> },
-        { key: 'inventory/set-rate', label: <Link to="/inventory/set-rate" style={{ ...subLinkStyle, color: currentPath === 'inventory/set-rate' ? '#ffffff' : '#1677ff' }}>Set Rate</Link> },
         { key: 'inventory/indent', label: <Link to="/inventory/indent" style={{ ...subLinkStyle, color: currentPath === 'inventory/indent' ? '#ffffff' : '#1677ff' }}>Indent Request</Link> },
         { key: 'inventory/purchase-order', label: <Link to="/inventory/purchase-order" style={{ ...subLinkStyle, color: currentPath === 'inventory/purchase-order' ? '#ffffff' : '#1677ff' }}>Purchase Orders</Link> },
         { key: 'inventory/grn', label: <Link to="/inventory/grn" style={{ ...subLinkStyle, color: currentPath === 'inventory/grn' ? '#ffffff' : '#1677ff' }}>Receive Stock (GRN)</Link> },
         { key: 'inventory/consumption', label: <Link to="/inventory/consumption" style={{ ...subLinkStyle, color: currentPath === 'inventory/consumption' ? '#ffffff' : '#1677ff' }}>Issue Stock</Link> },
+        { key: 'inventory/site-transfer', label: <Link to="/inventory/site-transfer" style={{ ...subLinkStyle, color: currentPath === 'inventory/site-transfer' ? '#ffffff' : '#1677ff' }}>Site Transfer</Link> },
         // Added Supplier Link Here
         { key: 'inventory/supplier', label: <Link to="/inventory/supplier" style={{ ...subLinkStyle, color: currentPath === 'inventory/supplier' ? '#ffffff' : '#1677ff' }}>Suppliers</Link> },
       ],

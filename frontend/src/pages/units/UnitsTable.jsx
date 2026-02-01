@@ -148,6 +148,36 @@ export default function UnitsTable({ data, onRefresh }) {
             onFilter: (value, record) => record.status === value,
         },
         {
+            title: 'Grade/Status',
+            dataIndex: 'grade',
+            key: 'grade',
+            width: 120,
+            render: (grade) => {
+                const gradeColors = {
+                    'A': 'red',
+                    'A+': 'orange',
+                    'A++': 'gold',
+                    'A+++': 'lime',
+                    'Ready': 'green',
+                    'Complete': 'green',
+                };
+                return (
+                    <Tag color={gradeColors[grade] || 'blue'}>
+                        {grade || 'A'}
+                    </Tag>
+                );
+            },
+            filters: [
+                { text: 'A (0%)', value: 'A' },
+                { text: 'A+ (25%)', value: 'A+' },
+                { text: 'A++ (50%)', value: 'A++' },
+                { text: 'A+++ (75%)', value: 'A+++' },
+                { text: 'Ready/Complete (100%)', value: 'Ready' },
+                { text: 'Complete', value: 'Complete' },
+            ],
+            onFilter: (value, record) => (record.grade || 'A') === value,
+        },
+        {
             title: 'Actions',
             key: 'actions',
             width: 100,

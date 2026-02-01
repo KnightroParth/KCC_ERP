@@ -228,13 +228,23 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
     }
   };
 
-  const updateItem = (key, field, value) => {
+  const updateItem = (key, field, value, options) => {
     try {
       const index = items.findIndex((item) => item?.key === key);
       if (index === -1) return;
 
       const newItems = [...items];
       const item = { ...newItems[index], [field]: value };
+
+      // When material is selected, auto-fill rate from material library (price)
+      if (field === 'material' && options?.rateFromMaterial != null) {
+        const rate = parseFloat(options.rateFromMaterial) || 0;
+        item.rate = rate;
+        form.setFieldValue(['items', index, 'rate'], rate);
+        const qty = parseFloat(item.quantity) || 0;
+        item.amount = qty * rate;
+        form.setFieldValue(['items', index, 'amount'], item.amount);
+      }
 
       if (field === 'quantity' || field === 'rate') {
         const qty = parseFloat(field === 'quantity' ? value : item.quantity) || 0;
@@ -295,7 +305,7 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
             searchFields="name,category"
             outputValue="_id"
             placeholder="Search material..."
-            onChange={(val, fullOption) => updateItem(record?.key, 'material', fullOption || val)}
+            onChange={(val, fullOption) => updateItem(record?.key, 'material', fullOption || val, { rateFromMaterial: fullOption?.price })}
             value={items[index]?.material}
           />
         </Form.Item>

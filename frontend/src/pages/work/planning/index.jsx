@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Layout, Select, Card, Empty, Typography, Table, Checkbox, Button, Modal, Form, DatePicker, Row, Col, message } from 'antd';
+import { Layout, Select, Card, Empty, Typography, Table, Checkbox, Button, Modal, Form, DatePicker, Row, Col, message, Input } from 'antd';
 import { EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 
@@ -17,7 +17,7 @@ const { Option } = Select;
 
 // FORM_COMPONENTS removed - moved to Activities
 
-function generatePDF(data, vendors, staff, groupOption, headerDetails) {
+function generatePDF(data, vendors, staff, groupOption, headerDetails, projectName) {
     const doc = new jsPDF();
 
     // Helper to get name
@@ -44,86 +44,177 @@ function generatePDF(data, vendors, staff, groupOption, headerDetails) {
     doc.text(`Generated on: ${dayjs().format('DD/MM/YYYY')}`, 14, 30);
     doc.text(`From: ${minDate} To: ${maxDate}`, 120, 30);
 
-    doc.text(`Site Engineer: ${siteEngineerName}`, 14, 36);
-    doc.text(`Incharge: ${inchargeName}`, 14, 42);
-    doc.text(`Supervisor: ${supervisorName}`, 14, 48);
+    doc.text(`Project: ${projectName || '-'}`, 14, 36);
+    doc.text(`Site Engineer: ${siteEngineerName}`, 14, 42);
+    doc.text(`Incharge: ${inchargeName}`, 14, 48);
+    doc.text(`Supervisor: ${supervisorName}`, 14, 54);
 
     // Grouping Logic
     const groupedData = {};
-    data.forEach(item => {
-        const groupKey = groupOption === 'Contractors'
-            ? (vendors.find(v => v._id === (item.contractorId?._id || item.contractorId))?.name || 'Unknown')
-            : (item.category || 'Other');
 
-        if (!groupedData[groupKey]) groupedData[groupKey] = [];
-        groupedData[groupKey].push(item);
-    });
+    if (groupOption === 'Contractors') {
+        // Group by Contractor -> Category
+        data.forEach(item => {
+            const contractorName = vendors.find(v => v._id === (item.contractorId?._id || item.contractorId))?.name || 'Unknown';
+            const category = item.category || 'Other';
 
-    let yPos = 55;
-
-    Object.entries(groupedData).forEach(([groupName, items]) => {
-        // Sort items by Work Type -> Building -> Unit
-        items.sort((a, b) => {
-            const wtA = a.workType || a.category || '';
-            const wtB = b.workType || b.category || '';
-            if (wtA !== wtB) return wtA.localeCompare(wtB);
-
-            const bA = a.buildingName || '';
-            const bB = b.buildingName || '';
-            if (bA !== bB) return bA.localeCompare(bB);
-
-            return (a.unitNumber || '').localeCompare(b.unitNumber || '', undefined, { numeric: true });
+            if (!groupedData[contractorName]) groupedData[contractorName] = {};
+            if (!groupedData[contractorName][category]) groupedData[contractorName][category] = [];
+            groupedData[contractorName][category].push(item);
         });
-
-        // Table Columns (Removed Qty and Total)
-        const tableBody = items.map(item => {
-            const contractorName = vendors.find(v => v._id === (item.contractorId?._id || item.contractorId))?.name || '-';
-            const dateStr = item.startDate ? dayjs(item.startDate).format('DD/MM/YYYY') : '-';
-            const rate = item.rate || 0;
-
-            return [
-                item.workType || item.category,
-                contractorName,
-                dateStr,
-                item.buildingName,
-                item.unitNumber,
-                rate.toFixed(2)
-            ];
+    } else {
+        // Group by Work Type (Category) directly
+        data.forEach(item => {
+            const groupKey = item.category || 'Other';
+            if (!groupedData[groupKey]) groupedData[groupKey] = [];
+            groupedData[groupKey].push(item);
         });
+    }
 
-        // Group Header
-        doc.setFontSize(12);
-        doc.text(`${groupOption}: ${groupName}`, 14, yPos);
-        yPos += 6;
+    let yPos = 60;
 
-        autoTable(doc, {
-            startY: yPos,
-            head: [['Task', 'Contractor', 'Date', 'Building', 'Unit', 'Rate']],
-            body: tableBody,
-            theme: 'grid',
-            headStyles: { fillColor: [22, 119, 255] },
-            columnStyles: {
-                0: { cellWidth: 50 },
-                2: { cellWidth: 25 },
-                5: { halign: 'right' },
-            },
-            didDrawPage: (data) => {
-                yPos = data.cursor.y;
+    let isFirstContractor = true;
+    if (groupOption === 'Contractors') {
+        Object.entries(groupedData).forEach(([contractorName, categories]) => {
+            if (!isFirstContractor) {
+                doc.addPage();
+                yPos = 20;
+            }
+            isFirstContractor = false;
+
+            // Re-draw Header on new page for specific contractor if needed, 
+            // but at minimum we need the Contractor Header
+            doc.setFontSize(14);
+            doc.setTextColor(0, 0, 0);
+            doc.text(`Contractor: ${contractorName}`, 14, yPos);
+            yPos += 10;
+
+            Object.entries(categories).forEach(([categoryName, items]) => {
+                // Sort items by Work Type -> Building -> Unit
+                items.sort((a, b) => {
+                    const wtA = a.workType || a.category || '';
+                    const wtB = b.workType || b.category || '';
+                    if (wtA !== wtB) return wtA.localeCompare(wtB);
+
+                    const bA = a.buildingName || '';
+                    const bB = b.buildingName || '';
+                    if (bA !== bB) return bA.localeCompare(bB);
+                    return (a.unitNumber || '').localeCompare(b.unitNumber || '', undefined, { numeric: true });
+                });
+
+                // Category Header
+                doc.setFontSize(12);
+                doc.setTextColor(22, 119, 255); // Blue color for category
+                doc.text(categoryName, 14, yPos);
+                yPos += 6;
+
+                const tableBody = items.map(item => {
+                    const rate = item.rate || 0;
+                    const floor = item.floor || item.floorNumber || '-';
+                    const unitType = item.unitType || '-';
+                    return [
+                        item.workType || item.category, // Task Name
+                        item.buildingName,
+                        unitType,
+                        floor,
+                        item.unitNumber,
+                        rate.toFixed(2)
+                    ];
+                });
+
+                autoTable(doc, {
+                    startY: yPos,
+                    head: [['Task', 'Building', 'Unit Type', 'Floor', 'Unit', 'Rate']],
+                    body: tableBody,
+                    theme: 'grid',
+                    headStyles: { fillColor: [22, 119, 255] },
+                    columnStyles: {
+                        0: { cellWidth: 50 },
+                        2: { cellWidth: 30 },
+                        3: { halign: 'center' },
+                        5: { halign: 'right' },
+                    },
+                    didDrawPage: (data) => {
+                        yPos = data.cursor.y;
+                    }
+                });
+
+                // Subtotal for Category
+                const subTotal = items.reduce((sum, item) => sum + (item.rate || 0), 0);
+                doc.setFontSize(10);
+                doc.setTextColor(0, 0, 0);
+                doc.text(`SubTotal (${categoryName}): ${subTotal.toFixed(2)}`, 14, doc.lastAutoTable.finalY + 6);
+                yPos = doc.lastAutoTable.finalY + 16;
+
+                // Add page if needed within same contractor
+                if (yPos > 250) {
+                    doc.addPage();
+                    yPos = 20;
+                }
+            });
+        });
+    } else {
+        // Work Type Grouping (Flat list of categories)
+        Object.entries(groupedData).forEach(([groupName, items]) => {
+            // Sort items by Building -> Unit
+            items.sort((a, b) => {
+                const bA = a.buildingName || '';
+                const bB = b.buildingName || '';
+                if (bA !== bB) return bA.localeCompare(bB);
+                return (a.unitNumber || '').localeCompare(b.unitNumber || '', undefined, { numeric: true });
+            });
+
+            const tableBody = items.map(item => {
+                const contractorName = vendors.find(v => v._id === (item.contractorId?._id || item.contractorId))?.name || '-';
+                const rate = item.rate || 0;
+                const floor = item.floor || item.floorNumber || '-';
+                const unitType = item.unitType || '-';
+                return [
+                    item.workType || item.category, // Task Name
+                    contractorName,
+                    item.buildingName,
+                    unitType,
+                    floor,
+                    item.unitNumber,
+                    rate.toFixed(2)
+                ];
+            });
+
+            // Group Header
+            doc.setFontSize(12);
+            doc.setTextColor(0, 0, 0);
+            doc.text(`${groupOption}: ${groupName}`, 14, yPos);
+            yPos += 6;
+
+            autoTable(doc, {
+                startY: yPos,
+                head: [['Task', 'Contractor', 'Building', 'Unit Type', 'Floor', 'Unit', 'Rate']],
+                body: tableBody,
+                theme: 'grid',
+                headStyles: { fillColor: [22, 119, 255] },
+                columnStyles: {
+                    0: { cellWidth: 45 },
+                    3: { cellWidth: 25 },
+                    4: { halign: 'center' },
+                    6: { halign: 'right' },
+                },
+                didDrawPage: (data) => {
+                    yPos = data.cursor.y;
+                }
+            });
+
+            // Subtotal
+            const subTotal = items.reduce((sum, item) => sum + (item.rate || 0), 0);
+            doc.setFontSize(10);
+            doc.text(`SubTotal: ${subTotal.toFixed(2)}`, 14, doc.lastAutoTable.finalY + 10);
+            yPos = doc.lastAutoTable.finalY + 20;
+
+            if (yPos > 250) {
+                doc.addPage();
+                yPos = 20;
             }
         });
-
-        // Subtotal (Restored)
-        const subTotal = items.reduce((sum, item) => sum + (item.rate || 0), 0);
-        doc.setFontSize(10);
-        doc.text(`SubTotal: ${subTotal.toFixed(2)}`, 14, doc.lastAutoTable.finalY + 10);
-        yPos = doc.lastAutoTable.finalY + 20;
-
-        // Add page if needed
-        if (yPos > 250) {
-            doc.addPage();
-            yPos = 20;
-        }
-    });
+    }
 
     // Grand Total (Restored)
     const grandTotal = data.reduce((sum, item) => sum + (item.rate || 0), 0);
@@ -236,22 +327,25 @@ export default function Planning() {
         const currentContractorId = typeof headerDetails.contractor === 'object' ? headerDetails.contractor._id : headerDetails.contractor;
 
         try {
-            // Find if a checklist entry already exists for this unit, task, and contractor
+            // Find if a checklist entry already exists for this unit, task, contractor AND DATES
             const res = await request.listAll({
                 entity: 'checklist',
                 options: {
                     projectId: selectedProject._id,
                     unitNumber: record.unitNumber,
                     type: taskName,
-                    'personnel.contractor': currentContractorId
+                    'personnel.contractor': currentContractorId,
+                    startDate: headerDetails.startDate ? headerDetails.startDate.toISOString() : undefined,
+                    endDate: headerDetails.endDate ? headerDetails.endDate.toISOString() : undefined
                 }
             });
 
-            // STRICT FILTERING: Ensure we only update the record that matches OUR contractor
-            // The backend query might be loose or ignore nested keys depending on implementation, so we verify here.
+            // STRICT FILTERING: Ensure we only update the record that matches OUR contractor and dates
             const existingRecord = res.result?.find(r => {
                 const rContractorId = r.personnel?.contractor?._id || r.personnel?.contractor;
-                return rContractorId === currentContractorId;
+                const sameDates = dayjs(r.startDate).isSame(headerDetails.startDate, 'day') &&
+                    dayjs(r.endDate).isSame(headerDetails.endDate, 'day');
+                return rContractorId === currentContractorId && sameDates;
             });
 
             const payload = {
@@ -294,6 +388,15 @@ export default function Planning() {
         }
     };
 
+    const handleRateChange = (id, taskName, value) => {
+        setTableData(prev => prev.map(row => {
+            if (row._id === id) {
+                return { ...row, [`${taskName}_rate`]: value };
+            }
+            return row;
+        }));
+    };
+
     const handleAddPlanning = async () => {
         if (!selectedProject || !headerDetails.contractor || !selectedCategory) {
             message.warning('Please select project, contractor, and work type');
@@ -314,71 +417,108 @@ export default function Planning() {
 
             const promises = [];
             for (const unit of checkedUnits) {
+                const currentContractorId = typeof headerDetails.contractor === 'object' ? headerDetails.contractor._id : headerDetails.contractor;
                 // Find which specific tasks are checked for this unit
                 const checkedTasks = Object.entries(unit).filter(([key, val]) => val === true && key !== 'unitNumber' && key !== '_id').map(([key]) => key);
 
                 for (const taskName of checkedTasks) {
-                    // Check for existing planned work to avoid redundancy
+                    // Check for existing planned work matching project, unit, category, task, contractor AND DATES
                     const existing = plannedWorks.find(pw =>
                         (pw.projectId?._id === selectedProject._id || pw.projectId === selectedProject._id) &&
                         pw.unitNumber === unit.unitNumber &&
                         pw.category === selectedCategory.label &&
-                        pw.workType === taskName
+                        pw.workType === taskName &&
+                        (pw.contractorId?._id || pw.contractorId) === currentContractorId &&
+                        dayjs(pw.startDate).isSame(headerDetails.startDate, 'day') &&
+                        dayjs(pw.endDate).isSame(headerDetails.endDate, 'day')
                     );
 
-                    if (existing) {
-                        console.log(`Skipping duplicate plan for Unit ${unit.unitNumber} - ${taskName}`);
-                        continue;
+                    // Rate calculation moved here to be available for both Update and Create
+                    const userRate = unit[`${taskName}_rate`];
+                    let finalRate = 0;
+                    if (userRate !== undefined && userRate !== null && userRate !== '') {
+                        finalRate = parseFloat(userRate);
+                    } else {
+                        const material = materials.find(m =>
+                            m.name.toLowerCase().includes(taskName.toLowerCase()) ||
+                            m.category?.toLowerCase() === selectedCategory.label.toLowerCase()
+                        );
+                        finalRate = material ? material.price || 0 : 0;
                     }
 
-                    // Try to find rate by task name first, then category
-                    const material = materials.find(m =>
-                        m.name.toLowerCase().includes(taskName.toLowerCase()) ||
-                        m.category?.toLowerCase() === selectedCategory.label.toLowerCase()
-                    );
-                    const rate = material ? material.price || 0 : 0;
+                    if (existing) {
+                        // UPDATE existing record logic
+                        const updateData = {
+                            rate: finalRate,
+                            startDate: headerDetails.startDate,
+                            endDate: headerDetails.endDate,
+                            siteEngineer: headerDetails.siteEngineer,
+                            supervisor: headerDetails.supervisor,
+                            incharge: headerDetails.incharge,
+                            floor: unit.floor,
+                            unitType: unit.unitType
+                        };
+                        promises.push(request.update({ entity: 'plannedwork', id: existing._id, jsonData: updateData }));
+                    } else {
+                        // CREATE new record logic
+                        const payload = {
+                            projectId: selectedProject._id,
+                            buildingName: selectedBuilding,
+                            category: selectedCategory.label,
+                            workType: taskName,
+                            unitNumber: unit.unitNumber,
+                            startDate: headerDetails.startDate,
+                            endDate: headerDetails.endDate,
+                            contractorId: headerDetails.contractor,
+                            siteEngineer: headerDetails.siteEngineer,
+                            supervisor: headerDetails.supervisor,
+                            incharge: headerDetails.incharge,
+                            floor: unit.floor,
+                            unitType: unit.unitType,
+                            rate: finalRate
+                        };
+                        promises.push(request.create({ entity: 'plannedwork', jsonData: payload }));
 
-                    const payload = {
-                        projectId: selectedProject._id,
-                        buildingName: selectedBuilding,
-                        category: selectedCategory.label,
-                        workType: taskName,
-                        unitNumber: unit.unitNumber,
-                        startDate: headerDetails.startDate,
-                        endDate: headerDetails.endDate,
-                        contractorId: headerDetails.contractor,
-                        siteEngineer: headerDetails.siteEngineer,
-                        supervisor: headerDetails.supervisor,
-                        incharge: headerDetails.incharge,
-                        rate: rate
-                    };
-                    promises.push(request.create({ entity: 'plannedwork', jsonData: payload }));
-
-                    // Also create an Activity record if it doesn't exist
-                    const activityData = {
-                        projectId: selectedProject._id,
-                        unitId: unit._id,
-                        contractorId: headerDetails.contractor,
-                        activityCode: `PLAN-${Date.now()}-${unit.unitNumber}`,
-                        activityName: taskName,
-                        category: selectedCategory.label,
-                        defaultRate: rate,
-                        data: { planned: true }
-                    };
-                    promises.push(request.create({ entity: 'activities', jsonData: activityData }));
+                        // Also create an Activity record if it doesn't exist
+                        const activityData = {
+                            projectId: selectedProject._id,
+                            unitId: unit._id,
+                            contractorId: headerDetails.contractor,
+                            activityCode: `PLAN-${Date.now()}-${unit.unitNumber}`,
+                            activityName: taskName,
+                            category: selectedCategory.label,
+                            defaultRate: finalRate,
+                            data: { planned: true }
+                        };
+                        promises.push(request.create({ entity: 'activities', jsonData: activityData }));
+                    }
                 }
             }
 
-            await Promise.all(promises);
-            message.success('Planning added successfully');
+            // Execute all requests and handle individually
+            const results = await Promise.allSettled(promises);
 
-            // Refresh planned works
-            const plannedResult = await request.listAll({ entity: 'plannedwork' });
-            if (plannedResult.success) setPlannedWorks(plannedResult.result || []);
+            const successful = results.filter(r => r.status === 'fulfilled' && r.value.success).length;
+            const failed = results.filter(r => r.status === 'rejected' || (r.status === 'fulfilled' && !r.value.success)).length;
+
+            if (successful > 0) {
+                message.success(`${successful} items added successfully`);
+            }
+            if (failed > 0) {
+                // Log details for debugging
+                console.error('Failed items:', results.filter(r => r.status === 'rejected' || !r.value.success));
+                message.warning(`${failed} items failed to add (duplicates or network error)`);
+            }
+
+            // Refresh planned works if at least one succeeded
+            if (successful > 0) {
+                const plannedResult = await request.listAll({ entity: 'plannedwork' });
+                if (plannedResult.success) setPlannedWorks(plannedResult.result || []);
+            }
 
         } catch (error) {
             console.error('Error adding planning:', error);
-            message.error('Failed to add planning');
+            message.error('Critical error: ' + error.message);
         } finally {
             setSaving(false);
         }
@@ -401,48 +541,80 @@ export default function Planning() {
     // Prepare Data for Table
     useEffect(() => {
         const fetchChecklistStates = async () => {
-            if (selectedProject && selectedBuilding && selectedCategory && headerDetails.contractor) {
+            if (selectedProject && selectedBuilding && selectedCategory && headerDetails.contractor && headerDetails.startDate && headerDetails.endDate) {
                 const buildingUnits = getBuildingUnits();
                 const checklistItems = selectedCategory.fields || [];
                 const currentContractorId = typeof headerDetails.contractor === 'object' ? headerDetails.contractor._id : headerDetails.contractor;
 
-                // Fetch all checklists for this project, category items, and contractor
+                // Fetch checklists for this project, contractor, and specific date range
                 const res = await request.listAll({
                     entity: 'checklist',
                     options: {
                         projectId: selectedProject._id,
-                        'personnel.contractor': headerDetails.contractor
+                        'personnel.contractor': currentContractorId,
+                        startDate: headerDetails.startDate.toISOString(),
+                        endDate: headerDetails.endDate.toISOString()
                     }
                 });
 
                 const existingChecklists = res.result || [];
 
                 const data = buildingUnits.map(unit => {
+                    // Find rate from materials or plannedWorks
+                    const plannedWork = plannedWorks.find(pw =>
+                        (pw.projectId?._id === selectedProject._id || pw.projectId === selectedProject._id) &&
+                        pw.unitNumber === unit.unitNumber &&
+                        pw.category === selectedCategory.label
+                    );
+
+                    const material = materials.find(m =>
+                        m.category?.toLowerCase() === selectedCategory.label.toLowerCase()
+                    );
+
                     const unitData = {
                         _id: unit._id,
                         unitNumber: unit.unitNumber,
+                        floor: unit.floor || unit.floorNumber || '-',
+                        unitType: unit.unitType || '-',
+                        rate: plannedWork?.rate || material?.price || 0,
                     };
 
                     checklistItems.forEach(item => {
-                        // Strict filter by contractor ID
-                        const found = existingChecklists.find(c => {
+                        // 1. Load Checkbox State (Checklist entity) - FILTER BY CONTRACTOR AND DATES
+                        const foundCheck = existingChecklists.find(c => {
                             const cContractorId = c.personnel?.contractor?._id || c.personnel?.contractor;
+                            const isSameRange = dayjs(c.startDate).isSame(headerDetails.startDate, 'day') &&
+                                dayjs(c.endDate).isSame(headerDetails.endDate, 'day');
                             return c.unitNumber === unit.unitNumber &&
                                 c.type === item &&
-                                cContractorId === currentContractorId;
+                                cContractorId === currentContractorId &&
+                                isSameRange;
                         });
 
-                        if (found) {
-                            if (found.data?.checked !== undefined) {
-                                unitData[item] = found.data.checked;
-                            } else if (found.data?.rows) {
-                                unitData[item] = found.data.rows.length > 0;
+                        if (foundCheck) {
+                            if (foundCheck.data?.checked !== undefined) {
+                                unitData[item] = foundCheck.data.checked;
+                            } else if (foundCheck.data?.rows) {
+                                unitData[item] = foundCheck.data.rows.length > 0;
                             } else {
                                 unitData[item] = true;
                             }
                         } else {
                             unitData[item] = false;
                         }
+
+                        // 2. Load Rate (PlannedWork entity) - FILTER BY CONTRACTOR AND DATES
+                        const foundPlanned = plannedWorks.find(pw =>
+                            (pw.projectId?._id === selectedProject._id || pw.projectId === selectedProject._id) &&
+                            pw.unitNumber === unit.unitNumber &&
+                            pw.category === selectedCategory.label &&
+                            pw.workType === item &&
+                            (pw.contractorId?._id || pw.contractorId) === currentContractorId &&
+                            dayjs(pw.startDate).isSame(headerDetails.startDate, 'day') &&
+                            dayjs(pw.endDate).isSame(headerDetails.endDate, 'day')
+                        );
+
+                        unitData[`${item}_rate`] = foundPlanned?.rate || material?.price || 0;
                     });
 
                     return unitData;
@@ -453,7 +625,7 @@ export default function Planning() {
             }
         };
         fetchChecklistStates();
-    }, [selectedProject, selectedBuilding, selectedCategory, headerDetails.contractor]);
+    }, [selectedProject, selectedBuilding, selectedCategory, headerDetails.contractor, headerDetails.startDate, headerDetails.endDate, plannedWorks]);
 
     const getBuildingUnits = () => {
         if (!selectedProject || !selectedBuilding) return [];
@@ -486,6 +658,7 @@ export default function Planning() {
                             <Button
                                 onClick={() => setIsChartModalOpen(true)}
                                 style={{ marginRight: 16 }}
+                                disabled={!headerDetails.startDate || !headerDetails.endDate || !headerDetails.siteEngineer || !headerDetails.supervisor || !headerDetails.incharge}
                             >
                                 View 15 days Planning Chart
                             </Button>
@@ -621,6 +794,7 @@ export default function Planning() {
                                 data={tableData}
                                 category={selectedCategory}
                                 onCheckChange={handleCheckboxChange}
+                                onRateChange={handleRateChange}
                                 disabled={!headerDetails.contractor}
                             />
                         </Card>
@@ -638,7 +812,7 @@ export default function Planning() {
                 width={1200}
                 footer={[
                     <Button key="close" onClick={() => setIsChartModalOpen(false)}>Close</Button>,
-                    <Button key="print" type="primary" onClick={() => generatePDF(plannedWorks, vendors, staff, chartGroupOption, headerDetails)}>Export PDF</Button>
+                    <Button key="print" type="primary" onClick={() => generatePDF(plannedWorks, vendors, staff, chartGroupOption, headerDetails, selectedProject?.name)}>Export PDF</Button>
                 ]}
             >
                 <PlanningChart
@@ -674,14 +848,22 @@ function PlanningChart({ data, vendors, staff, groupOption, headerDetails, onDel
     const groupedData = {};
 
     // Grouping Logic
-    data.forEach(item => {
-        const groupKey = groupOption === 'Contractors'
-            ? (vendors.find(v => v._id === (item.contractorId?._id || item.contractorId))?.name || 'Unknown')
-            : (item.category || 'Other');
+    if (groupOption === 'Contractors') {
+        data.forEach(item => {
+            const contractorName = vendors.find(v => v._id === (item.contractorId?._id || item.contractorId))?.name || 'Unknown';
+            const category = item.category || 'Other';
 
-        if (!groupedData[groupKey]) groupedData[groupKey] = [];
-        groupedData[groupKey].push(item);
-    });
+            if (!groupedData[contractorName]) groupedData[contractorName] = {};
+            if (!groupedData[contractorName][category]) groupedData[contractorName][category] = [];
+            groupedData[contractorName][category].push(item);
+        });
+    } else {
+        data.forEach(item => {
+            const groupKey = item.category || 'Other';
+            if (!groupedData[groupKey]) groupedData[groupKey] = [];
+            groupedData[groupKey].push(item);
+        });
+    }
 
     let grandTotal = 0;
 
@@ -708,76 +890,219 @@ function PlanningChart({ data, vendors, staff, groupOption, headerDetails, onDel
                 </Row>
             </Card>
 
-            {Object.entries(groupedData).map(([groupName, items]) => {
-                const subTotal = items.reduce((sum, item) => sum + (item.rate || 0), 0);
-                grandTotal += subTotal;
+            {groupOption === 'Contractors' ? (
+                Object.entries(groupedData).map(([contractorName, categories]) => (
+                    <div key={contractorName} style={{ marginBottom: 32, border: '1px solid #d9d9d9', borderRadius: 8, padding: 16 }}>
+                        <Typography.Title level={4} style={{ marginTop: 0 }}>Contractor: {contractorName}</Typography.Title>
 
-                // Sort items by Work Type -> Building -> Unit
-                const sortedItems = [...items].sort((a, b) => {
-                    const wtA = a.workType || a.category || '';
-                    const wtB = b.workType || b.category || '';
-                    if (wtA !== wtB) return wtA.localeCompare(wtB);
+                        {Object.entries(categories).map(([categoryName, items]) => {
+                            const subTotal = items.reduce((sum, item) => sum + (item.rate || 0), 0);
+                            grandTotal += subTotal;
 
-                    const bA = a.buildingName || '';
-                    const bB = b.buildingName || '';
-                    if (bA !== bB) return bA.localeCompare(bB);
+                            // Sort items by Work Type -> Building -> Unit
+                            const sortedItems = [...items].sort((a, b) => {
+                                const wtA = a.workType || a.category || '';
+                                const wtB = b.workType || b.category || '';
+                                if (wtA !== wtB) return wtA.localeCompare(wtB);
 
-                    return (a.unitNumber || '').localeCompare(b.unitNumber || '', undefined, { numeric: true });
-                });
+                                const bA = a.buildingName || '';
+                                const bB = b.buildingName || '';
+                                if (bA !== bB) return bA.localeCompare(bB);
+                                return (a.unitNumber || '').localeCompare(b.unitNumber || '', undefined, { numeric: true });
+                            });
 
-                const columns = [
-                    { title: 'Work Type', dataIndex: 'workType', key: 'workType', render: (text, record) => text || record.category },
-                    { title: 'Contractor', key: 'contractor', render: (_, record) => vendors.find(v => v._id === (record.contractorId?._id || record.contractorId))?.name || '-' },
-                    { title: 'Date', key: 'date', render: (_, record) => record.startDate ? dayjs(record.startDate).format('DD/MM/YYYY') : '-' },
-                    { title: 'Building', dataIndex: 'buildingName', key: 'building' },
-                    { title: 'Unit', dataIndex: 'unitNumber', key: 'unit' },
-                    { title: 'Rate', dataIndex: 'rate', key: 'rate', align: 'right', render: (val) => `₹${val || 0}` },
-                    {
-                        title: 'Action',
-                        key: 'action',
-                        width: 80,
-                        align: 'center',
-                        render: (_, record) => (
-                            <Button
-                                type="text"
-                                danger
-                                icon={<DeleteOutlined />}
-                                onClick={() => onDelete(record._id)}
-                            />
-                        )
-                    }
-                ];
-                // Note: EditOutlined is imported at line 3. I should probably import DeleteOutlined if I want a trash icon, or just use text. 
-                // Let's check imports. Only EditOutlined is imported. 
-                // I'll stick to a simple danger button with "Delete" text or add import if possible. 
-                // But I can't easily add import in this large chunk without risking messing up top lines.
-                // Actually, I am replacing a huge chunk, so I can see lines 1-3 are NOT in the replacement chunk (StartLine: 387).
-                // Wait, the ReplacementContent starts at `const handleDeletePlannedWork...`. 
-                // I am replacing from line 387 to 747.
-                // Imports are at line 1-11.
-                // So I can't easily add DeleteOutlined. 
-                // I will usage a generic "Delete" text button for now, or just reuse EditOutlined but that's confusing.
-                // Actually, I will use `danger` button with "X".
+                            const columns = [
+                                {
+                                    title: 'Work Type',
+                                    dataIndex: 'workType',
+                                    key: 'workType',
+                                    render: (text, record) => text || record.category,
+                                    sorter: (a, b) => (a.workType || a.category || '').localeCompare(b.workType || b.category || '')
+                                },
+                                {
+                                    title: 'Building',
+                                    dataIndex: 'buildingName',
+                                    key: 'building',
+                                    sorter: (a, b) => (a.buildingName || '').localeCompare(b.buildingName || '')
+                                },
+                                {
+                                    title: 'Unit Type',
+                                    dataIndex: 'unitType',
+                                    key: 'unitType',
+                                    render: (val) => val || '-',
+                                    sorter: (a, b) => (a.unitType || '').localeCompare(b.unitType || '')
+                                },
+                                {
+                                    title: 'Floor',
+                                    dataIndex: 'floor',
+                                    key: 'floor',
+                                    align: 'center',
+                                    render: (val) => val || '-',
+                                    sorter: (a, b) => (a.floor || '').localeCompare(b.floor || '', undefined, { numeric: true })
+                                },
+                                {
+                                    title: 'Unit',
+                                    dataIndex: 'unitNumber',
+                                    key: 'unit',
+                                    sorter: (a, b) => (a.unitNumber || '').localeCompare(b.unitNumber || '', undefined, { numeric: true })
+                                },
+                                {
+                                    title: 'Rate',
+                                    dataIndex: 'rate',
+                                    key: 'rate',
+                                    align: 'right',
+                                    render: (val) => `₹${val || 0}`,
+                                    sorter: (a, b) => (a.rate || 0) - (b.rate || 0)
+                                },
+                                {
+                                    title: 'Action',
+                                    key: 'action',
+                                    width: 80,
+                                    align: 'center',
+                                    render: (_, record) => (
+                                        <Button
+                                            type="primary"
+                                            danger
+                                            ghost
+                                            size="small"
+                                            icon={<DeleteOutlined />}
+                                            onClick={() => onDelete(record._id)}
+                                        />
+                                    )
+                                }
+                            ];
 
-                return (
-                    <div key={groupName} style={{ marginBottom: 32, border: '1px solid #f0f0f0', borderRadius: 8, padding: 16 }}>
-                        <h3 style={{ marginBottom: 16 }}>{groupOption}: {groupName}</h3>
-                        <Table
-                            columns={columns}
-                            dataSource={sortedItems}
-                            rowKey="_id"
-                            pagination={false}
-                            size="small"
-                            summary={() => (
-                                <Table.Summary.Row style={{ background: '#fafafa', fontWeight: 'bold' }}>
-                                    <Table.Summary.Cell index={0} colSpan={5} align="right">SubTotal</Table.Summary.Cell>
-                                    <Table.Summary.Cell index={1} align="right">₹{subTotal.toFixed(2)}</Table.Summary.Cell>
-                                </Table.Summary.Row>
-                            )}
-                        />
+                            return (
+                                <div key={categoryName} style={{ marginBottom: 24, paddingLeft: 16, borderLeft: '4px solid #1677ff' }}>
+                                    <h4 style={{ color: '#1677ff', marginBottom: 8 }}>{categoryName}</h4>
+                                    <Table
+                                        columns={columns}
+                                        dataSource={sortedItems}
+                                        rowKey="_id"
+                                        pagination={false}
+                                        size="small"
+                                        summary={() => (
+                                            <Table.Summary.Row style={{ background: '#fafafa', fontWeight: 'bold' }}>
+                                                <Table.Summary.Cell index={0} colSpan={3} align="right">SubTotal ({categoryName})</Table.Summary.Cell>
+                                                <Table.Summary.Cell index={1} align="right">₹{subTotal.toFixed(2)}</Table.Summary.Cell>
+                                                <Table.Summary.Cell index={2} />
+                                            </Table.Summary.Row>
+                                        )}
+                                    />
+                                </div>
+                            );
+                        })}
                     </div>
-                );
-            })}
+                ))
+            ) : (
+                Object.entries(groupedData).map(([groupName, items]) => {
+                    const subTotal = items.reduce((sum, item) => sum + (item.rate || 0), 0);
+                    grandTotal += subTotal;
+
+                    // Sort items by Work Type -> Building -> Unit
+                    const sortedItems = [...items].sort((a, b) => {
+                        const wtA = a.workType || a.category || '';
+                        const wtB = b.workType || b.category || '';
+                        if (wtA !== wtB) return wtA.localeCompare(wtB);
+
+                        const bA = a.buildingName || '';
+                        const bB = b.buildingName || '';
+                        if (bA !== bB) return bA.localeCompare(bB);
+                        return (a.unitNumber || '').localeCompare(b.unitNumber || '', undefined, { numeric: true });
+                    });
+
+                    const columns = [
+                        {
+                            title: 'Work Type',
+                            dataIndex: 'workType',
+                            key: 'workType',
+                            render: (text, record) => text || record.category,
+                            sorter: (a, b) => (a.workType || a.category || '').localeCompare(b.workType || b.category || '')
+                        },
+                        {
+                            title: 'Contractor',
+                            key: 'contractor',
+                            render: (_, record) => vendors.find(v => v._id === (record.contractorId?._id || record.contractorId))?.name || '-',
+                            sorter: (a, b) => {
+                                const nameA = vendors.find(v => v._id === (a.contractorId?._id || a.contractorId))?.name || '';
+                                const nameB = vendors.find(v => v._id === (b.contractorId?._id || b.contractorId))?.name || '';
+                                return nameA.localeCompare(nameB);
+                            }
+                        },
+                        {
+                            title: 'Building',
+                            dataIndex: 'buildingName',
+                            key: 'building',
+                            sorter: (a, b) => (a.buildingName || '').localeCompare(b.buildingName || '')
+                        },
+                        {
+                            title: 'Unit Type',
+                            dataIndex: 'unitType',
+                            key: 'unitType',
+                            render: (val) => val || '-',
+                            sorter: (a, b) => (a.unitType || '').localeCompare(b.unitType || '')
+                        },
+                        {
+                            title: 'Floor',
+                            dataIndex: 'floor',
+                            key: 'floor',
+                            align: 'center',
+                            render: (val) => val || '-',
+                            sorter: (a, b) => (a.floor || '').localeCompare(b.floor || '', undefined, { numeric: true })
+                        },
+                        {
+                            title: 'Unit',
+                            dataIndex: 'unitNumber',
+                            key: 'unit',
+                            sorter: (a, b) => (a.unitNumber || '').localeCompare(b.unitNumber || '', undefined, { numeric: true })
+                        },
+                        {
+                            title: 'Rate',
+                            dataIndex: 'rate',
+                            key: 'rate',
+                            align: 'right',
+                            render: (val) => `₹${val || 0}`,
+                            sorter: (a, b) => (a.rate || 0) - (b.rate || 0)
+                        },
+                        {
+                            title: 'Action',
+                            key: 'action',
+                            width: 80,
+                            align: 'center',
+                            render: (_, record) => (
+                                <Button
+                                    type="primary"
+                                    danger
+                                    ghost
+                                    size="small"
+                                    icon={<DeleteOutlined />}
+                                    onClick={() => onDelete(record._id)}
+                                />
+                            )
+                        }
+                    ];
+
+                    return (
+                        <div key={groupName} style={{ marginBottom: 32, border: '1px solid #f0f0f0', borderRadius: 8, padding: 16 }}>
+                            <h3 style={{ marginBottom: 16 }}>{groupOption}: {groupName}</h3>
+                            <Table
+                                columns={columns}
+                                dataSource={sortedItems}
+                                rowKey="_id"
+                                pagination={false}
+                                size="small"
+                                summary={() => (
+                                    <Table.Summary.Row style={{ background: '#fafafa', fontWeight: 'bold' }}>
+                                        <Table.Summary.Cell index={0} colSpan={4} align="right">SubTotal</Table.Summary.Cell>
+                                        <Table.Summary.Cell index={1} align="right">₹{subTotal.toFixed(2)}</Table.Summary.Cell>
+                                        <Table.Summary.Cell index={2} />
+                                    </Table.Summary.Row>
+                                )}
+                            />
+                        </div>
+                    );
+                })
+            )}
 
             <div style={{ marginTop: 24, padding: 16, background: '#1677ff', color: '#fff', borderRadius: 8, textAlign: 'right' }}>
                 <Typography.Title level={4} style={{ color: '#fff', margin: 0 }}>
@@ -788,7 +1113,7 @@ function PlanningChart({ data, vendors, staff, groupOption, headerDetails, onDel
     );
 }
 
-function PlanningTable({ data, category, onCheckChange, disabled }) {
+function PlanningTable({ data, category, onCheckChange, onRateChange, disabled }) {
     const checklist = category?.fields || [];
 
     const columns = [
@@ -799,22 +1124,61 @@ function PlanningTable({ data, category, onCheckChange, disabled }) {
             width: 120,
             fixed: 'left',
             render: (text) => <strong>{text}</strong>,
+            sorter: (a, b) => (a.unitNumber || '').localeCompare(b.unitNumber || '', undefined, { numeric: true }),
         },
-        ...checklist.map((item, index) => ({
-            title: item,
-            dataIndex: item,
-            key: `item-${index}`,
+        {
+            title: 'Floor',
+            dataIndex: 'floor',
+            key: 'floor',
             width: 80,
             align: 'center',
-            render: (checked, record) => (
-                <Checkbox
-                    checked={checked || false}
-                    onChange={(e) => onCheckChange(record, item, e.target.checked)}
-                    disabled={disabled}
-                />
-            ),
-        })),
+            sorter: (a, b) => (a.floor || '').localeCompare(b.floor || '', undefined, { numeric: true }),
+        },
+        {
+            title: 'Unit Type',
+            dataIndex: 'unitType',
+            key: 'unitType',
+            width: 120,
+            sorter: (a, b) => (a.unitType || '').localeCompare(b.unitType || ''),
+        },
+
+        ...checklist.flatMap((taskName, index) => [
+            {
+                title: taskName,
+                dataIndex: taskName,
+                key: `item-${index}`,
+                width: 100,
+                align: 'center',
+                render: (checked, record) => (
+                    <Checkbox
+                        checked={checked || false}
+                        onChange={(e) => onCheckChange(record, taskName, e.target.checked)}
+                        disabled={disabled}
+                    />
+                ),
+            },
+            {
+                title: 'Rate',
+                key: `rate-${index}`,
+                width: 100,
+                align: 'right',
+                render: (_, record) => (
+                    <Input
+                        placeholder="0"
+                        style={{ width: '100%', textAlign: 'right' }}
+                        size="small"
+                        value={record[`${taskName}_rate`]}
+                        onChange={(e) => {
+                            if (onRateChange) {
+                                onRateChange(record._id, taskName, e.target.value);
+                            }
+                        }}
+                    />
+                ),
+            }
+        ]),
     ];
+
 
     return (
         <Table

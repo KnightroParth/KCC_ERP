@@ -10,6 +10,7 @@ const {
   purchaseOrderController,
   stockTransactionController,
   projectInventoryController,
+  siteTransferController,
 } = require('@/controllers/appControllers/inventory');
 const supplierController = require('@/controllers/appControllers/supplierController')();
 
@@ -71,6 +72,17 @@ router.route('/transaction/listAll').get(catchErrors(stockTransactionController.
 router.route('/transaction/search').get(catchErrors(stockTransactionController.search));
 router.route('/transaction/filter').get(catchErrors(stockTransactionController.filter));
 router.route('/transaction/summary').get(catchErrors(stockTransactionController.summary));
+
+// Site Transfer routes (site A → site B)
+router.route('/site-transfer/create').post(catchErrors(siteTransferController.create));
+router.route('/site-transfer/read/:id').get(catchErrors(siteTransferController.read));
+router.route('/site-transfer/update/:id').patch(catchErrors(siteTransferController.update));
+router.route('/site-transfer/delete/:id').delete(catchErrors(siteTransferController.delete));
+router.route('/site-transfer/list').get(catchErrors(siteTransferController.list));
+router.route('/site-transfer/listAll').get(catchErrors(siteTransferController.listAll));
+router.route('/site-transfer/search').get(catchErrors(siteTransferController.search));
+router.route('/site-transfer/filter').get(catchErrors(siteTransferController.filter));
+router.route('/site-transfer/summary').get(catchErrors(siteTransferController.summary));
 
 // Project Inventory routes
 router.route('/inventory/list').get(catchErrors(projectInventoryController.list));

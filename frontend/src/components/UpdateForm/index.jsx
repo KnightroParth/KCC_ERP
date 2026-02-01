@@ -38,6 +38,11 @@ export default function UpdateForm({ config, formElements, withUpload = false })
     if (fieldsValue.file && withUpload) {
       fieldsValue.file = fieldsValue.file[0].originFileObj;
     }
+
+    // Ensure material price (rate) is sent as number for inventory/material
+    if (entity === 'inventory/material' && fieldsValue.price !== undefined) {
+      fieldsValue.price = Number(fieldsValue.price) || 0;
+    }
     
     dispatch(crud.update({ entity, id, jsonData: fieldsValue, withUpload }));
   };
@@ -68,6 +73,11 @@ export default function UpdateForm({ config, formElements, withUpload = false })
       // Special handling for Project if it's an object
       if (newValues.projectId && typeof newValues.projectId === 'object') {
           newValues.projectId = newValues.projectId._id;
+      }
+
+      // Ensure material rate (price) is a number when opening edit
+      if (entity === 'inventory/material') {
+        newValues.price = newValues.price != null ? Number(newValues.price) : 0;
       }
 
       form.resetFields();

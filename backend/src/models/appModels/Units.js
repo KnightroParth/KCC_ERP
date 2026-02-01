@@ -30,6 +30,11 @@ const UnitsSchema = new mongoose.Schema(
     },
 
     ownerName: { type: String },
+    grade: {
+      type: String,
+      enum: ["A", "A+", "A++", "A+++", "Ready", "Complete"],
+      default: "A",
+    },
     removed: { type: Boolean, default: false },
     enabled: { type: Boolean, default: true },
   },
