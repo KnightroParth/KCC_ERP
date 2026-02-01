@@ -2,6 +2,7 @@ require('module-alias/register');
 const mongoose = require('mongoose');
 const { globSync } = require('glob');
 const path = require('path');
+const fs = require('fs');
 
 // Make sure we are running node 7.6+
 const [major, minor] = process.versions.node.split('.').map(parseFloat);
@@ -10,19 +11,76 @@ if (major < 20) {
   process.exit();
 }
 
-// import environmental variables from our variables.env file
-require('dotenv').config({ path: '.env' });
-require('dotenv').config({ path: '.env.local' });
+// Load .env from backend directory so it works regardless of cwd
+const backendDir = path.resolve(__dirname, '..');
+const envPath = path.join(backendDir, '.env');
+const envLocalPath = path.join(backendDir, '.env.local');
+if (fs.existsSync(envPath)) require('dotenv').config({ path: envPath });
+if (fs.existsSync(envLocalPath)) require('dotenv').config({ path: envLocalPath });
 
-mongoose.connect(process.env.DATABASE);
+const DATABASE = process.env.DATABASE || process.env.MONGODB_URI;
+if (!DATABASE) {
+  console.error('❌ DATABASE (or MONGODB_URI) is not set. Add it to backend/.env');
+  process.exit(1);
+}
+
+const mongooseOptions = {
+  serverSelectionTimeoutMS: 20000,
+  connectTimeoutMS: 20000,
+  // If one Atlas node fails DNS (ENOTFOUND), allow using secondaries when possible
+  readPreference: 'secondaryPreferred',
+};
+
+function connectMongo() {
+  return mongoose.connect(DATABASE, mongooseOptions);
+}
+
+// Retry connection a few times (one Atlas replica node often fails DNS from some networks)
+const maxRetries = 3;
+let retries = 0;
+
+function tryConnect() {
+  connectMongo()
+    .then(() => {
+      console.log('✅ MongoDB connected');
+      const app = require('./app');
+      app.set('port', process.env.PORT || 8888);
+      const server = app.listen(app.get('port'), () => {
+        console.log(`Express running → PORT : ${server.address().port}`);
+      });
+    })
+    .catch((err) => {
+      retries += 1;
+      const isServerSelection = err.name === 'MongooseServerSelectionError';
+      const isENOTFOUND = err.message && err.message.includes('ENOTFOUND');
+
+      if (isServerSelection && isENOTFOUND && retries < maxRetries) {
+        console.warn(
+          `⚠️ One Atlas node unreachable (DNS). Retry ${retries}/${maxRetries} in 3s...`
+        );
+        setTimeout(tryConnect, 3000);
+        return;
+      }
+
+      console.error('🔥 MongoDB connection failed.');
+      if (isENOTFOUND) {
+        console.error(
+          '   One replica node failed DNS (ENOTFOUND). Try: 1) Different network/Wi‑Fi  2) DNS 8.8.8.8  3) Atlas → Get new connection string'
+        );
+      } else {
+        console.error('   Check backend/.env (DATABASE) and Atlas network whitelist.');
+      }
+      console.error('   Error:', err.message);
+      process.exit(1);
+    });
+}
+
+tryConnect();
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 
 mongoose.connection.on('error', (error) => {
-  console.log(
-    `1. 🔥 Common Error caused issue → : check your .env file first and add your mongodb url`
-  );
-  console.error(`2. 🚫 Error → : ${error.message}`);
+  console.error('🔥 MongoDB connection error:', error.message);
 });
 
 const modelsFiles = globSync('./src/models/**/*.js');
@@ -30,10 +88,3 @@ const modelsFiles = globSync('./src/models/**/*.js');
 for (const filePath of modelsFiles) {
   require(path.resolve(filePath));
 }
-
-// Start our app!
-const app = require('./app');
-app.set('port', process.env.PORT || 8888);
-const server = app.listen(app.get('port'), () => {
-  console.log(`Express running → On PORT : ${server.address().port}`);
-});

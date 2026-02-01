@@ -9,9 +9,15 @@ const Customer = lazy(() => import('@/pages/Customer'));
 
 const Invoice = lazy(() => import('@/pages/Invoice'));
 const InvoiceCreate = lazy(() => import('@/pages/Invoice/InvoiceCreate'));
+const InvoiceCreateFromPlanning = lazy(() => import('@/pages/Invoice/CreateFromPlanning'));
 const InvoiceRead = lazy(() => import('@/pages/Invoice/InvoiceRead'));
 const InvoiceUpdate = lazy(() => import('@/pages/Invoice/InvoiceUpdate'));
 const InvoiceRecordPayment = lazy(() => import('@/pages/Invoice/InvoiceRecordPayment'));
+
+// Billing module (dashboard + sub-modules)
+const BillingDashboard = lazy(() => import('@/pages/Billing/BillingDashboard'));
+const BillingFromPlanning = lazy(() => import('@/pages/Billing/BillingFromPlanning'));
+const DirectBilling = lazy(() => import('@/pages/Billing/DirectBilling'));
 
 
 const Profile = lazy(() => import('@/pages/Profile'));
@@ -60,9 +66,15 @@ let routes = {
 
     { path: '/projects', element: <Project /> },
 
-    // Invoice
+    // Billing module (dashboard + sub-modules)
+    { path: '/billing', element: <BillingDashboard /> },
+    { path: '/billing/planning', element: <BillingFromPlanning /> },
+    { path: '/billing/direct', element: <DirectBilling /> },
+
+    // Invoice / Bills list & CRUD
     { path: '/invoice', element: <Invoice /> },
     { path: '/invoice/create', element: <InvoiceCreate /> },
+    { path: '/invoice/create-from-planning', element: <InvoiceCreateFromPlanning /> },
     { path: '/invoice/read/:id', element: <InvoiceRead /> },
     { path: '/invoice/update/:id', element: <InvoiceUpdate /> },
     { path: '/invoice/pay/:id', element: <InvoiceRecordPayment /> },

@@ -47,6 +47,15 @@ const create = async (req, res) => {
   body['paymentStatus'] = paymentStatus;
   body['createdBy'] = req.admin._id;
 
+  // Billing module: persist optional fields (billType, billingStage, week, source refs)
+  if (value.billType) body.billType = value.billType;
+  if (value.billingStage) body.billingStage = value.billingStage;
+  if (value.billingWeekEnd) body.billingWeekEnd = value.billingWeekEnd;
+  if (value.billingWeekStart) body.billingWeekStart = value.billingWeekStart;
+  if (value.sourceProjectId) body.sourceProjectId = value.sourceProjectId;
+  if (value.sourceContractorId) body.sourceContractorId = value.sourceContractorId;
+  if (value.plannedWorkIds && value.plannedWorkIds.length) body.plannedWorkIds = value.plannedWorkIds;
+
   // Creating a new document in the collection
   const result = await new Model(body).save();
   const fileId = 'invoice-' + result._id + '.pdf';

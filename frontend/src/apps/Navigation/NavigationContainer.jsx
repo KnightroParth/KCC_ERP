@@ -62,14 +62,21 @@ function Sidebar({ collapsible, isMobile = false }) {
     currentPath === 'activities' ||
     currentPath.startsWith('work/');
 
+  const isBillingActive =
+    currentPath === 'billing' ||
+    currentPath.startsWith('billing/') ||
+    currentPath === 'invoice' ||
+    currentPath.startsWith('invoice/');
+
   // Auto-expand relevant modules
   useEffect(() => {
     const keys = [];
     if (isInventoryActive) keys.push('inventory-module');
     if (isAttendanceActive) keys.push('attendance-module');
     if (isWorkActive) keys.push('work-module');
+    if (isBillingActive) keys.push('billing-module');
     setOpenKeys(keys);
-  }, [isInventoryActive, isAttendanceActive, isWorkActive]);
+  }, [isInventoryActive, isAttendanceActive, isWorkActive, isBillingActive]);
 
   // Styles
   const parentLabelStyle = { fontSize: '15px', fontWeight: '600' };
@@ -127,7 +134,17 @@ function Sidebar({ collapsible, isMobile = false }) {
       ],
     },
 
-    { key: 'invoice', icon: <FileSyncOutlined style={iconStyle} />, label: <Link to="/invoice" style={parentLabelStyle}>Billing</Link> },
+    {
+      key: 'billing-module',
+      icon: <FileSyncOutlined style={iconStyle} />,
+      label: <Link to="/billing" style={parentModuleLabelStyle}>Billing</Link>,
+      children: [
+        { key: 'billing', label: <Link to="/billing" style={{ ...subLinkStyle, color: currentPath === 'billing' ? '#ffffff' : '#1677ff' }}>Billing Dashboard</Link> },
+        { key: 'billing/planning', label: <Link to="/billing/planning" style={{ ...subLinkStyle, color: currentPath === 'billing/planning' ? '#ffffff' : '#1677ff' }}>Create from Planning</Link> },
+        { key: 'billing/direct', label: <Link to="/billing/direct" style={{ ...subLinkStyle, color: currentPath === 'billing/direct' ? '#ffffff' : '#1677ff' }}>Direct Bill</Link> },
+        { key: 'invoice', label: <Link to="/invoice" style={{ ...subLinkStyle, color: currentPath === 'invoice' ? '#ffffff' : '#1677ff' }}>All Bills</Link> },
+      ],
+    },
     { key: 'about', icon: <ReconciliationOutlined style={iconStyle} />, label: <Link to="/about" style={parentLabelStyle}>About</Link> },
   ];
 

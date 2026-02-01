@@ -1,6 +1,7 @@
 import NotFound from '@/components/NotFound';
 import { ErpLayout } from '@/layout';
 import ReadItem from '@/modules/ErpPanelModule/ReadItem';
+import BillingWorkflowStrip from '@/modules/InvoiceModule/BillingWorkflowStrip';
 
 import PageLoader from '@/components/PageLoader';
 import { erp } from '@/redux/erp/actions';
@@ -14,6 +15,10 @@ export default function ReadInvoiceModule({ config }) {
   const dispatch = useDispatch();
   const { id } = useParams();
 
+  const refresh = () => {
+    dispatch(erp.read({ entity: config.entity, id }));
+  };
+
   useLayoutEffect(() => {
     dispatch(erp.read({ entity: config.entity, id }));
   }, [id]);
@@ -26,14 +31,17 @@ export default function ReadInvoiceModule({ config }) {
         <PageLoader />
       </ErpLayout>
     );
-  } else
-    return (
-      <ErpLayout>
-        {isSuccess ? (
+  }
+  return (
+    <ErpLayout>
+      {isSuccess ? (
+        <>
+          <BillingWorkflowStrip invoice={currentResult} onRefresh={refresh} />
           <ReadItem config={config} selectedItem={currentResult} />
-        ) : (
-          <NotFound entity={config.entity} />
-        )}
-      </ErpLayout>
-    );
+        </>
+      ) : (
+        <NotFound entity={config.entity} />
+      )}
+    </ErpLayout>
+  );
 }

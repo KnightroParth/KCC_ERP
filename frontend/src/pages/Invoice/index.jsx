@@ -1,9 +1,13 @@
 import dayjs from 'dayjs';
+import { useNavigate } from 'react-router-dom';
+import { Button } from 'antd';
+import { FileTextOutlined, PlusOutlined } from '@ant-design/icons';
 import useLanguage from '@/locale/useLanguage';
 import { useMoney, useDate } from '@/settings';
 import InvoiceDataTableModule from '@/modules/InvoiceModule/InvoiceDataTableModule';
 
 export default function Invoice() {
+  const navigate = useNavigate();
   const translate = useLanguage();
   const { dateFormat } = useDate();
   const { moneyFormatter } = useMoney();
@@ -12,14 +16,26 @@ export default function Invoice() {
     { title: translate('Number'), dataIndex: 'number' },
     { title: translate('Client'), dataIndex: ['client', 'name'] },
     {
+      title: 'Bill Type',
+      dataIndex: 'billType',
+      key: 'billType',
+      render: (v) => (v === 'normal' ? 'From Planning' : v === 'direct' ? 'Direct' : '-'),
+    },
+    {
+      title: 'Billing Stage',
+      dataIndex: 'billingStage',
+      key: 'billingStage',
+      render: (v) => (v ? v.replace('_', ' ').replace(/\b\w/g, (c) => c.toUpperCase()) : '-'),
+    },
+    {
       title: translate('Date'),
       dataIndex: 'date',
-      render: (date) => dayjs(date).format(dateFormat),
+      render: (date) => date ? dayjs(date).format(dateFormat) : '-',
     },
     {
       title: translate('Expired Date'),
       dataIndex: 'expiredDate',
-      render: (date) => dayjs(date).format(dateFormat),
+      render: (date) => date ? dayjs(date).format(dateFormat) : '-',
     },
     {
       title: translate('Total'),
@@ -49,7 +65,24 @@ export default function Invoice() {
       searchFields: 'name',
     },
     deleteModalLabels: ['number', 'client.name'],
+    headerExtra: [
+      <Button
+        key="from-planning"
+        onClick={() => navigate('/invoice/create-from-planning')}
+        icon={<FileTextOutlined />}
+      >
+        Create from Planning
+      </Button>,
+      <Button
+        key="direct"
+        type="primary"
+        onClick={() => navigate('/invoice/create')}
+        icon={<PlusOutlined />}
+      >
+        {translate('add_new_invoice')}
+      </Button>,
+    ],
   };
 
-  return <InvoiceDataTableModule config={config} />; // ✅ ONLY THIS
+  return <InvoiceDataTableModule config={config} />;
 }

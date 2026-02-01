@@ -150,6 +150,26 @@ const invoiceSchema = new mongoose.Schema({
     enum: ['draft', 'pending', 'sent', 'refunded', 'cancelled', 'on hold'],
     default: 'draft',
   },
+  // ----- Billing module: normal (from planning) vs direct -----
+  billType: {
+    type: String,
+    enum: ['normal', 'direct'],
+    default: 'direct',
+  },
+  billingStage: {
+    type: String,
+    enum: ['draft', 'audit', 'checking', 'approval', 'payment', 'on_hold'],
+    default: 'draft',
+  },
+  // Week ending Saturday (billing is weekly on Saturday)
+  billingWeekEnd: { type: Date },
+  billingWeekStart: { type: Date },
+  sourceProjectId: { type: mongoose.Schema.ObjectId, ref: 'Project' },
+  sourceContractorId: { type: mongoose.Schema.ObjectId, ref: 'Vendor' },
+  plannedWorkIds: [{ type: mongoose.Schema.ObjectId, ref: 'PlannedWork' }],
+  // On Hold: reasons + photos
+  onHoldReasons: { type: String },
+  onHoldPhotos: [{ type: String }],
   pdf: {
     type: String,
   },

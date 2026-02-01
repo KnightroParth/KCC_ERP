@@ -298,5 +298,22 @@ const request = {
       return errorHandler(error);
     }
   },
+
+  /** Billing: get planning data for week ending Saturday */
+  getPlanningForBilling: async (params = {}) => {
+    try {
+      includeToken();
+      const searchParams = new URLSearchParams();
+      Object.entries(params).forEach(([k, v]) => {
+        if (v != null && v !== '') searchParams.append(k, v);
+      });
+      const query = searchParams.toString();
+      const response = await axios.get('invoice/planning-for-billing' + (query ? '?' + query : ''));
+      successHandler(response, { notifyOnSuccess: false, notifyOnFailed: true });
+      return response.data;
+    } catch (error) {
+      return errorHandler(error);
+    }
+  },
 };
 export default request;

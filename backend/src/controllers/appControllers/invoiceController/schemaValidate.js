@@ -7,7 +7,6 @@ const schema = Joi.object({
   notes: Joi.string().allow(''),
   expiredDate: Joi.date().required(),
   date: Joi.date().required(),
-  // array cannot be empty
   items: Joi.array()
     .items(
       Joi.object({
@@ -21,6 +20,16 @@ const schema = Joi.object({
     )
     .required(),
   taxRate: Joi.alternatives().try(Joi.number(), Joi.string()).required(),
+  // Billing module: normal (from planning) vs direct
+  billType: Joi.string().valid('normal', 'direct').optional(),
+  billingStage: Joi.string().valid('draft', 'audit', 'checking', 'approval', 'payment', 'on_hold').optional(),
+  billingWeekEnd: Joi.date().optional(),
+  billingWeekStart: Joi.date().optional(),
+  sourceProjectId: Joi.alternatives().try(Joi.string(), Joi.object()).optional(),
+  sourceContractorId: Joi.alternatives().try(Joi.string(), Joi.object()).optional(),
+  plannedWorkIds: Joi.array().items(Joi.string()).optional(),
+  onHoldReasons: Joi.string().allow('').optional(),
+  onHoldPhotos: Joi.array().items(Joi.string()).optional(),
 });
 
 module.exports = schema;

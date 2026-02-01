@@ -41,7 +41,7 @@ function AddNewItem({ config }) {
 
 export default function DataTable({ config, extra = [] }) {
   const translate = useLanguage();
-  let { entity, dataTableColumns, disableAdd = false, searchConfig } = config;
+  let { entity, dataTableColumns, disableAdd = false, searchConfig, headerExtra } = config;
 
   const { DATATABLE_TITLE } = config;
 
@@ -187,16 +187,14 @@ export default function DataTable({ config, extra = [] }) {
             displayLabels={['name']}
             searchFields={'name'}
             onChange={filterTable}
-            // redirectLabel={'Add New Client'}
-            // withRedirect
-            // urlToRedirect={'/customer'}
           />,
           <Button onClick={handelDataTableLoad} key={`${uniqueId()}`} icon={<RedoOutlined />}>
             {translate('Refresh')}
           </Button>,
-
-          !disableAdd && <AddNewItem config={config} key={`${uniqueId()}`} />,
-        ]}
+          ...(Array.isArray(headerExtra) ? headerExtra : []),
+          !disableAdd && !headerExtra && <AddNewItem config={config} key={`${uniqueId()}`} />,
+          !disableAdd && headerExtra && null,
+        ].filter(Boolean)}
         style={{
           padding: '20px 0px',
         }}
