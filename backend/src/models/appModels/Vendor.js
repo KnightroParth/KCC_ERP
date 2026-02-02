@@ -28,6 +28,10 @@ const VendorSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    workType: {
+      type: String,
+      trim: true,
+    },
     labourSupplyDetails: [
       {
         labourType: {
