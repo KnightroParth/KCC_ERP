@@ -1,17 +1,17 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Layout, Card, Row, Col, Select, DatePicker, Button, Tag, message,
-  Popconfirm, Input, Tabs, Space, Typography, Empty, Statistic, InputNumber, Modal
+  Popconfirm, Input, Tabs, Space, Empty, InputNumber, Modal
 } from 'antd';
 import {
   EditOutlined, DeleteOutlined, CheckCircleOutlined, CloseCircleOutlined,
   UserOutlined, TeamOutlined, SaveOutlined, PlusOutlined, ReloadOutlined, UserAddOutlined
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
-import { useNavigate } from 'react-router-dom'; // Import Navigate
+import { useNavigate } from 'react-router-dom';
 import request from '@/request/request';
 import AttendanceModal from './AttendanceModal';
-import useLanguage from '@/locale/useLanguage';
+import { ErpLayout } from '@/layout';
 
 const { Content } = Layout;
 const { Option } = Select;
@@ -232,7 +232,7 @@ export default function Attendance() {
       }
     });
     if (res.success) {
-      message.success('Vendor Attendance Saved');
+      message.success('Contractor Attendance Saved');
       fetchData();
     } else {
       message.error(res.message || 'Error saving');
@@ -251,105 +251,122 @@ export default function Attendance() {
   const getVendorRecord = (vendorId) => records.find(r => r.vendorId && (r.vendorId._id === vendorId || r.vendorId === vendorId));
 
   return (
-    <Layout style={{ minHeight: '100vh', padding: '24px' }}>
-      {/* Header Section */}
-      <div style={{ marginBottom: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Typography.Title level={3} style={{margin:0}}>Attendance Manager</Typography.Title>
-        <Space>
-           {/* NEW BUTTON: Add Staff Shortcut */}
-           <Button icon={<UserAddOutlined />} onClick={() => navigate('/labour')}>
-             Manage Staff
-           </Button>
-           <Button icon={<TeamOutlined />} onClick={() => navigate('/vendor')}>
-             Manage Vendors
-           </Button>
-        </Space>
-      </div>
+    <ErpLayout>
+      <Layout style={{ minHeight: 'auto', background: 'transparent' }}>
+        <Content style={{ padding: '32px 24px' }}>
+          <div className="page-content-inner">
+            {/* Page title - same pattern as Work in Progress / Billing */}
+            <div style={{ marginBottom: 32, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 16 }}>
+              <div>
+                <h1 className="page-title">Mark Attendance</h1>
+                <p style={{ color: '#8c8c8c', marginBottom: 0 }}>Record staff and contractor attendance by project and date</p>
+              </div>
+              <Space>
+                <Button icon={<UserAddOutlined />} onClick={() => navigate('/labour')}>
+                  Manage Staff
+                </Button>
+                <Button icon={<TeamOutlined />} onClick={() => navigate('/vendor')}>
+                  Manage Contractor
+                </Button>
+              </Space>
+            </div>
 
-      <Card bodyStyle={{ padding: '16px' }} style={{ marginBottom: 16 }}>
-        <Row gutter={16}>
-          <Col span={8}>
-            <Select 
-              placeholder="Select Project" 
-              style={{ width: '100%' }} 
-              size="large"
-              onChange={(val) => setSelectedProject(projects.find(p => p._id === val))}
-            >
-              {projects.map(p => <Option key={p._id} value={p._id}>{p.name}</Option>)}
-            </Select>
-          </Col>
-          <Col span={8}>
-            <DatePicker 
-              style={{ width: '100%' }} 
-              size="large"
-              value={selectedDate} 
-              onChange={d => setSelectedDate(d)} 
-              allowClear={false}
-            />
-          </Col>
-          <Col span={8}>
-            <Button type="primary" icon={<ReloadOutlined />} onClick={fetchData} size="large" block>
-              Refresh Data
-            </Button>
-          </Col>
-        </Row>
-      </Card>
-
-      {!selectedProject ? <Empty description="Select a Project to start" /> : (
-        <Tabs 
-          type="card"
-          activeKey={activeTab}
-          onChange={setActiveTab}
-          items={[
-            {
-              label: 'Company Staff',
-              key: 'staff',
-              children: (
-                <div>
-                   <Input 
-                    placeholder="Search Staff Name..." 
-                    style={{ marginBottom: 16, maxWidth: 300 }}
-                    value={searchText}
-                    onChange={e => setSearchText(e.target.value)} 
+            {/* Filters - same card style as other modules */}
+            <Card bodyStyle={{ padding: '16px' }} style={{ marginBottom: 24 }} bordered={false}>
+              <Row gutter={[16, 16]}>
+                <Col xs={24} sm={12} md={8}>
+                  <Select
+                    placeholder="Select Project"
+                    style={{ width: '100%' }}
+                    size="large"
+                    value={selectedProject?._id}
+                    onChange={(val) => setSelectedProject(projects.find(p => p._id === val))}
+                  >
+                    {projects.map(p => <Option key={p._id} value={p._id}>{p.name}</Option>)}
+                  </Select>
+                </Col>
+                <Col xs={24} sm={12} md={8}>
+                  <DatePicker
+                    style={{ width: '100%' }}
+                    size="large"
+                    value={selectedDate}
+                    onChange={(d) => setSelectedDate(d)}
+                    allowClear={false}
                   />
-                  {labours
-                    .filter(l => l.name.toLowerCase().includes(searchText.toLowerCase()))
-                    .map(labour => (
-                    <LabourAttendanceRow 
-                      key={labour._id}
-                      labour={labour}
-                      record={getRecord(labour._id)}
-                      onMark={() => { setCurrentLabour(labour); setCurrentRecord(null); setModalVisible(true); }}
-                      onEdit={(rec) => { setCurrentLabour(labour); setCurrentRecord(rec); setModalVisible(true); }}
-                      onDelete={handleDelete}
-                    />
-                  ))}
-                  {labours.length === 0 && <Empty description="No staff found" />}
-                </div>
-              )
-            },
-            {
-              label: 'Vendor Labour',
-              key: 'vendor',
-              children: (
-                <div>
-                  {vendors.map(vendor => (
-                    <VendorAttendanceCard 
-                      key={vendor._id}
-                      vendor={vendor}
-                      existingRecord={getVendorRecord(vendor._id)}
-                      onSave={handleVendorSave}
-                    />
-                  ))}
-                  {vendors.length === 0 && <Empty description="No vendors found" />}
-                </div>
-              )
-            }
-          ]}
-        />
-      )}
+                </Col>
+                <Col xs={24} sm={12} md={8}>
+                  <Button type="primary" icon={<ReloadOutlined />} onClick={fetchData} size="large" block>
+                    Refresh Data
+                  </Button>
+                </Col>
+              </Row>
+            </Card>
 
-      <AttendanceModal 
+            {/* Tabs content */}
+            {!selectedProject ? (
+              <Card bordered={false}>
+                <Empty description="Select a Project to start" />
+              </Card>
+            ) : (
+              <Card bordered={false} bodyStyle={{ padding: '0 24px 24px' }}>
+                <Tabs
+                  type="card"
+                  activeKey={activeTab}
+                  onChange={setActiveTab}
+                  items={[
+                    {
+                      label: 'Company Staff',
+                      key: 'staff',
+                      children: (
+                        <div style={{ paddingTop: 16 }}>
+                          <Input
+                            placeholder="Search Staff Name..."
+                            style={{ marginBottom: 16, maxWidth: 300 }}
+                            value={searchText}
+                            onChange={(e) => setSearchText(e.target.value)}
+                          />
+                          {labours
+                            .filter(l => l.name.toLowerCase().includes(searchText.toLowerCase()))
+                            .map(labour => (
+                              <LabourAttendanceRow
+                                key={labour._id}
+                                labour={labour}
+                                record={getRecord(labour._id)}
+                                onMark={() => { setCurrentLabour(labour); setCurrentRecord(null); setModalVisible(true); }}
+                                onEdit={(rec) => { setCurrentLabour(labour); setCurrentRecord(rec); setModalVisible(true); }}
+                                onDelete={handleDelete}
+                              />
+                            ))}
+                          {labours.length === 0 && <Empty description="No staff found" />}
+                        </div>
+                      ),
+                    },
+                    {
+                      label: 'Contractor Labour',
+                      key: 'vendor',
+                      children: (
+                        <div style={{ paddingTop: 16 }}>
+                          {vendors.map(vendor => (
+                            <VendorAttendanceCard
+                              key={vendor._id}
+                              vendor={vendor}
+                              existingRecord={getVendorRecord(vendor._id)}
+                              onSave={handleVendorSave}
+                            />
+                          ))}
+                          {vendors.length === 0 && <Empty description="No contractors found" />}
+                        </div>
+                      ),
+                    },
+                  ]}
+                />
+              </Card>
+            )}
+          </div>
+        </Content>
+      </Layout>
+
+      <AttendanceModal
         open={modalVisible}
         onCancel={() => setModalVisible(false)}
         labour={currentLabour}
@@ -358,6 +375,6 @@ export default function Attendance() {
         date={selectedDate}
         onSuccess={() => { setModalVisible(false); fetchData(); }}
       />
-    </Layout>
+    </ErpLayout>
   );
 }

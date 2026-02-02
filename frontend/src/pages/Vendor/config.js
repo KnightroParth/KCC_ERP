@@ -5,7 +5,7 @@ export const fields = {
     label: 'Name',
     type: 'string',
     required: true,
-    placeholder: 'Vendor name',
+    placeholder: 'Contractor name',
   },
   phone: {
     label: 'Phone',
@@ -24,5 +24,11 @@ export const fields = {
     type: 'string',
     required: false,
     placeholder: 'Address',
+  },
+  workType: {
+    label: 'Work Type',
+    type: 'string',
+    required: false,
+    placeholder: 'e.g. RCC, Plumbing, Electrical',
   },
 };

@@ -111,7 +111,7 @@ function Sidebar({ collapsible, isMobile = false }) {
       children: [
         { key: 'attendance', label: <Link to="/attendance" style={{ ...subLinkStyle, color: currentPath === 'attendance' ? '#ffffff' : '#1677ff' }}>Mark Attendance</Link> },
         { key: 'labour', label: <Link to="/labour" style={{ ...subLinkStyle, color: currentPath === 'labour' ? '#ffffff' : '#1677ff' }}>Manage Staff</Link> },
-        { key: 'vendor', label: <Link to="/vendor" style={{ ...subLinkStyle, color: currentPath === 'vendor' ? '#ffffff' : '#1677ff' }}>Manage Vendor</Link> },
+        { key: 'vendor', label: <Link to="/vendor" style={{ ...subLinkStyle, color: currentPath === 'vendor' ? '#ffffff' : '#1677ff' }}>Manage Contractor</Link> },
       ],
     },
 

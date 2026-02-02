@@ -9,10 +9,10 @@ export default function Vendor() {
   const entity = 'vendor';
 
   const Labels = {
-    PANEL_TITLE: 'Vendors',
-    DATATABLE_TITLE: 'Vendor List',
-    ADD_NEW_ENTITY: 'Add New Vendor',
-    ENTITY_NAME: 'Vendor',
+    PANEL_TITLE: 'Contractors',
+    DATATABLE_TITLE: 'Contractor List',
+    ADD_NEW_ENTITY: 'Add New Contractor',
+    ENTITY_NAME: 'Contractor',
   };
 
   const searchConfig = {
@@ -44,6 +44,12 @@ export default function Vendor() {
       dataIndex: 'email',
       key: 'email',
       render: (email) => email || '-',
+    },
+    {
+      title: 'Work Type',
+      dataIndex: 'workType',
+      key: 'workType',
+      render: (v) => v || '-',
     },
     {
       title: 'Total Labour Capacity',
