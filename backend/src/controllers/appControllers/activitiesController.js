@@ -146,41 +146,79 @@ function activitiesController() {
   };
 
   /* ============================================
-      SEARCH — populate project & unit
+      DELETE — with cascading logic
   ============================================= */
-  methods.search = async (req, res) => {
+  methods.delete = async (req, res) => {
     try {
-      const { q, fields } = req.query;
-      if (!q || !fields) {
-        return res.status(400).json({
+      const { id } = req.params;
+
+      const doc = await Model.findOne({ _id: id, removed: false });
+      if (!doc) {
+        return res.status(404).json({
           success: false,
           result: null,
-          message: "Missing search query or fields",
+          message: 'No document found by this id: ' + id,
         });
       }
 
-      const fieldsArray = fields.split(",");
-      const searchQuery = {
-        removed: false,
-        $or: fieldsArray.map((field) => ({
-          [field]: { $regex: q, $options: "i" },
-        })),
+      // Soft delete current Activity
+      await Model.findByIdAndUpdate(id, { removed: true });
+
+      // Cascade to PlannedWork and Checklist
+      const PlannedWork = mongoose.model('PlannedWork');
+      const Checklist = mongoose.model('Checklist');
+
+      const filter = {
+        projectId: doc.projectId,
+        workType: doc.activityName,
+        contractorId: doc.contractorId,
+        startDate: doc.startDate,
+        endDate: doc.endDate,
+        removed: false
       };
 
-      const results = await Model.find(searchQuery)
-        .populate("projectId", "name projectCode")
-        .populate("unitId", "unitNumber towerOrWing")
-        .limit(10);
+      // In PlannedWork, unitNumber is a string
+      // activities has unitId (ref Units). We need to get unitNumber
+      const Units = mongoose.model('Units');
+      const unit = await Units.findById(doc.unitId);
+
+      if (unit) {
+        await PlannedWork.updateMany(
+          {
+            projectId: doc.projectId,
+            unitNumber: unit.unitNumber,
+            workType: doc.activityName,
+            contractorId: doc.contractorId,
+            startDate: doc.startDate,
+            endDate: doc.endDate
+          },
+          { removed: true }
+        );
+
+        await Checklist.updateMany(
+          {
+            projectId: doc.projectId,
+            unitNumber: unit.unitNumber,
+            type: doc.activityName,
+            'personnel.contractor': doc.contractorId,
+            startDate: doc.startDate,
+            endDate: doc.endDate
+          },
+          { removed: true }
+        );
+      }
 
       return res.status(200).json({
         success: true,
-        result: results,
-        message: "Successfully found documents",
+        result: doc,
+        message: 'Successfully deleted Activity and synchronized with Planning and Checklist',
       });
     } catch (error) {
-      return res
-        .status(500)
-        .json({ success: false, result: null, message: error.message });
+      return res.status(500).json({
+        success: false,
+        result: null,
+        message: error.message,
+      });
     }
   };
 

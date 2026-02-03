@@ -59,7 +59,6 @@ function Sidebar({ collapsible, isMobile = false }) {
 
   const isWorkActive =
     currentPath === 'work/wip' ||
-    currentPath === 'activities' ||
     currentPath.startsWith('work/');
 
   const isBillingActive =
@@ -98,7 +97,6 @@ function Sidebar({ collapsible, isMobile = false }) {
       children: [
         { key: 'work/planning', label: <Link to="/work/planning" style={{ ...subLinkStyle, color: currentPath === 'work/planning' ? '#ffffff' : '#1677ff' }}>Planning</Link> },
         { key: 'work/wip', label: <Link to="/work/wip" style={{ ...subLinkStyle, color: currentPath === 'work/wip' ? '#ffffff' : '#1677ff' }}>Work in Progress</Link> },
-        { key: 'activities', label: <Link to="/activities" style={{ ...subLinkStyle, color: currentPath === 'activities' ? '#ffffff' : '#1677ff' }}>Activities</Link> },
       ],
     },
 

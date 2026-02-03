@@ -30,6 +30,14 @@ const ActivitySchema = new mongoose.Schema(
       ref: 'Vendor',
       required: false,
     },
+    startDate: {
+      type: Date,
+      required: false,
+    },
+    endDate: {
+      type: Date,
+      required: false,
+    },
 
     // Activity identification
     activityCode: {

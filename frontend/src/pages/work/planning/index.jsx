@@ -9,13 +9,8 @@ import request from '@/request/request';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
-// Complex form components removed - moved to Activities
-
-
 const { Content } = Layout;
 const { Option } = Select;
-
-// FORM_COMPONENTS removed - moved to Activities
 
 function generatePDF(data, vendors, staff, groupOption, headerDetails, projectName) {
     const doc = new jsPDF();
@@ -52,9 +47,15 @@ function generatePDF(data, vendors, staff, groupOption, headerDetails, projectNa
     // Grouping Logic
     const groupedData = {};
 
+    // Strict Date Filtering for PDF
+    const filteredData = data.filter(item =>
+        dayjs(item.startDate).isSame(headerDetails.startDate, 'day') &&
+        dayjs(item.endDate).isSame(headerDetails.endDate, 'day')
+    );
+
     if (groupOption === 'Contractors') {
         // Group by Contractor -> Category
-        data.forEach(item => {
+        filteredData.forEach(item => {
             const contractorName = vendors.find(v => v._id === (item.contractorId?._id || item.contractorId))?.name || 'Unknown';
             const category = item.category || 'Other';
 
@@ -64,7 +65,7 @@ function generatePDF(data, vendors, staff, groupOption, headerDetails, projectNa
         });
     } else {
         // Group by Work Type (Category) directly
-        data.forEach(item => {
+        filteredData.forEach(item => {
             const groupKey = item.category || 'Other';
             if (!groupedData[groupKey]) groupedData[groupKey] = [];
             groupedData[groupKey].push(item);
@@ -280,7 +281,7 @@ export default function Planning() {
                 const staffResult = await request.list({ entity: 'labour', options: { status: 'Active' } });
                 if (staffResult.result) setStaff(staffResult.result);
 
-                const vendorResult = await request.list({ entity: 'vendor', options: { enabled: true } });
+                const vendorResult = await request.listAll({ entity: 'vendor', options: { enabled: true } });
                 if (vendorResult.result) setVendors(vendorResult.result);
 
                 const materialResult = await request.listAll({ entity: 'inventory/material' });
@@ -340,7 +341,7 @@ export default function Planning() {
                 }
             });
 
-            // STRICT FILTERING: Ensure we only update the record that matches OUR contractor and dates
+            // STRICT SEARCH: We only show/toggle OURE record for the unit/task/period
             const existingRecord = res.result?.find(r => {
                 const rContractorId = r.personnel?.contractor?._id || r.personnel?.contractor;
                 const sameDates = dayjs(r.startDate).isSame(headerDetails.startDate, 'day') &&
@@ -398,43 +399,55 @@ export default function Planning() {
     };
 
     const handleAddPlanning = async () => {
-        if (!selectedProject || !headerDetails.contractor || !selectedCategory) {
-            message.warning('Please select project, contractor, and work type');
+        if (!selectedProject || !headerDetails.contractor || !selectedCategory || !headerDetails.startDate || !headerDetails.endDate) {
+            message.warning('Please select project, contractor, work type, and date range');
             return;
         }
 
+        // Check for ANY existing planning in this specific interval and building (regardless of contractor)
+        const existingPlanning = plannedWorks.some(pw =>
+            (pw.projectId?._id === selectedProject._id || pw.projectId === selectedProject._id) &&
+            pw.buildingName === selectedBuilding &&
+            dayjs(pw.startDate).isSame(headerDetails.startDate, 'day') &&
+            dayjs(pw.endDate).isSame(headerDetails.endDate, 'day')
+        );
+
+        if (existingPlanning) {
+            Modal.confirm({
+                title: 'Existing Planning Found',
+                content: 'Planning already exists for this date interval in this building. Do you want to update it to match your current selections?',
+                okText: 'Yes, Update',
+                cancelText: 'No',
+                onOk: () => executePlanningSync(),
+            });
+        } else {
+            executePlanningSync();
+        }
+    };
+
+    const executePlanningSync = async () => {
         setSaving(true);
         try {
-            const checkedUnits = tableData.filter(row => {
-                return Object.entries(row).some(([key, val]) => val === true && key !== 'unitNumber' && key !== '_id');
-            });
-
-            if (checkedUnits.length === 0) {
-                message.warning('No items selected in the planning table');
-                setSaving(false);
-                return;
-            }
+            const currentContractorId = typeof headerDetails.contractor === 'object' ? headerDetails.contractor._id : headerDetails.contractor;
+            const categoryTasks = selectedCategory.fields || [];
 
             const promises = [];
-            for (const unit of checkedUnits) {
-                const currentContractorId = typeof headerDetails.contractor === 'object' ? headerDetails.contractor._id : headerDetails.contractor;
-                // Find which specific tasks are checked for this unit
-                const checkedTasks = Object.entries(unit).filter(([key, val]) => val === true && key !== 'unitNumber' && key !== '_id').map(([key]) => key);
 
-                for (const taskName of checkedTasks) {
-                    // Check for existing planned work matching project, unit, category, task, contractor AND DATES
+            for (const unit of tableData) {
+                for (const taskName of categoryTasks) {
+                    const isCheckedOnScreen = unit[taskName];
+                    const userRate = unit[`${taskName}_rate`];
+
+                    // Find existing record for this unit/task/period (regardless of contractor)
                     const existing = plannedWorks.find(pw =>
                         (pw.projectId?._id === selectedProject._id || pw.projectId === selectedProject._id) &&
                         pw.unitNumber === unit.unitNumber &&
                         pw.category === selectedCategory.label &&
                         pw.workType === taskName &&
-                        (pw.contractorId?._id || pw.contractorId) === currentContractorId &&
                         dayjs(pw.startDate).isSame(headerDetails.startDate, 'day') &&
                         dayjs(pw.endDate).isSame(headerDetails.endDate, 'day')
                     );
 
-                    // Rate calculation moved here to be available for both Update and Create
-                    const userRate = unit[`${taskName}_rate`];
                     let finalRate = 0;
                     if (userRate !== undefined && userRate !== null && userRate !== '') {
                         finalRate = parseFloat(userRate);
@@ -446,78 +459,79 @@ export default function Planning() {
                         finalRate = material ? material.price || 0 : 0;
                     }
 
-                    if (existing) {
-                        // UPDATE existing record logic
-                        const updateData = {
-                            rate: finalRate,
-                            startDate: headerDetails.startDate,
-                            endDate: headerDetails.endDate,
-                            siteEngineer: headerDetails.siteEngineer,
-                            supervisor: headerDetails.supervisor,
-                            incharge: headerDetails.incharge,
-                            floor: unit.floor,
-                            unitType: unit.unitType
-                        };
-                        promises.push(request.update({ entity: 'plannedwork', id: existing._id, jsonData: updateData }));
-                    } else {
-                        // CREATE new record logic
-                        const payload = {
-                            projectId: selectedProject._id,
-                            buildingName: selectedBuilding,
-                            category: selectedCategory.label,
-                            workType: taskName,
-                            unitNumber: unit.unitNumber,
-                            startDate: headerDetails.startDate,
-                            endDate: headerDetails.endDate,
-                            contractorId: headerDetails.contractor,
-                            siteEngineer: headerDetails.siteEngineer,
-                            supervisor: headerDetails.supervisor,
-                            incharge: headerDetails.incharge,
-                            floor: unit.floor,
-                            unitType: unit.unitType,
-                            rate: finalRate
-                        };
-                        promises.push(request.create({ entity: 'plannedwork', jsonData: payload }));
+                    if (isCheckedOnScreen) {
+                        if (existing) {
+                            // UPDATE existing (this replaces contractor if different - "Replacement" logic)
+                            const updateData = {
+                                rate: finalRate,
+                                contractorId: headerDetails.contractor,
+                                siteEngineer: headerDetails.siteEngineer,
+                                supervisor: headerDetails.supervisor,
+                                incharge: headerDetails.incharge,
+                                floor: unit.floor,
+                                unitType: unit.unitType
+                            };
+                            promises.push(request.update({ entity: 'plannedwork', id: existing._id, jsonData: updateData }));
+                        } else {
+                            // CREATE new
+                            const payload = {
+                                projectId: selectedProject._id,
+                                buildingName: selectedBuilding,
+                                category: selectedCategory.label,
+                                workType: taskName,
+                                unitNumber: unit.unitNumber,
+                                startDate: headerDetails.startDate,
+                                endDate: headerDetails.endDate,
+                                contractorId: headerDetails.contractor,
+                                siteEngineer: headerDetails.siteEngineer,
+                                supervisor: headerDetails.supervisor,
+                                incharge: headerDetails.incharge,
+                                floor: unit.floor,
+                                unitType: unit.unitType,
+                                rate: finalRate
+                            };
+                            promises.push(request.create({ entity: 'plannedwork', jsonData: payload }));
 
-                        // Also create an Activity record if it doesn't exist
-                        const activityData = {
-                            projectId: selectedProject._id,
-                            unitId: unit._id,
-                            contractorId: headerDetails.contractor,
-                            activityCode: `PLAN-${Date.now()}-${unit.unitNumber}`,
-                            activityName: taskName,
-                            category: selectedCategory.label,
-                            defaultRate: finalRate,
-                            data: { planned: true }
-                        };
-                        promises.push(request.create({ entity: 'activities', jsonData: activityData }));
+                            // Sync Activity
+                            const activityData = {
+                                projectId: selectedProject._id,
+                                unitId: unit._id,
+                                contractorId: headerDetails.contractor,
+                                activityCode: `PLAN-${Date.now()}-${unit.unitNumber}`,
+                                activityName: taskName,
+                                category: selectedCategory.label,
+                                defaultRate: finalRate,
+                                startDate: headerDetails.startDate,
+                                endDate: headerDetails.endDate,
+                                data: { planned: true }
+                            };
+                            promises.push(request.create({ entity: 'activities', jsonData: activityData }));
+                        }
+                    } else if (existing) {
+                        // UNCHECKED on screen
+                        const existingContractorId = existing.contractorId?._id || existing.contractorId;
+                        // ONLY delete if it belonged to the CURRENT contractor
+                        // This prevents John from accidentally deleting Salim's records just because John's view is empty
+                        if (existingContractorId === currentContractorId) {
+                            promises.push(request.delete({ entity: 'plannedwork', id: existing._id }));
+                        }
                     }
                 }
             }
 
-            // Execute all requests and handle individually
             const results = await Promise.allSettled(promises);
-
             const successful = results.filter(r => r.status === 'fulfilled' && r.value.success).length;
             const failed = results.filter(r => r.status === 'rejected' || (r.status === 'fulfilled' && !r.value.success)).length;
 
-            if (successful > 0) {
-                message.success(`${successful} items added successfully`);
-            }
-            if (failed > 0) {
-                // Log details for debugging
-                console.error('Failed items:', results.filter(r => r.status === 'rejected' || !r.value.success));
-                message.warning(`${failed} items failed to add (duplicates or network error)`);
-            }
+            if (successful > 0) message.success('Planning synchronized successfully');
+            if (failed > 0) message.warning(`${failed} items failed to sync`);
 
-            // Refresh planned works if at least one succeeded
-            if (successful > 0) {
-                const plannedResult = await request.listAll({ entity: 'plannedwork' });
-                if (plannedResult.success) setPlannedWorks(plannedResult.result || []);
-            }
+            // Refresh
+            const plannedResult = await request.listAll({ entity: 'plannedwork' });
+            if (plannedResult.success) setPlannedWorks(plannedResult.result || []);
 
         } catch (error) {
-            console.error('Error adding planning:', error);
+            console.error('Error synchronizing planning:', error);
             message.error('Critical error: ' + error.message);
         } finally {
             setSaving(false);
@@ -564,7 +578,9 @@ export default function Planning() {
                     const plannedWork = plannedWorks.find(pw =>
                         (pw.projectId?._id === selectedProject._id || pw.projectId === selectedProject._id) &&
                         pw.unitNumber === unit.unitNumber &&
-                        pw.category === selectedCategory.label
+                        pw.category === selectedCategory.label &&
+                        dayjs(pw.startDate).isSame(headerDetails.startDate, 'day') &&
+                        dayjs(pw.endDate).isSame(headerDetails.endDate, 'day')
                     );
 
                     const material = materials.find(m =>
@@ -580,7 +596,7 @@ export default function Planning() {
                     };
 
                     checklistItems.forEach(item => {
-                        // 1. Load Checkbox State (Checklist entity) - FILTER BY CONTRACTOR AND DATES
+                        // 1. Load Checkbox State (Checklist entity) - CONTRACTOR SPECIFIC
                         const foundCheck = existingChecklists.find(c => {
                             const cContractorId = c.personnel?.contractor?._id || c.personnel?.contractor;
                             const isSameRange = dayjs(c.startDate).isSame(headerDetails.startDate, 'day') &&
@@ -603,7 +619,7 @@ export default function Planning() {
                             unitData[item] = false;
                         }
 
-                        // 2. Load Rate (PlannedWork entity) - FILTER BY CONTRACTOR AND DATES
+                        // 2. Load Rate (PlannedWork entity) - CONTRACTOR SPECIFIC
                         const foundPlanned = plannedWorks.find(pw =>
                             (pw.projectId?._id === selectedProject._id || pw.projectId === selectedProject._id) &&
                             pw.unitNumber === unit.unitNumber &&
@@ -719,7 +735,7 @@ export default function Planning() {
                     {selectedProject && (
                         <Card bordered={false} style={{ marginBottom: 24 }} size="small">
                             <Row gutter={[16, 16]}>
-                                <Col span={4}>
+                                <Col span={3}>
                                     <div style={{ marginBottom: 4, fontWeight: 500 }}>Start Date</div>
                                     <DatePicker
                                         style={{ width: '100%' }}
@@ -727,7 +743,7 @@ export default function Planning() {
                                         onChange={(date) => setHeaderDetails(prev => ({ ...prev, startDate: date }))}
                                     />
                                 </Col>
-                                <Col span={4}>
+                                <Col span={3}>
                                     <div style={{ marginBottom: 4, fontWeight: 500 }}>End Date</div>
                                     <DatePicker
                                         style={{ width: '100%' }}
@@ -771,16 +787,20 @@ export default function Planning() {
                                         onChange={(val) => setHeaderDetails(prev => ({ ...prev, incharge: val }))}
                                     />
                                 </Col>
-                                <Col span={4}>
+                                <Col span={6}>
                                     <div style={{ marginBottom: 4, fontWeight: 500 }}>Contractor</div>
                                     <Select
                                         style={{ width: '100%' }}
                                         placeholder="Select"
                                         showSearch
                                         optionFilterProp="label"
-                                        options={vendors.map(v => ({ label: v.name, value: v._id }))}
+                                        options={vendors.map(v => ({
+                                            label: `${v.name} - ${v.workType || v.category || 'General'}`,
+                                            value: v._id
+                                        }))}
                                         value={headerDetails.contractor}
                                         onChange={(val) => setHeaderDetails(prev => ({ ...prev, contractor: val }))}
+                                        popupMatchSelectWidth={false}
                                     />
                                 </Col>
                             </Row>
@@ -847,9 +867,15 @@ function PlanningChart({ data, vendors, staff, groupOption, headerDetails, onDel
 
     const groupedData = {};
 
+    // Strict Date Filtering for Chart
+    const filteredData = data.filter(item =>
+        dayjs(item.startDate).isSame(headerDetails.startDate, 'day') &&
+        dayjs(item.endDate).isSame(headerDetails.endDate, 'day')
+    );
+
     // Grouping Logic
     if (groupOption === 'Contractors') {
-        data.forEach(item => {
+        filteredData.forEach(item => {
             const contractorName = vendors.find(v => v._id === (item.contractorId?._id || item.contractorId))?.name || 'Unknown';
             const category = item.category || 'Other';
 
@@ -858,7 +884,7 @@ function PlanningChart({ data, vendors, staff, groupOption, headerDetails, onDel
             groupedData[contractorName][category].push(item);
         });
     } else {
-        data.forEach(item => {
+        filteredData.forEach(item => {
             const groupKey = item.category || 'Other';
             if (!groupedData[groupKey]) groupedData[groupKey] = [];
             groupedData[groupKey].push(item);

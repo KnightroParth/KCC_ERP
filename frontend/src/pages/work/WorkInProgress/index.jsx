@@ -32,6 +32,7 @@ export default function WorkInProgress() {
     const [selectedProject, setSelectedProject] = useState(null);
     const [selectedBuilding, setSelectedBuilding] = useState(null);
     const [selectedCategory, setSelectedCategory] = useState(null);
+    const [vendors, setVendors] = useState([]);
     const [buildings, setBuildings] = useState([]);
     const [loading, setLoading] = useState(false);
     const [data, setData] = useState([]);
@@ -55,6 +56,9 @@ export default function WorkInProgress() {
 
             const unitsResult = await request.listAll({ entity: 'units' });
             if (unitsResult.success) setUnitsList(unitsResult.result);
+
+            const vendorResult = await request.listAll({ entity: 'vendor', options: { enabled: true } });
+            if (vendorResult.success) setVendors(vendorResult.result || []);
         };
         fetchInitialData();
     }, []);
@@ -113,51 +117,71 @@ export default function WorkInProgress() {
                 status = 'Completed';
             }
 
-            // Update local state
+            const activity = data.find(a => (a._id?._id || a._id).toString() === activityId.toString());
+            if (!activity) {
+                console.error("Activity not found in current data:", activityId);
+                return;
+            }
+
+            // Normalization for matching
+            const activityName = (activity.activityName || activity.activity || "").trim();
+            const hasChecklist = COMPLEX_TASK_COMPONENTS[activityName];
+
+            // If progress is 100%, force photo check first
+            if (value === '100%') {
+                const hasPhotos = activity.photos?.before && activity.photos?.after;
+                if (!hasPhotos) {
+                    Modal.warning({
+                        title: 'Photos Required',
+                        content: 'Please upload both Before and After photos using the Camera icon in the Actions column before marking this task as 100% completed.',
+                        okText: 'Understood'
+                    });
+                    // Revert local progress select is automatic as we don't update setProgressData
+                    return;
+                }
+
+                if (hasChecklist) {
+                    setCurrentActivity({ ...activity, progress: value });
+                    setChecklistData(activity.data || {});
+
+                    // Photos are uploaded separately via Camera icon
+                    // We just need to check if they exist when user tries to save the checklist
+                    setPhotoBefore(activity.photos?.before || null);
+                    setPhotoAfter(activity.photos?.after || null);
+
+                    setModalMode('checklist');
+                    setIsChecklistModalOpen(true);
+                    return;
+                }
+            }
+
+            // Update local state ONLY if photos exist (for 100%) or for other progress levels
             setProgressData(prev => ({ ...prev, [activityId]: value }));
 
-            // Update backend with both progress and status
-            const activity = data.find(a => a._id === activityId);
-            if (activity) {
-                // Check if this activity has a detailed checklist
-                const hasChecklist = COMPLEX_TASK_COMPONENTS[activity.activityName];
+            // Update activity progress
+            await request.update({
+                entity: 'activities',
+                id: activityId,
+                jsonData: { ...activity, progress: value, status }
+            });
 
-                // If progress is 100% and has checklist, show modal
-                if (value === '100%') {
-                    if (hasChecklist) {
-                        setCurrentActivity({ ...activity, progress: value });
-                        setChecklistData(activity.data || {});
-                        setModalMode('checklist');
-                        setIsChecklistModalOpen(true);
-                        return;
-                    }
+            // Calculate and update unit grade
+            await updateUnitGrade(activity.unitId);
+            message.success(`Progress updated to ${value} - Status: ${status}`);
+
+            // Refresh data to get updated status
+            const res = await request.listAll({ entity: 'activities' });
+            if (res.success) {
+                let filtered = res.result || [];
+                if (selectedProject) filtered = filtered.filter(a => (a.projectId?._id || a.projectId) === selectedProject);
+                if (selectedBuilding) {
+                    filtered = filtered.filter(a => {
+                        const unit = unitsList.find(u => u._id === (a.unitId?._id || a.unitId));
+                        return (unit?.buildingName || unit?.towerOrWing) === selectedBuilding;
+                    });
                 }
-
-                // Update activity progress
-                await request.update({
-                    entity: 'activities',
-                    id: activityId,
-                    jsonData: { ...activity, progress: value, status }
-                });
-
-                // Calculate and update unit grade
-                await updateUnitGrade(activity.unitId, value);
-                message.success(`Progress updated to ${value} - Status: ${status}`);
-
-                // Refresh data to get updated status
-                const res = await request.listAll({ entity: 'activities' });
-                if (res.success) {
-                    let filtered = res.result || [];
-                    if (selectedProject) filtered = filtered.filter(a => (a.projectId?._id || a.projectId) === selectedProject);
-                    if (selectedBuilding) {
-                        filtered = filtered.filter(a => {
-                            const unit = unitsList.find(u => u._id === (a.unitId?._id || a.unitId));
-                            return (unit?.buildingName || unit?.towerOrWing) === selectedBuilding;
-                        });
-                    }
-                    if (selectedCategory) filtered = filtered.filter(a => a.category === selectedCategory);
-                    setData(filtered);
-                }
+                if (selectedCategory) filtered = filtered.filter(a => a.category === selectedCategory);
+                setData(filtered);
             }
         } catch (error) {
             message.error('Failed to update progress');
@@ -165,8 +189,9 @@ export default function WorkInProgress() {
         }
     };
 
-    // Function to calculate and update unit grade based on progress
-    const updateUnitGrade = async (unitId, progress) => {
+
+    // Function to calculate and update unit grade based on average progress of all activities
+    const updateUnitGrade = async (unitId) => {
         try {
             // Extract unit ID if it's an object
             const actualUnitId = typeof unitId === 'object' ? unitId._id : unitId;
@@ -176,26 +201,42 @@ export default function WorkInProgress() {
                 return;
             }
 
-            // Calculate grade based on progress
+            // Fetch ALL activities for this specific unit to calculate total average
+            const res = await request.listAll({ entity: 'activities' });
+            if (!res.success) return;
+
+            const unitActivities = res.result.filter(a => (a.unitId?._id || a.unitId).toString() === actualUnitId.toString());
+
+            if (unitActivities.length === 0) {
+                // If no activities yet, default to grade A
+                await request.update({
+                    entity: 'units',
+                    id: actualUnitId,
+                    jsonData: { grade: 'A' }
+                });
+                return;
+            }
+
+            // Calculate average progress
+            const totalProgress = unitActivities.reduce((acc, act) => {
+                const progValue = parseInt(act.progress || '0');
+                return acc + progValue;
+            }, 0);
+
+            const averageProgress = totalProgress / unitActivities.length;
+
+            // Determine grade based on average progress
             let grade = 'A';
-            switch (progress) {
-                case '0%':
-                    grade = 'A';
-                    break;
-                case '25%':
-                    grade = 'A+';
-                    break;
-                case '50%':
-                    grade = 'A++';
-                    break;
-                case '75%':
-                    grade = 'A+++';
-                    break;
-                case '100%':
-                    grade = 'Ready';
-                    break;
-                default:
-                    grade = 'A';
+            if (averageProgress >= 100) {
+                grade = 'Ready';
+            } else if (averageProgress >= 75) {
+                grade = 'A+++';
+            } else if (averageProgress >= 50) {
+                grade = 'A++';
+            } else if (averageProgress >= 25) {
+                grade = 'A+';
+            } else {
+                grade = 'A';
             }
 
             // Update unit with new grade
@@ -205,10 +246,9 @@ export default function WorkInProgress() {
                 jsonData: { grade }
             });
 
-            console.log(`Unit ${actualUnitId} grade updated to ${grade}`);
+            console.log(`Unit ${actualUnitId} total average: ${averageProgress}%. Grade updated to ${grade}`);
         } catch (error) {
             console.error('Error updating unit grade:', error);
-            // Don't show error to user as this is a background operation
         }
     };
 
@@ -223,13 +263,15 @@ export default function WorkInProgress() {
         return colors[progress] || '#d9d9d9';
     };
 
-    const handleDelete = async (activityId) => {
+    const handleDelete = async (record) => {
         try {
-            const result = await request.delete({ entity: 'activities', id: activityId });
+            const result = await request.delete({ entity: 'activities', id: record._id });
             if (result.success) {
                 message.success('Activity deleted successfully');
                 // Refresh the data
-                setData(prev => prev.filter(item => item._id !== activityId));
+                setData(prev => prev.filter(item => item._id !== record._id));
+                // Recalculate unit grade after deletion
+                await updateUnitGrade(record.unitId);
             } else {
                 message.error('Failed to delete activity');
             }
@@ -260,6 +302,19 @@ export default function WorkInProgress() {
                 const uA = unitsList.find(u => u._id === (a.unitId?._id || a.unitId));
                 const uB = unitsList.find(u => u._id === (b.unitId?._id || b.unitId));
                 return (uA?.buildingName || '').localeCompare(uB?.buildingName || '');
+            }
+        },
+        {
+            title: 'Contractor', key: 'contractor',
+            render: (_, record) => {
+                const contractorId = record.contractorId?._id || record.contractorId;
+                const vendor = vendors.find(v => v._id === contractorId);
+                return vendor?.name || '-';
+            },
+            sorter: (a, b) => {
+                const vendorA = vendors.find(v => v._id === (a.contractorId?._id || a.contractorId))?.name || '';
+                const vendorB = vendors.find(v => v._id === (b.contractorId?._id || b.contractorId))?.name || '';
+                return vendorA.localeCompare(vendorB);
             }
         },
         {
@@ -375,7 +430,7 @@ export default function WorkInProgress() {
                         danger
                         ghost
                         icon={<DeleteOutlined />}
-                        onClick={() => handleDelete(record._id)}
+                        onClick={() => handleDelete(record)}
                     />
                 </Space>
             )
@@ -487,9 +542,22 @@ export default function WorkInProgress() {
                                     };
 
                                     if (modalMode === 'checklist') {
+                                        // FORCE PHOTOS for 100% completion - Check if they exist in state or currentActivity
+                                        const hasBefore = photoBefore || currentActivity?.photos?.before;
+                                        const hasAfter = photoAfter || currentActivity?.photos?.after;
+
+                                        if (!hasBefore || !hasAfter) {
+                                            message.error('Please upload BOTH Before and After photos using the Camera icon before completing the verification.');
+                                            return;
+                                        }
                                         updateData.progress = '100%';
                                         updateData.status = 'Completed';
                                         updateData.data = checklistData;
+                                        // Ensure photos are preserved if they were already there
+                                        updateData.photos = {
+                                            before: hasBefore,
+                                            after: hasAfter,
+                                        };
                                     } else {
                                         updateData.photos = {
                                             before: photoBefore,
@@ -503,9 +571,14 @@ export default function WorkInProgress() {
                                         jsonData: updateData
                                     });
 
+                                    // NEW: Update local progressData only on success
+                                    if (modalMode === 'checklist') {
+                                        setProgressData(prev => ({ ...prev, [currentActivity._id]: '100%' }));
+                                    }
+
                                     // Update unit grade only if completing via checklist
                                     if (modalMode === 'checklist') {
-                                        await updateUnitGrade(currentActivity.unitId, '100%');
+                                        await updateUnitGrade(currentActivity.unitId);
                                     }
 
                                     message.success(modalMode === 'checklist' ? 'Activity verified as completed!' : 'Photos saved successfully!');
@@ -574,27 +647,31 @@ export default function WorkInProgress() {
                             </div>
                         )}
 
-                        {/* CHECKLIST MODE: Only show verification form */}
-                        {modalMode === 'checklist' && currentActivity && COMPLEX_TASK_COMPONENTS[currentActivity.activityName] && (
-                            <div style={{ marginTop: 8, padding: 16, border: '1px solid #d9d9d9', borderRadius: 8 }}>
-                                <div style={{ marginBottom: 16 }}>
-                                    <Tag color="gold">Verification Required for 100% Completion</Tag>
-                                </div>
-                                <h3 style={{ marginBottom: 16 }}>{currentActivity.activityName} Verification Checklist</h3>
-                                {(() => {
-                                    const formName = COMPLEX_TASK_COMPONENTS[currentActivity.activityName];
-                                    const ActiveForm = FORM_COMPONENTS[formName];
-                                    if (ActiveForm) {
-                                        return (
-                                            <ActiveForm
-                                                data={checklistData}
-                                                setData={setChecklistData}
-                                                currentTask={currentActivity.activityName}
-                                            />
-                                        );
-                                    }
-                                    return <Empty description="No verification form available for this activity" />;
-                                })()}
+                        {/* CHECKLIST MODE: Show verification form ONLY */}
+                        {modalMode === 'checklist' && currentActivity && (
+                            <div style={{ marginTop: 8 }}>
+                                {COMPLEX_TASK_COMPONENTS[currentActivity.activityName] && (
+                                    <div style={{ padding: 16, border: '1px solid #d9d9d9', borderRadius: 8 }}>
+                                        <div style={{ marginBottom: 16 }}>
+                                            <Tag color="gold">Verification Required for 100% Completion</Tag>
+                                        </div>
+                                        <h3 style={{ marginBottom: 16 }}>{currentActivity.activityName} Verification Checklist</h3>
+                                        {(() => {
+                                            const formName = COMPLEX_TASK_COMPONENTS[currentActivity.activityName];
+                                            const ActiveForm = FORM_COMPONENTS[formName];
+                                            if (ActiveForm) {
+                                                return (
+                                                    <ActiveForm
+                                                        data={checklistData}
+                                                        setData={setChecklistData}
+                                                        currentTask={currentActivity.activityName}
+                                                    />
+                                                );
+                                            }
+                                            return <Empty description="No verification form available for this activity" />;
+                                        })()}
+                                    </div>
+                                )}
                             </div>
                         )}
                     </div>

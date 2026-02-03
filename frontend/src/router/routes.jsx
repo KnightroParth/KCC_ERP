@@ -28,8 +28,6 @@ const Units = lazy(() => import('@/pages/units'));
 
 // ✅ Projects
 const Project = lazy(() => import('@/modules/ProjectModule'));
-
-const Activities = lazy(() => import('@/pages/activities'));
 // Removed AssignWork import
 const WorkInProgress = lazy(() => import('@/pages/work/WorkInProgress'));
 // ✅ Work Planning UI (friend)
@@ -80,8 +78,7 @@ let routes = {
     { path: '/invoice/pay/:id', element: <InvoiceRecordPayment /> },
 
 
-    // Work & Activities
-    { path: '/activities', element: <Activities /> },
+    // Work
     { path: '/work/wip', element: <WorkInProgress /> },
     { path: '/work/planning', element: <Planning /> },
 
