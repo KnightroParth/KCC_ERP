@@ -53,6 +53,10 @@ const PlannedWorkSchema = new mongoose.Schema(
             type: Number,
             default: 0
         },
+        description: {
+            type: String,
+            trim: true
+        },
         created: {
             type: Date,
             default: Date.now,

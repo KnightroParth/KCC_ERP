@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Layout, Select, Card, Empty, Typography, Table, Checkbox, Button, Modal, Form, DatePicker, Row, Col, message, Input } from 'antd';
+const { TextArea } = Input;
 import { EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 
@@ -31,20 +32,42 @@ function generatePDF(data, vendors, staff, groupOption, headerDetails, projectNa
     const minDate = headerDetails.startDate ? dayjs(headerDetails.startDate).format('DD/MM/YYYY') : '-';
     const maxDate = headerDetails.endDate ? dayjs(headerDetails.endDate).format('DD/MM/YYYY') : '-';
 
-    // Title
-    doc.setFontSize(18);
-    doc.text("KCC Construction - 15 Days Planning Chart", 14, 22);
+    // Company Header
+    doc.setFontSize(14);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(0, 0, 0);
+    doc.text("KCC CONSTRUCTION", 14, 15);
 
+    // Separator Line
+    doc.setDrawColor(0, 0, 0);
+    doc.setLineWidth(0.5);
+    doc.line(14, 18, 196, 18);
+
+    // Document Title
+    doc.setFontSize(16);
+    doc.text("15-DAY WORK PLANNING CHART", 14, 28);
+
+    // Main Info Section (Project & Stats)
     doc.setFontSize(10);
-    doc.text(`Generated on: ${dayjs().format('DD/MM/YYYY')}`, 14, 30);
-    doc.text(`From: ${minDate} To: ${maxDate}`, 120, 30);
+    doc.setFont("helvetica", "normal");
+    doc.text(`Project: ${projectName || '-'}`, 14, 38);
+    doc.text(`Generated On: ${dayjs().format('DD MMM YYYY')}`, 196, 38, { align: 'right' });
 
-    doc.text(`Project: ${projectName || '-'}`, 14, 36);
-    doc.text(`Site Engineer: ${siteEngineerName}`, 14, 42);
-    doc.text(`Incharge: ${inchargeName}`, 14, 48);
-    doc.text(`Supervisor: ${supervisorName}`, 14, 54);
+    // Date Range
+    doc.setFont("helvetica", "bold");
+    const displayStartDate = headerDetails.startDate ? dayjs(headerDetails.startDate).format('DD MMM YYYY') : '-';
+    const displayEndDate = headerDetails.endDate ? dayjs(headerDetails.endDate).format('DD MMM YYYY') : '-';
+    doc.text(`${displayStartDate} - ${displayEndDate}`, 14, 45);
 
-    // Grouping Logic
+    // Personnel Block
+    doc.setFont("helvetica", "normal");
+    const personnelInfo = `Site Engineer: ${siteEngineerName}  |  Incharge: ${inchargeName}  |  Supervisor: ${supervisorName}`;
+    doc.text(personnelInfo, 14, 55);
+
+    // Closing Separator Line
+    doc.line(14, 60, 196, 60);
+
+    // RESTORED: Grouping Logic
     const groupedData = {};
 
     // Strict Date Filtering for PDF
@@ -72,7 +95,7 @@ function generatePDF(data, vendors, staff, groupOption, headerDetails, projectNa
         });
     }
 
-    let yPos = 60;
+    let yPos = 70;
 
     let isFirstContractor = true;
     if (groupOption === 'Contractors') {
@@ -119,21 +142,23 @@ function generatePDF(data, vendors, staff, groupOption, headerDetails, projectNa
                         unitType,
                         floor,
                         item.unitNumber,
-                        rate.toFixed(2)
+                        rate.toFixed(2),
+                        item.description || '-'
                     ];
                 });
 
                 autoTable(doc, {
                     startY: yPos,
-                    head: [['Task', 'Building', 'Unit Type', 'Floor', 'Unit', 'Rate']],
+                    head: [['Task', 'Building', 'Unit Type', 'Floor', 'Unit', 'Rate', 'Description']],
                     body: tableBody,
                     theme: 'grid',
                     headStyles: { fillColor: [22, 119, 255] },
                     columnStyles: {
-                        0: { cellWidth: 50 },
-                        2: { cellWidth: 30 },
+                        0: { cellWidth: 40 },
+                        2: { cellWidth: 25 },
                         3: { halign: 'center' },
                         5: { halign: 'right' },
+                        6: { cellWidth: 40 },
                     },
                     didDrawPage: (data) => {
                         yPos = data.cursor.y;
@@ -177,7 +202,8 @@ function generatePDF(data, vendors, staff, groupOption, headerDetails, projectNa
                     unitType,
                     floor,
                     item.unitNumber,
-                    rate.toFixed(2)
+                    rate.toFixed(2),
+                    item.description || '-'
                 ];
             });
 
@@ -189,15 +215,16 @@ function generatePDF(data, vendors, staff, groupOption, headerDetails, projectNa
 
             autoTable(doc, {
                 startY: yPos,
-                head: [['Task', 'Contractor', 'Building', 'Unit Type', 'Floor', 'Unit', 'Rate']],
+                head: [['Task', 'Contractor', 'Building', 'Unit Type', 'Floor', 'Unit', 'Rate', 'Description']],
                 body: tableBody,
                 theme: 'grid',
                 headStyles: { fillColor: [22, 119, 255] },
                 columnStyles: {
-                    0: { cellWidth: 45 },
-                    3: { cellWidth: 25 },
+                    0: { cellWidth: 35 },
+                    3: { cellWidth: 20 },
                     4: { halign: 'center' },
                     6: { halign: 'right' },
+                    7: { cellWidth: 35 },
                 },
                 didDrawPage: (data) => {
                     yPos = data.cursor.y;
@@ -254,6 +281,8 @@ export default function Planning() {
     const [isChartModalOpen, setIsChartModalOpen] = useState(false);
     const [chartGroupOption, setChartGroupOption] = useState('Contractors');
     const [saving, setSaving] = useState(false);
+    const [selectedFloor, setSelectedFloor] = useState(null);
+    const [extraWorkDescription, setExtraWorkDescription] = useState('');
 
     const [form] = Form.useForm();
 
@@ -433,7 +462,12 @@ export default function Planning() {
 
             const promises = [];
 
+            const isExtraWork = selectedCategory.label === 'Extra Work';
+
             for (const unit of tableData) {
+                // If filtering by floor, only sync units on that floor (redundant as tableData is already filtered, but good for safety)
+                if (selectedFloor && unit.floor !== selectedFloor) continue;
+
                 for (const taskName of categoryTasks) {
                     const isCheckedOnScreen = unit[taskName];
                     const userRate = unit[`${taskName}_rate`];
@@ -469,7 +503,8 @@ export default function Planning() {
                                 supervisor: headerDetails.supervisor,
                                 incharge: headerDetails.incharge,
                                 floor: unit.floor,
-                                unitType: unit.unitType
+                                unitType: unit.unitType,
+                                description: isExtraWork ? extraWorkDescription : undefined
                             };
                             promises.push(request.update({ entity: 'plannedwork', id: existing._id, jsonData: updateData }));
                         } else {
@@ -488,7 +523,8 @@ export default function Planning() {
                                 incharge: headerDetails.incharge,
                                 floor: unit.floor,
                                 unitType: unit.unitType,
-                                rate: finalRate
+                                rate: finalRate,
+                                description: isExtraWork ? extraWorkDescription : undefined
                             };
                             promises.push(request.create({ entity: 'plannedwork', jsonData: payload }));
 
@@ -556,7 +592,13 @@ export default function Planning() {
     useEffect(() => {
         const fetchChecklistStates = async () => {
             if (selectedProject && selectedBuilding && selectedCategory && headerDetails.contractor && headerDetails.startDate && headerDetails.endDate) {
-                const buildingUnits = getBuildingUnits();
+                let buildingUnits = getBuildingUnits();
+
+                // Apply Floor Filter
+                if (selectedFloor) {
+                    buildingUnits = buildingUnits.filter(u => (u.floor || u.floorNumber) === selectedFloor);
+                }
+
                 const checklistItems = selectedCategory.fields || [];
                 const currentContractorId = typeof headerDetails.contractor === 'object' ? headerDetails.contractor._id : headerDetails.contractor;
 
@@ -641,7 +683,7 @@ export default function Planning() {
             }
         };
         fetchChecklistStates();
-    }, [selectedProject, selectedBuilding, selectedCategory, headerDetails.contractor, headerDetails.startDate, headerDetails.endDate, plannedWorks]);
+    }, [selectedProject, selectedBuilding, selectedCategory, headerDetails.contractor, headerDetails.startDate, headerDetails.endDate, plannedWorks, selectedFloor]);
 
     const getBuildingUnits = () => {
         if (!selectedProject || !selectedBuilding) return [];
@@ -723,13 +765,43 @@ export default function Planning() {
                         <Select
                             placeholder="Select Work Type"
                             style={{ flex: 1, minWidth: 200 }}
-                            onChange={(val) => setSelectedCategory(WORK_CATEGORIES.find(c => c.id === val))}
+                            onChange={(val) => {
+                                setSelectedCategory(WORK_CATEGORIES.find(c => c.id === val));
+                                // Clear floor and description when work type changes
+                                setSelectedFloor(null);
+                                setExtraWorkDescription('');
+                            }}
                             disabled={!selectedProject || !selectedBuilding}
                             value={selectedCategory?.id}
                         >
                             {WORK_CATEGORIES.map(c => <Option key={c.id} value={c.id}>{c.label}</Option>)}
                         </Select>
+
+                        <Select
+                            placeholder="Select Floor"
+                            style={{ flex: 1, minWidth: 150 }}
+                            onChange={setSelectedFloor}
+                            disabled={!selectedProject || !selectedBuilding}
+                            value={selectedFloor}
+                            allowClear
+                        >
+                            {[...new Set(getBuildingUnits().map(u => u.floor || u.floorNumber).filter(Boolean))].sort().map(f => (
+                                <Option key={f} value={f}>{f}</Option>
+                            ))}
+                        </Select>
                     </div>
+
+                    {selectedCategory?.label === 'Extra Work' && (
+                        <div style={{ marginBottom: 24 }}>
+                            <div style={{ marginBottom: 8, fontWeight: 500 }}>Extra Work Description</div>
+                            <TextArea
+                                rows={3}
+                                placeholder="Enter details of extra work..."
+                                value={extraWorkDescription}
+                                onChange={(e) => setExtraWorkDescription(e.target.value)}
+                            />
+                        </div>
+                    )}
 
                     {/* Global Header Inputs */}
                     {selectedProject && (
@@ -794,10 +866,15 @@ export default function Planning() {
                                         placeholder="Select"
                                         showSearch
                                         optionFilterProp="label"
-                                        options={vendors.map(v => ({
-                                            label: `${v.name} - ${v.workType || v.category || 'General'}`,
-                                            value: v._id
-                                        }))}
+                                        options={vendors
+                                            .filter(v => {
+                                                if (selectedCategory?.label === 'Extra Work') return true;
+                                                return !selectedCategory || v.workType === selectedCategory.label;
+                                            })
+                                            .map(v => ({
+                                                label: `${v.name} - ${v.workType || v.category || 'General'}`,
+                                                value: v._id
+                                            }))}
                                         value={headerDetails.contractor}
                                         onChange={(val) => setHeaderDetails(prev => ({ ...prev, contractor: val }))}
                                         popupMatchSelectWidth={false}
@@ -981,6 +1058,12 @@ function PlanningChart({ data, vendors, staff, groupOption, headerDetails, onDel
                                     sorter: (a, b) => (a.rate || 0) - (b.rate || 0)
                                 },
                                 {
+                                    title: 'Description',
+                                    dataIndex: 'description',
+                                    key: 'description',
+                                    render: (val) => val || '-'
+                                },
+                                {
                                     title: 'Action',
                                     key: 'action',
                                     width: 80,
@@ -1089,6 +1172,12 @@ function PlanningChart({ data, vendors, staff, groupOption, headerDetails, onDel
                             align: 'right',
                             render: (val) => `₹${val || 0}`,
                             sorter: (a, b) => (a.rate || 0) - (b.rate || 0)
+                        },
+                        {
+                            title: 'Description',
+                            dataIndex: 'description',
+                            key: 'description',
+                            render: (val) => val || '-'
                         },
                         {
                             title: 'Action',

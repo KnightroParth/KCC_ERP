@@ -47,14 +47,18 @@ const create = async (req, res) => {
   body['paymentStatus'] = paymentStatus;
   body['createdBy'] = req.admin._id;
 
-  // Billing module: persist optional fields (billType, billingStage, week, source refs)
+  // Billing module: persist optional fields
   if (value.billType) body.billType = value.billType;
   if (value.billingStage) body.billingStage = value.billingStage;
+  if (value.billingPeriod) body.billingPeriod = value.billingPeriod;
   if (value.billingWeekEnd) body.billingWeekEnd = value.billingWeekEnd;
   if (value.billingWeekStart) body.billingWeekStart = value.billingWeekStart;
   if (value.sourceProjectId) body.sourceProjectId = value.sourceProjectId;
   if (value.sourceContractorId) body.sourceContractorId = value.sourceContractorId;
   if (value.plannedWorkIds && value.plannedWorkIds.length) body.plannedWorkIds = value.plannedWorkIds;
+  if (value.auditChecklist && value.auditChecklist.length) body.auditChecklist = value.auditChecklist;
+  if (value.finalChecklist && value.finalChecklist.length) body.finalChecklist = value.finalChecklist;
+  if (value.adjustments) body.adjustments = value.adjustments;
 
   // Creating a new document in the collection
   const result = await new Model(body).save();

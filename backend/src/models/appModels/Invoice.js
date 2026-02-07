@@ -158,16 +158,43 @@ const invoiceSchema = new mongoose.Schema({
   },
   billingStage: {
     type: String,
-    enum: ['draft', 'audit', 'checking', 'approval', 'payment', 'on_hold'],
+    enum: ['draft', 'audit_check', 'final_check', 'approved', 'payment', 'on_hold'],
     default: 'draft',
   },
-  // Week ending Saturday (billing is weekly on Saturday)
+  // Billing period (weekly / Saturday)
+  billingPeriod: {
+    start: { type: Date },
+    end: { type: Date },
+  },
   billingWeekEnd: { type: Date },
   billingWeekStart: { type: Date },
   sourceProjectId: { type: mongoose.Schema.ObjectId, ref: 'Project' },
   sourceContractorId: { type: mongoose.Schema.ObjectId, ref: 'Vendor' },
   plannedWorkIds: [{ type: mongoose.Schema.ObjectId, ref: 'PlannedWork' }],
-  // On Hold: reasons + photos
+  // Audit stage: which rows are audited (workAssignId = PlannedWork._id or Activity._id)
+  auditChecklist: [
+    {
+      workAssignId: { type: mongoose.Schema.Types.ObjectId, required: true },
+      isAudited: { type: Boolean, default: false },
+      remarks: { type: String },
+    },
+  ],
+  // Final stage: which rows are finalized
+  finalChecklist: [
+    {
+      workAssignId: { type: mongoose.Schema.Types.ObjectId, required: true },
+      isFinalized: { type: Boolean, default: false },
+    },
+  ],
+  // Adjustments (advance, penalty, hold)
+  adjustments: {
+    advanceDeduction: { type: Number, default: 0 },
+    penalty: { type: Number, default: 0 },
+    holdAmount: { type: Number, default: 0 },
+    holdReason: { type: String },
+    holdPhotos: [{ type: String }],
+  },
+  // Legacy on-hold fields (kept for compatibility)
   onHoldReasons: { type: String },
   onHoldPhotos: [{ type: String }],
   pdf: {

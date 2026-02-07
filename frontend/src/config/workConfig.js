@@ -47,4 +47,5 @@ export const WORK_CATEGORIES = [
     { id: "10", label: "Painting", fields: WORK_TASK_CONFIG["Painting"] },
     { id: "11", label: "Finishing-W", fields: WORK_TASK_CONFIG["Finishing-W"] },
     { id: "12", label: "Finishing-D", fields: WORK_TASK_CONFIG["Finishing-D"] },
+    { id: "ex", label: "Extra Work", fields: ["Extra Work"] },
 ];
