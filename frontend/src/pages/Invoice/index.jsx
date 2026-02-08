@@ -14,7 +14,18 @@ export default function Invoice() {
 
   const dataTableColumns = [
     { title: translate('Number'), dataIndex: 'number' },
-    { title: translate('Client'), dataIndex: ['client', 'name'] },
+    {
+      title: 'Contractor',
+      key: 'contractor',
+      dataIndex: 'contractorDisplayName',
+      width: 160,
+      ellipsis: true,
+      render: (_, record) =>
+        record?.contractorDisplayName ||
+        record?.sourceContractorId?.name ||
+        record?.client?.name ||
+        '-',
+    },
     {
       title: 'Bill Type',
       dataIndex: 'billType',
@@ -64,7 +75,7 @@ export default function Invoice() {
       displayLabels: ['name'],
       searchFields: 'name',
     },
-    deleteModalLabels: ['number', 'client.name'],
+    deleteModalLabels: ['number', 'sourceContractorId.name', 'client.name'],
     headerExtra: [
       <Button
         key="from-planning"

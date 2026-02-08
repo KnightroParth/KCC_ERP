@@ -19,6 +19,7 @@ const routerApp = (entity, controller) => {
   if (entity === 'invoice') {
     router.route(`/${entity}/mail`).post(catchErrors(controller['mail']));
     router.route(`/${entity}/planning-for-billing`).get(catchErrors(controller['getPlanningForBilling']));
+    router.route(`/${entity}/mark-paid/:id`).patch(catchErrors(controller['markPaid']));
   }
 };
 

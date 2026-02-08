@@ -108,11 +108,14 @@ export default function DataTable({ config, extra = [] }) {
   dataTableColumns = [
     ...dataTableColumns,
     {
-      title: '',
+      title: translate('Actions'),
       key: 'action',
       fixed: 'right',
+      width: 80,
+      align: 'center',
       render: (_, record) => (
         <Dropdown
+          overlayClassName="erp-actions-dropdown-overlay"
           menu={{
             items,
             onClick: ({ key }) => {
@@ -135,13 +138,16 @@ export default function DataTable({ config, extra = [] }) {
                 default:
                   break;
               }
-              // else if (key === '2')handleCloseTask
             },
+            style: { minWidth: 140 },
+            className: 'erp-actions-dropdown-menu',
           }}
           trigger={['click']}
         >
-          <EllipsisOutlined
-            style={{ cursor: 'pointer', fontSize: '24px' }}
+          <Button
+            type="text"
+            className="erp-actions-trigger-btn"
+            icon={<EllipsisOutlined style={{ fontSize: 20 }} />}
             onClick={(e) => e.preventDefault()}
           />
         </Dropdown>
@@ -207,7 +213,7 @@ export default function DataTable({ config, extra = [] }) {
         pagination={pagination}
         loading={listIsLoading}
         onChange={handelDataTableLoad}
-        scroll={{ x: true }}
+        scroll={{ x: 'max-content' }}
       />
     </>
   );

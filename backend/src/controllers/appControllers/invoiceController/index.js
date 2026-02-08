@@ -9,6 +9,7 @@ const remove = require('./remove');
 const paginatedList = require('./paginatedList');
 const read = require('./read');
 const getPlanningForBilling = require('./getPlanningForBilling');
+const markPaid = require('./markPaid');
 
 methods.mail = sendMail;
 methods.create = create;
@@ -18,5 +19,6 @@ methods.summary = summary;
 methods.list = paginatedList;
 methods.read = read;
 methods.getPlanningForBilling = getPlanningForBilling;
+methods.markPaid = markPaid;
 
 module.exports = methods;

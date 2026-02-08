@@ -299,6 +299,18 @@ const request = {
     }
   },
 
+  /** Mark invoice as paid (e.g. when user downloads PDF) */
+  markInvoicePaid: async (id) => {
+    try {
+      includeToken();
+      const response = await axios.patch('invoice/mark-paid/' + id);
+      successHandler(response, { notifyOnSuccess: true, notifyOnFailed: true });
+      return response.data;
+    } catch (error) {
+      return errorHandler(error);
+    }
+  },
+
   /** Billing: get planning data for week ending Saturday */
   getPlanningForBilling: async (params = {}) => {
     try {

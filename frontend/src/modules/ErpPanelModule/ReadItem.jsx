@@ -23,6 +23,7 @@ import { DOWNLOAD_BASE_URL } from '@/config/serverApiConfig';
 import { useMoney, useDate } from '@/settings';
 import useMail from '@/hooks/useMail';
 import { useNavigate } from 'react-router-dom';
+import request from '@/request/request';
 
 const Item = ({ item, currentErp }) => {
   const { moneyFormatter } = useMoney();
@@ -98,6 +99,7 @@ export default function ReadItem({ config, selectedItem }) {
   const [itemslist, setItemsList] = useState([]);
   const [currentErp, setCurrentErp] = useState(selectedItem ?? resetErp);
   const [client, setClient] = useState({});
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
 
   useEffect(() => {
     if (currentResult) {
@@ -141,63 +143,77 @@ export default function ReadItem({ config, selectedItem }) {
         ]}
         extra={[
           <Button
-            key={`${uniqueId()}`}
-            onClick={() => {
-              navigate(`/${entity.toLowerCase()}`);
-            }}
+            key="close"
+            onClick={() => navigate(`/${entity.toLowerCase()}`)}
             icon={<CloseCircleOutlined />}
           >
             {translate('Close')}
           </Button>,
-          <Button
-            key={`${uniqueId()}`}
-            onClick={() => {
-              window.open(
-                `${DOWNLOAD_BASE_URL}${entity}/${entity}-${currentErp._id}.pdf`,
-                '_blank'
-              );
-            }}
-            icon={<FilePdfOutlined />}
-          >
-            {translate('Download PDF')}
-          </Button>,
-          <Button
-            key={`${uniqueId()}`}
-            loading={mailInProgress}
-            onClick={() => {
-              send(currentErp._id);
-            }}
-            icon={<MailOutlined />}
-          >
-            {translate('Send by Email')}
-          </Button>,
-          <Button
-            key={`${uniqueId()}`}
-            onClick={() => {
-              dispatch(erp.convert({ entity, id: currentErp._id }));
-            }}
-            icon={<RetweetOutlined />}
-            style={{ display: entity === 'quote' ? 'inline-block' : 'none' }}
-          >
-            {translate('Convert to Invoice')}
-          </Button>,
-
-          <Button
-            key={`${uniqueId()}`}
-            onClick={() => {
-              dispatch(
-                erp.currentAction({
-                  actionType: 'update',
-                  data: currentErp,
-                })
-              );
-              navigate(`/${entity.toLowerCase()}/update/${currentErp._id}`);
-            }}
-            type="primary"
-            icon={<EditOutlined />}
-          >
-            {translate('Edit')}
-          </Button>,
+          ...(entity === 'invoice'
+            ? [
+                <Button
+                  key="download-pdf"
+                  loading={downloadingPdf}
+                  onClick={async () => {
+                    setDownloadingPdf(true);
+                    try {
+                      const res = await request.markInvoicePaid(currentErp._id);
+                      if (res?.success) {
+                        window.open(
+                          `${DOWNLOAD_BASE_URL}${entity}/${entity}-${currentErp._id}.pdf`,
+                          '_blank'
+                        );
+                      }
+                    } finally {
+                      setDownloadingPdf(false);
+                    }
+                  }}
+                  icon={<FilePdfOutlined />}
+                >
+                  {translate('Download PDF')}
+                </Button>,
+              ]
+            : [
+                <Button
+                  key="download-pdf"
+                  onClick={() => {
+                    window.open(
+                      `${DOWNLOAD_BASE_URL}${entity}/${entity}-${currentErp._id}.pdf`,
+                      '_blank'
+                    );
+                  }}
+                  icon={<FilePdfOutlined />}
+                >
+                  {translate('Download PDF')}
+                </Button>,
+                <Button
+                  key="mail"
+                  loading={mailInProgress}
+                  onClick={() => send(currentErp._id)}
+                  icon={<MailOutlined />}
+                >
+                  {translate('Send by Email')}
+                </Button>,
+                <Button
+                  key="convert"
+                  onClick={() => dispatch(erp.convert({ entity, id: currentErp._id }))}
+                  icon={<RetweetOutlined />}
+                  style={{ display: entity === 'quote' ? 'inline-block' : 'none' }}
+                >
+                  {translate('Convert to Invoice')}
+                </Button>,
+                <Button
+                  key="edit"
+                  onClick={() => {
+                    dispatch(erp.currentAction({ actionType: 'update', data: currentErp }));
+                    navigate(`/${entity.toLowerCase()}/update/${currentErp._id}`);
+                  }}
+                  type="primary"
+                  icon={<EditOutlined />}
+                >
+                  {translate('Edit')}
+                </Button>,
+              ]),
         ]}
         style={{
           padding: '20px 0px',

@@ -72,14 +72,60 @@ export default function FinalCheck({ invoice, onFinalized }) {
         holdReason: holdAmount > 0 ? holdReason : '',
         holdPhotos: holdAmount > 0 ? (Array.isArray(holdPhotos) ? holdPhotos : [holdPhotos]) : [],
       };
+      // Normalize client to id string (backend expects string or object; populated ref can break validation)
+      const clientId =
+        invoice?.client == null
+          ? invoice?.sourceContractorId?._id ?? invoice?.sourceContractorId
+          : typeof invoice.client === 'object' && invoice.client?._id
+            ? invoice.client._id
+            : invoice.client;
+      if (!clientId) {
+        message.error('Invoice has no client/contractor; cannot finalize.');
+        setSubmitting(false);
+        return;
+      }
+      // Build payload with only schema-allowed fields (avoid _id, removed, createdBy, etc.)
+      const toId = (v) => (v && typeof v === 'object' && v._id ? v._id : v);
+      const auditChecklist = (invoice?.auditChecklist || []).map((a) => ({
+        workAssignId: toId(a.workAssignId),
+        isAudited: a.isAudited,
+        remarks: a.remarks ?? '',
+      }));
+      const finalChecklist = auditChecklist.map((a) => ({
+        workAssignId: a.workAssignId,
+        isFinalized: true,
+      }));
+      const items = (invoice?.items || []).map((i) => ({
+        _id: i._id ?? '',
+        itemName: i.itemName,
+        description: i.description ?? '',
+        quantity: Number(i.quantity),
+        price: Number(i.price),
+        total: Number(i.total),
+      }));
       const payload = {
-        ...invoice,
+        client: clientId,
+        number: invoice?.number ?? 0,
+        year: invoice?.year ?? new Date().getFullYear(),
+        status: invoice?.status ?? 'draft',
+        notes: invoice?.notes ?? '',
+        expiredDate: invoice?.expiredDate,
+        date: invoice?.date,
+        items,
+        taxRate: invoice?.taxRate ?? 0,
+        billType: invoice?.billType,
         billingStage: 'approved',
+        billingPeriod: invoice?.billingPeriod,
+        billingWeekEnd: invoice?.billingWeekEnd,
+        billingWeekStart: invoice?.billingWeekStart,
+        sourceProjectId: toId(invoice?.sourceProjectId),
+        sourceContractorId: toId(invoice?.sourceContractorId),
+        plannedWorkIds: Array.isArray(invoice?.plannedWorkIds) ? invoice.plannedWorkIds.map(toId) : undefined,
+        auditChecklist,
+        finalChecklist,
         adjustments,
-        finalChecklist: (invoice?.auditChecklist || []).map((a) => ({
-          workAssignId: a.workAssignId,
-          isFinalized: true,
-        })),
+        onHoldReasons: invoice?.onHoldReasons,
+        onHoldPhotos: invoice?.onHoldPhotos,
       };
       const res = await request.update({
         entity: 'invoice',
@@ -108,7 +154,7 @@ export default function FinalCheck({ invoice, onFinalized }) {
   ];
 
   return (
-    <Card title="Final Check" size="small">
+    <Card title="Final Check" size="small" style={{ color: '#333' }} className="billing-final-check-card">
       <Table
         rowKey={(r, i) => r._id || i}
         columns={columns}
@@ -188,6 +234,8 @@ export default function FinalCheck({ invoice, onFinalized }) {
 
       <Card size="small" style={{ marginTop: 16 }}>
         <Row gutter={[16, 8]}>
+          <Col span={12}>Contractor</Col>
+          <Col span={12} style={{ textAlign: 'right' }}><strong>{invoice?.sourceContractorId?.name || invoice?.client?.name || '-'}</strong></Col>
           <Col span={12}>Bill Number</Col>
           <Col span={12} style={{ textAlign: 'right' }}><strong>{billNumber}/{year}</strong></Col>
           <Col span={12}>Bill Date</Col>

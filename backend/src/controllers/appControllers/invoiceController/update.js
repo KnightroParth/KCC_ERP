@@ -69,7 +69,11 @@ const update = async (req, res) => {
 
   const result = await Model.findOneAndUpdate({ _id: req.params.id, removed: false }, body, {
     new: true, // return the new result instead of the old one
-  }).exec();
+  })
+    .populate('sourceContractorId', 'name')
+    .populate('client', 'name')
+    .populate('sourceProjectId', 'name')
+    .exec();
 
   // Returning successfull response
 

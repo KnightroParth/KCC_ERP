@@ -13,7 +13,6 @@ export default function AuditCheck({
   projectId,
   contractorId,
   weekEnd,
-  clientId,
   lastInvoiceNumber = 0,
   onSendToFinalCheck,
   disabled,
@@ -91,7 +90,7 @@ export default function AuditCheck({
 
   const selectedRows = data.filter((r) => selectedRowKeys.includes(r._id));
   const grossTotal = selectedRows.reduce((sum, r) => sum + ((r.qty ?? 1) * (r.rate ?? 0)), 0);
-  const canSend = selectedRows.length > 0 && clientId && !disabled;
+  const canSend = selectedRows.length > 0 && !disabled;
 
   const handleExport = () => {
     const headers = ['Activity Name', 'Location', 'Rate', 'Qty', 'Amount'];
@@ -133,8 +132,9 @@ export default function AuditCheck({
       });
 
       const subTotal = items.reduce((s, i) => s + i.total, 0);
+      const billToClientId = contractorId || selectedRows[0]?.contractorId?._id || selectedRows[0]?.contractorId;
       const payload = {
-        client: clientId,
+        client: billToClientId,
         number: 0, // backend or settings will set
         year: new Date().getFullYear(),
         status: 'draft',
@@ -174,7 +174,7 @@ export default function AuditCheck({
   };
 
   return (
-    <Card title="Audit Check (Draft Bill)" size="small">
+    <Card title="Audit Check (Draft Bill)" size="small" style={{ color: '#333' }} className="billing-audit-check-card">
       <Space style={{ marginBottom: 16 }}>
         <Button icon={<ExportOutlined />} onClick={handleExport} disabled={!data.length}>
           Export to Excel (CSV)

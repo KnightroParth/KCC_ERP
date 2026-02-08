@@ -66,10 +66,12 @@ const create = async (req, res) => {
   const updateResult = await Model.findOneAndUpdate(
     { _id: result._id },
     { pdf: fileId },
-    {
-      new: true,
-    }
-  ).exec();
+    { new: true }
+  )
+    .populate('sourceContractorId', 'name')
+    .populate('client', 'name')
+    .populate('sourceProjectId', 'name')
+    .exec();
   // Returning successfull response
 
   increaseBySettingKey({

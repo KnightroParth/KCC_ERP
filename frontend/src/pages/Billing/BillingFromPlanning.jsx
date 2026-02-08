@@ -46,7 +46,7 @@ export default function BillingFromPlanning() {
   const [projectId, setProjectId] = useState(undefined);
   const [projectName, setProjectName] = useState('');
   const [contractorId, setContractorId] = useState(undefined);
-  const [clientId, setClientId] = useState(undefined);
+  const [contractorName, setContractorName] = useState('');
   const [weekEnd, setWeekEnd] = useState(getLastSaturday());
   const [currentStep, setCurrentStep] = useState(0);
   const [draftInvoice, setDraftInvoice] = useState(null);
@@ -103,13 +103,17 @@ export default function BillingFromPlanning() {
               </Col>
               <Col xs={24} sm={12} md={6}>
                 <Space direction="vertical" size={4} style={{ width: '100%' }}>
-                  <span style={{ fontWeight: 500 }}>Contractor / Client</span>
-                  <SelectAsync
+                  <span style={{ fontWeight: 500 }}>Contractor</span>
+                  <AutoCompleteAsync
                     entity="vendor"
                     displayLabels={['name']}
-                    placeholder="Select Contractor"
+                    searchFields="name"
                     value={contractorId}
-                    onChange={setContractorId}
+                    onChange={(val, option) => {
+                      setContractorId(val);
+                      setContractorName(option?.name ?? '');
+                    }}
+                    placeholder="Search and select contractor"
                   />
                 </Space>
               </Col>
@@ -124,22 +128,15 @@ export default function BillingFromPlanning() {
                   />
                 </Space>
               </Col>
-              <Col xs={24} sm={12} md={6}>
-                <Space direction="vertical" size={4} style={{ width: '100%' }}>
-                  <span style={{ fontWeight: 500 }}>Bill To (Client) <span style={{ color: '#ff4d4f' }}>*</span></span>
-                  <AutoCompleteAsync
-                    entity="client"
-                    displayLabels={['name']}
-                    searchFields="name"
-                    value={clientId}
-                    onChange={setClientId}
-                  />
-                </Space>
-              </Col>
             </Row>
           </Card>
 
-          <Steps current={currentStep} items={STEPS.map((s, i) => ({ title: s.title, key: s.key }))} style={{ marginBottom: 24 }} />
+          <Steps
+            current={currentStep}
+            items={STEPS.map((s, i) => ({ title: s.title, key: s.key }))}
+            style={{ marginBottom: 24 }}
+            className="billing-steps"
+          />
 
           {currentStep > 0 && (
             <Button onClick={handleBack} style={{ marginBottom: 16 }}>
@@ -147,13 +144,13 @@ export default function BillingFromPlanning() {
             </Button>
           )}
 
-          {/* Step content */}
+          {/* Step content - ensure dark text for visibility */}
+          <div style={{ color: '#333' }} className="billing-step-content">
           {currentStep === 0 && (
             <AuditCheck
               projectId={projectId}
               contractorId={contractorId}
               weekEnd={weekEnd}
-              clientId={clientId}
               lastInvoiceNumber={last_invoice_number}
               onSendToFinalCheck={handleSendToFinalCheck}
               disabled={!projectId}
@@ -171,17 +168,28 @@ export default function BillingFromPlanning() {
             <PrintBill
               invoice={draftInvoice}
               projectName={projectName}
+              contractorName={contractorName || draftInvoice?.sourceContractorId?.name || draftInvoice?.client?.name}
             />
           )}
 
           {currentStep === 1 && !draftInvoice && (
-            <Card><p>No draft invoice. Complete Audit Check first.</p></Card>
+            <Card className="billing-step-card" style={{ color: '#333' }}><p style={{ color: '#333', margin: 0 }}>No draft invoice. Complete Audit Check first.</p></Card>
           )}
           {currentStep === 2 && !draftInvoice && (
-            <Card><p>No bill to print. Complete Final Check first.</p></Card>
+            <Card className="billing-step-card" style={{ color: '#333' }}><p style={{ color: '#333', margin: 0 }}>No bill to print. Complete Final Check first.</p></Card>
           )}
+          </div>
         </div>
       </Content>
+      <style>{`
+        .billing-steps .ant-steps-item-title { color: #333 !important; }
+        .billing-steps .ant-steps-item-description { color: #666 !important; }
+        .billing-step-content,
+        .billing-step-content .ant-card,
+        .billing-step-content .ant-table { color: #333; }
+        .billing-step-content .ant-input,
+        .billing-step-content .ant-input-number-input { color: #000; background: #fff; border: 1px solid #d9d9d9; }
+      `}</style>
     </ErpLayout>
   );
 }

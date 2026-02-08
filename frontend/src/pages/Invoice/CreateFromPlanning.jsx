@@ -194,8 +194,10 @@ export default function CreateFromPlanning() {
     <ErpLayout>
       <Content style={{ padding: '24px' }}>
         <Card
+          className="create-from-planning-card"
+          style={{ color: '#333' }}
           title={
-            <span>
+            <span style={{ color: '#333' }}>
               <FileTextOutlined style={{ marginRight: 8 }} />
               Create Bill from Planning (Weekly – Saturday)
             </span>
@@ -263,6 +265,7 @@ export default function CreateFromPlanning() {
           </Row>
 
           <Spin spinning={loading}>
+            <div style={{ color: '#333' }} className="create-from-planning-content">
             {planningData.length === 0 && !loading ? (
               <Empty description="No planning data for this week. Select a different week or add planning first." />
             ) : (
@@ -288,8 +291,16 @@ export default function CreateFromPlanning() {
                 />
               </>
             )}
+            </div>
           </Spin>
         </Card>
+        <style>{`
+          .create-from-planning-card,
+          .create-from-planning-card .ant-card-head-title { color: #333 !important; }
+          .create-from-planning-content .ant-table { color: #333; }
+          .create-from-planning-content .ant-select-selector,
+          .create-from-planning-content .ant-input { color: #000; background: #fff; }
+        `}</style>
       </Content>
     </ErpLayout>
   );

@@ -1,13 +1,30 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { Card, Table, Button, Row, Col, Typography } from 'antd';
 import { PrinterOutlined, DownloadOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
+import request from '@/request/request';
 import { downloadBillPDF } from '../utils/pdfGenerator';
 
 /**
  * Print Bill: Header (KCC, Project, Bill No, Date), Body (grouped by Work Type), Footer (Gross, Deductions, Net, Signatures).
  */
-export default function PrintBill({ invoice, projectName }) {
+export default function PrintBill({ invoice, projectName, contractorName: contractorNameProp }) {
+  const [fetchedContractorName, setFetchedContractorName] = useState('');
+  const contractorId = invoice?.sourceContractorId?._id ?? (typeof invoice?.sourceContractorId === 'string' ? invoice.sourceContractorId : null);
+  const displayContractorName =
+    contractorNameProp ||
+    invoice?.sourceContractorId?.name ||
+    invoice?.client?.name ||
+    fetchedContractorName ||
+    '-';
+
+  useEffect(() => {
+    if (displayContractorName !== '-' || !contractorId) return;
+    request.read({ entity: 'vendor', id: contractorId }).then((res) => {
+      if (res?.result?.name) setFetchedContractorName(res.result.name);
+    }).catch(() => {});
+  }, [contractorId, displayContractorName]);
+
   const items = invoice?.items || [];
   const adjustments = invoice?.adjustments || {};
   const advance = Number(adjustments.advanceDeduction) || 0;
@@ -41,7 +58,7 @@ export default function PrintBill({ invoice, projectName }) {
   };
 
   const handleDownload = () => {
-    downloadBillPDF(invoice, projectName, `KCC-Bill-${invoice?.number ?? 'draft'}.pdf`);
+    downloadBillPDF(invoice, projectName, `KCC-Bill-${invoice?.number ?? 'draft'}.pdf`, displayContractorName);
   };
 
   return (
@@ -67,7 +84,7 @@ export default function PrintBill({ invoice, projectName }) {
           <Col span={12}>Project: <strong>{projectName || '-'}</strong></Col>
           <Col span={12}>Bill No: <strong>{invoice?.number ?? '-'}/{invoice?.year ?? '-'}</strong></Col>
           <Col span={12}>Date: <strong>{invoice?.date ? dayjs(invoice.date).format('DD/MM/YYYY') : '-'}</strong></Col>
-          <Col span={12}>Contractor: <strong>{invoice?.client?.name || '-'}</strong></Col>
+          <Col span={12}>Contractor: <strong>{displayContractorName}</strong></Col>
         </Row>
       </div>
 

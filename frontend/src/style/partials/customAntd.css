@@ -193,15 +193,53 @@ h6 {
   background-color: #e6f7ff;
 }
 
-/* Dropdown Menu Enhancement */
-.ant-dropdown-menu {
-  border-radius: 6px;
-  box-shadow: 0 3px 6px -4px rgba(0, 0, 0, 0.08), 0 6px 16px 0 rgba(0, 0, 0, 0.08), 0 9px 28px 8px rgba(0, 0, 0, 0.05) !important;
+/* Actions column: make three-dot icon clearly visible (black) */
+.erp-actions-trigger-btn,
+.erp-actions-trigger-btn.ant-btn,
+.erp-actions-trigger-btn .anticon,
+.erp-actions-trigger-btn:hover .anticon,
+.erp-actions-trigger-btn:focus .anticon {
+  color: #000 !important;
 }
 
-.ant-dropdown-menu-item:hover {
-  color: #22075e;
+/* Dropdown Menu Enhancement - force menu and items visible (black text on light bg) */
+.ant-dropdown-menu,
+.ant-dropdown .ant-dropdown-menu {
+  border-radius: 6px;
+  box-shadow: 0 3px 6px -4px rgba(0, 0, 0, 0.08), 0 6px 16px 0 rgba(0, 0, 0, 0.08), 0 9px 28px 8px rgba(0, 0, 0, 0.05) !important;
+  background: #fff !important;
+}
+
+.ant-dropdown-menu-item,
+.ant-dropdown-menu-item span,
+.ant-dropdown .ant-dropdown-menu-item,
+.ant-dropdown .ant-dropdown-menu-item span,
+.erp-actions-dropdown-menu .ant-dropdown-menu-item,
+.erp-actions-dropdown-menu .ant-dropdown-menu-item span,
+[class*='dropdown-menu-item'] {
+  color: #000 !important;
+}
+
+.ant-dropdown-menu-item:hover,
+.ant-dropdown .ant-dropdown-menu-item:hover {
+  color: #22075e !important;
   background-color: #f5f5f5;
+}
+
+/* Target dropdown by overlay class (Actions column) */
+.erp-actions-dropdown-overlay,
+.erp-actions-dropdown-overlay ul,
+.erp-actions-dropdown-overlay li,
+.erp-actions-dropdown-overlay .ant-dropdown-menu-item,
+.erp-actions-dropdown-overlay .ant-dropdown-menu-item span,
+.erp-actions-dropdown-overlay [class*='menu-item'] {
+  color: #000 !important;
+  background: #fff !important;
+}
+.erp-actions-dropdown-overlay .ant-dropdown-menu-item:hover,
+.erp-actions-dropdown-overlay [class*='menu-item']:hover {
+  background: #f5f5f5 !important;
+  color: #000 !important;
 }
 
 /* Button Consistency */

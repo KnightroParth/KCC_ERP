@@ -6,8 +6,9 @@ import dayjs from 'dayjs';
  * Generate RA Bill PDF.
  * @param {Object} invoice - Invoice with items, adjustments, client, etc.
  * @param {string} projectName - Project name for header
+ * @param {string} [contractorNameOverride] - Optional contractor name (e.g. when invoice ref not populated)
  */
-export function generateBillPDF(invoice, projectName = '') {
+export function generateBillPDF(invoice, projectName = '', contractorNameOverride = '') {
   const doc = new jsPDF();
   const items = invoice?.items || [];
   const adjustments = invoice?.adjustments || {};
@@ -18,7 +19,7 @@ export function generateBillPDF(invoice, projectName = '') {
   const grossTotal = items.reduce((s, i) => s + (Number(i.total) || 0), 0);
   const netPayable = Math.max(0, grossTotal - deductions);
 
-  const clientName = invoice?.client?.name || 'Client';
+  const contractorName = contractorNameOverride || invoice?.sourceContractorId?.name || invoice?.client?.name || 'Contractor';
   const billNo = invoice?.number ?? '-';
   const year = invoice?.year ?? new Date().getFullYear();
   const billDate = invoice?.date ? dayjs(invoice.date).format('DD/MM/YYYY') : dayjs().format('DD/MM/YYYY');
@@ -32,7 +33,7 @@ export function generateBillPDF(invoice, projectName = '') {
   doc.text(`Project: ${projectName || '-'}`, 14, 22);
   doc.text(`Bill No: ${billNo}/${year}`, 14, 28);
   doc.text(`Date: ${billDate}`, 14, 34);
-  doc.text(`Contractor / Client: ${clientName}`, 14, 40);
+  doc.text(`Contractor: ${contractorName}`, 14, 40);
   doc.setDrawColor(0, 0, 0);
   doc.setLineWidth(0.5);
   doc.line(14, 44, 196, 44);
@@ -113,7 +114,7 @@ export function generateBillPDF(invoice, projectName = '') {
   return doc;
 }
 
-export function downloadBillPDF(invoice, projectName, filename) {
-  const doc = generateBillPDF(invoice, projectName);
+export function downloadBillPDF(invoice, projectName, filename, contractorNameOverride = '') {
+  const doc = generateBillPDF(invoice, projectName, contractorNameOverride);
   doc.save(filename || `KCC-Bill-${invoice?.number ?? 'draft'}.pdf`);
 }

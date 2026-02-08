@@ -866,15 +866,10 @@ export default function Planning() {
                                         placeholder="Select"
                                         showSearch
                                         optionFilterProp="label"
-                                        options={vendors
-                                            .filter(v => {
-                                                if (selectedCategory?.label === 'Extra Work') return true;
-                                                return !selectedCategory || v.workType === selectedCategory.label;
-                                            })
-                                            .map(v => ({
-                                                label: `${v.name} - ${v.workType || v.category || 'General'}`,
-                                                value: v._id
-                                            }))}
+                                        options={vendors.map(v => ({
+                                            label: `${v.name} - ${v.workType || v.category || 'General'}`,
+                                            value: v._id
+                                        }))}
                                         value={headerDetails.contractor}
                                         onChange={(val) => setHeaderDetails(prev => ({ ...prev, contractor: val }))}
                                         popupMatchSelectWidth={false}

@@ -158,7 +158,7 @@ const invoiceSchema = new mongoose.Schema({
   },
   billingStage: {
     type: String,
-    enum: ['draft', 'audit_check', 'final_check', 'approved', 'payment', 'on_hold'],
+    enum: ['draft', 'audit_check', 'final_check', 'approved', 'payment', 'on_hold', 'cancelled'],
     default: 'draft',
   },
   // Billing period (weekly / Saturday)

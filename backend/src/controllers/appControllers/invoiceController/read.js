@@ -9,6 +9,9 @@ const read = async (req, res) => {
     removed: false,
   })
     .populate('createdBy', 'name')
+    .populate('sourceContractorId', 'name')
+    .populate('client', 'name')
+    .populate('sourceProjectId', 'name')
     .exec();
   // If no results found, return document not found
   if (!result) {
