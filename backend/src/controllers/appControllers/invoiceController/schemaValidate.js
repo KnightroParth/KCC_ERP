@@ -1,6 +1,7 @@
 const Joi = require('joi');
 const schema = Joi.object({
-  client: Joi.alternatives().try(Joi.string(), Joi.object()).required(),
+  client: Joi.alternatives().try(Joi.string(), Joi.object()).optional(),
+  sourceContractorId: Joi.alternatives().try(Joi.string(), Joi.object()).optional(),
   number: Joi.number().required(),
   year: Joi.number().required(),
   status: Joi.string().required(),
@@ -30,7 +31,6 @@ const schema = Joi.object({
   billingWeekEnd: Joi.date().optional(),
   billingWeekStart: Joi.date().optional(),
   sourceProjectId: Joi.alternatives().try(Joi.string(), Joi.object()).optional(),
-  sourceContractorId: Joi.alternatives().try(Joi.string(), Joi.object()).optional(),
   plannedWorkIds: Joi.array().items(Joi.string()).optional(),
   auditChecklist: Joi.array()
     .items(

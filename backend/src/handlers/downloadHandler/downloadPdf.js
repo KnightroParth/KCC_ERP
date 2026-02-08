@@ -6,9 +6,12 @@ module.exports = downloadPdf = async (req, res, { directory, id }) => {
     const modelName = directory.slice(0, 1).toUpperCase() + directory.slice(1);
     if (mongoose.models[modelName]) {
       const Model = mongoose.model(modelName);
-      const result = await Model.findOne({
-        _id: id,
-      }).exec();
+      let query = Model.findOne({ _id: id });
+      // Invoice PDF needs populated client and contractor for bill-to block
+      if (modelName === 'Invoice') {
+        query = query.populate('client', 'name email phone address').populate('sourceContractorId', 'name email phone address');
+      }
+      const result = await query.exec();
 
       // Throw error if no result
       if (!result) {

@@ -267,3 +267,8 @@ h6 {
 .ant-form-item:last-child {
   margin-bottom: 0;
 }
+
+/* Invoice/Quote read – line items table */
+.read-item-total-col.ant-table-cell {
+  font-weight: 600;
+}

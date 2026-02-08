@@ -230,6 +230,8 @@ module.exports = {
   logout: 'Logout',
   number: 'Number',
   client: 'Client',
+  contractor: 'Contractor',
+  Contractor: 'Contractor',
   total: 'Total',
   status: 'Status',
   invoices_preview: 'Invoices Preview',

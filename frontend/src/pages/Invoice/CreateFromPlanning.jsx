@@ -43,7 +43,7 @@ export default function CreateFromPlanning() {
   const [weekEnd, setWeekEnd] = useState(getLastSaturday());
   const [projectId, setProjectId] = useState(null);
   const [contractorId, setContractorId] = useState(null);
-  const [clientId, setClientId] = useState(null);
+  const [contractorId, setContractorId] = useState(null);
   const [projects, setProjects] = useState([]);
   const [vendors, setVendors] = useState([]);
   const [planningData, setPlanningData] = useState([]);
@@ -93,8 +93,8 @@ export default function CreateFromPlanning() {
   const subtotal = selectedRows.reduce((sum, r) => sum + (r.rate || 0), 0);
 
   const handleCreateDraftBill = async () => {
-    if (!clientId) {
-      message.warning('Please select a Client');
+    if (!contractorId) {
+      message.warning('Please select a Contractor');
       return;
     }
     if (selectedRows.length === 0) {
@@ -122,7 +122,7 @@ export default function CreateFromPlanning() {
     });
 
     const payload = {
-      client: clientId,
+      sourceContractorId: contractorId,
       number: (last_invoice_number || 0) + 1,
       year: new Date().getFullYear(),
       status: 'draft',
@@ -208,7 +208,7 @@ export default function CreateFromPlanning() {
               icon={<FileTextOutlined />}
               onClick={handleCreateDraftBill}
               loading={creating}
-              disabled={selectedRows.length === 0 || !clientId}
+              disabled={selectedRows.length === 0 || !contractorId}
             >
               Create Draft Bill
             </Button>
@@ -251,15 +251,15 @@ export default function CreateFromPlanning() {
               />
             </Col>
             <Col>
-              <span style={{ marginRight: 8, fontWeight: 500 }}>Client (required)</span>
+              <span style={{ marginRight: 8, fontWeight: 500 }}>Contractor (required)</span>
               <AutoCompleteAsync
-                entity="client"
+                entity="vendor"
                 displayLabels={['name']}
                 searchFields="name"
-                value={clientId}
-                onChange={(v) => setClientId(v)}
+                value={contractorId}
+                onChange={(v) => setContractorId(v)}
                 style={{ width: 220 }}
-                placeholder="Select client"
+                placeholder="Select contractor"
               />
             </Col>
           </Row>

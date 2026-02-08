@@ -12,13 +12,21 @@ const STAGES = [
   { key: 'payment', label: 'Ledger / Payment' },
 ];
 
+// Backend may use audit_check / approved; map to strip keys
+function normalizeStage(s) {
+  if (s === 'audit_check') return 'audit';
+  if (s === 'approved') return 'approval';
+  return s;
+}
+
 export default function BillingWorkflowStrip({ invoice, onRefresh }) {
   const [holdModalOpen, setHoldModalOpen] = useState(false);
   const [holdReasons, setHoldReasons] = useState('');
   const [holdPhotos, setHoldPhotos] = useState([]);
   const [submitting, setSubmitting] = useState(false);
 
-  const stage = invoice?.billingStage || 'draft';
+  const rawStage = invoice?.billingStage || 'draft';
+  const stage = normalizeStage(rawStage);
   const isOnHold = stage === 'on_hold' || invoice?.status === 'on hold';
   const currentIndex = isOnHold ? -1 : STAGES.findIndex((s) => s.key === stage);
   const canAdvance = currentIndex >= 0 && currentIndex < STAGES.length - 1;
@@ -116,6 +124,49 @@ export default function BillingWorkflowStrip({ invoice, onRefresh }) {
   const showWorkflow = invoice.billType === 'normal' || invoice.billingStage != null;
 
   if (!showWorkflow) return null;
+
+  // For draft/audit bills, show compact status only (no repeat of full 5-step workflow)
+  const isDraftOnly = (rawStage === 'draft' || rawStage === 'audit_check') && !isOnHold;
+  if (isDraftOnly) {
+    return (
+      <>
+        <Card size="small" title="Billing Status" style={{ marginBottom: 24 }}>
+          <div style={{ color: '#666', fontSize: 14 }}>
+            {rawStage === 'audit_check'
+              ? 'Audit done — use Billing → Billing from Planning for Final Check and Print.'
+              : 'Draft — use Billing → Billing from Planning to run Audit Check and Final Check.'}
+          </div>
+        </Card>
+        <Modal
+          title="Put Bill on Hold"
+          open={holdModalOpen}
+          onCancel={() => setHoldModalOpen(false)}
+          onOk={submitHold}
+          okText="Put on Hold"
+          confirmLoading={submitting}
+          width={560}
+        >
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ display: 'block', marginBottom: 4, fontWeight: 500 }}>Reasons</label>
+            <Input.TextArea
+              rows={3}
+              value={holdReasons}
+              onChange={(e) => setHoldReasons(e.target.value)}
+              placeholder="Enter reason(s) for putting this bill on hold"
+            />
+          </div>
+          <div>
+            <label style={{ display: 'block', marginBottom: 4, fontWeight: 500 }}>Photos</label>
+            <ImageUpload
+              label="Add photo (optional)"
+              value={Array.isArray(holdPhotos) ? holdPhotos[0] : holdPhotos}
+              onChange={(v) => setHoldPhotos(v ? [v] : [])}
+            />
+          </div>
+        </Modal>
+      </>
+    );
+  }
 
   return (
     <>

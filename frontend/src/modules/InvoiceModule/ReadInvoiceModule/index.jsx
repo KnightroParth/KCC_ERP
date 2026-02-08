@@ -23,25 +23,30 @@ export default function ReadInvoiceModule({ config }) {
     dispatch(erp.read({ entity: config.entity, id }));
   }, [id]);
 
-  const { result: currentResult, isSuccess, isLoading = true } = useSelector(selectReadItem);
+  const { result: currentResult, isSuccess, isLoading } = useSelector(selectReadItem);
 
-  if (isLoading) {
+  const loading = isLoading === true || (id && currentResult == null && !isSuccess);
+
+  if (loading) {
     return (
       <ErpLayout>
         <PageLoader />
       </ErpLayout>
     );
   }
+  if (isSuccess && currentResult) {
+    return (
+      <ErpLayout>
+        <div style={{ padding: '0 24px 0', maxWidth: 1200, margin: '0 auto' }}>
+          <BillingWorkflowStrip invoice={currentResult} onRefresh={refresh} />
+        </div>
+        <ReadItem config={config} selectedItem={currentResult} />
+      </ErpLayout>
+    );
+  }
   return (
     <ErpLayout>
-      {isSuccess ? (
-        <>
-          <BillingWorkflowStrip invoice={currentResult} onRefresh={refresh} />
-          <ReadItem config={config} selectedItem={currentResult} />
-        </>
-      ) : (
-        <NotFound entity={config.entity} />
-      )}
+      <NotFound entity={config.entity} />
     </ErpLayout>
   );
 }

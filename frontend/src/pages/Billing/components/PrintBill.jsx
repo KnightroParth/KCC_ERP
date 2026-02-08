@@ -12,11 +12,7 @@ export default function PrintBill({ invoice, projectName, contractorName: contra
   const [fetchedContractorName, setFetchedContractorName] = useState('');
   const contractorId = invoice?.sourceContractorId?._id ?? (typeof invoice?.sourceContractorId === 'string' ? invoice.sourceContractorId : null);
   const displayContractorName =
-    contractorNameProp ||
-    invoice?.sourceContractorId?.name ||
-    invoice?.client?.name ||
-    fetchedContractorName ||
-    '-';
+    contractorNameProp || invoice?.sourceContractorId?.name || fetchedContractorName || '-';
 
   useEffect(() => {
     if (displayContractorName !== '-' || !contractorId) return;

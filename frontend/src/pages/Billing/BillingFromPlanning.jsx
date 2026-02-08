@@ -168,7 +168,7 @@ export default function BillingFromPlanning() {
             <PrintBill
               invoice={draftInvoice}
               projectName={projectName}
-              contractorName={contractorName || draftInvoice?.sourceContractorId?.name || draftInvoice?.client?.name}
+              contractorName={contractorName || draftInvoice?.sourceContractorId?.name}
             />
           )}
 

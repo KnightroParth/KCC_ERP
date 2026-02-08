@@ -37,6 +37,9 @@ const create = async (req, res) => {
     });
   }
   req.body['createdBy'] = req.admin._id;
+  if (!req.body.client && currentInvoice.sourceContractorId) {
+    req.body.contractor = currentInvoice.sourceContractorId;
+  }
 
   const result = await Model.create(req.body);
 

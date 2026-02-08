@@ -19,7 +19,7 @@ export function generateBillPDF(invoice, projectName = '', contractorNameOverrid
   const grossTotal = items.reduce((s, i) => s + (Number(i.total) || 0), 0);
   const netPayable = Math.max(0, grossTotal - deductions);
 
-  const contractorName = contractorNameOverride || invoice?.sourceContractorId?.name || invoice?.client?.name || 'Contractor';
+  const contractorName = contractorNameOverride || invoice?.sourceContractorId?.name || 'Contractor';
   const billNo = invoice?.number ?? '-';
   const year = invoice?.year ?? new Date().getFullYear();
   const billDate = invoice?.date ? dayjs(invoice.date).format('DD/MM/YYYY') : dayjs().format('DD/MM/YYYY');

@@ -12,26 +12,30 @@ export default function RecordPaymentModule({ config }) {
   const dispatch = useDispatch();
   const { id } = useParams();
 
-  let item = useSelector(selectItemById(id));
+  const listItem = useSelector(selectItemById(id));
+  const { result: currentResult } = useSelector(selectCurrentItem);
+  const item = currentResult?._id === id ? currentResult : listItem?._id === id ? listItem : currentResult;
 
   useEffect(() => {
-    if (item) {
-      dispatch(erp.currentItem({ data: item }));
-    } else {
+    if (listItem && listItem._id === id) {
+      dispatch(erp.currentItem({ data: listItem }));
+    } else if (!currentResult || currentResult._id !== id) {
       dispatch(erp.read({ entity: config.entity, id }));
     }
-  }, [item, id]);
-
-  const { result: currentResult } = useSelector(selectCurrentItem);
-  item = currentResult;
+  }, [id, listItem?._id]);
 
   useEffect(() => {
-    dispatch(erp.currentAction({ actionType: 'recordPayment', data: item }));
-  }, [item]);
+    const invoice = currentResult?._id === id ? currentResult : listItem?._id === id ? listItem : null;
+    if (invoice) {
+      dispatch(erp.currentAction({ actionType: 'recordPayment', data: invoice }));
+    }
+  }, [id, currentResult, listItem]);
+
+  const showPayment = item && item._id === id;
 
   return (
     <ErpLayout>
-      {item ? <Payment config={config} currentItem={currentResult} /> : <PageLoader />}
+      {showPayment ? <Payment config={config} currentItem={item} /> : <PageLoader />}
     </ErpLayout>
   );
 }

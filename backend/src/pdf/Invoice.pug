@@ -284,11 +284,12 @@ html
               
         .right.col-10
             .billTo
-                p #{translate('Client')} :
-                p #{model.client.name}
-                p #{model.client.address}
-                p #{model.client.phone}
-                p #{model.client.email}
+                - var billTo = model.billTo || {}
+                p #{translate('Contractor')} :
+                p #{billTo.name || '-'}
+                p #{billTo.address || '-'}
+                p #{billTo.phone || '-'}
+                p #{billTo.email || '-'}
         .col.col-24
           .space  
       main
@@ -316,6 +317,9 @@ html
             tr
               td.grand.total(colspan='3')  #{translate('TOTAL')} 
               td.grand.total #{moneyFormatter({amount:model.total})}
+            tr
+              td(colspan='3') #{translate('Paid') || 'Paid'}
+              td.total #{moneyFormatter({amount: model.credit || 0})}
         
       .col.col-24
           .space     

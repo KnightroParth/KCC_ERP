@@ -9,7 +9,7 @@ const read = async (req, res) => {
     removed: false,
   })
     .populate('createdBy', 'name')
-    .populate('sourceContractorId', 'name')
+    .populate('sourceContractorId', 'name email phone address')
     .populate('client', 'name')
     .populate('sourceProjectId', 'name')
     .exec();

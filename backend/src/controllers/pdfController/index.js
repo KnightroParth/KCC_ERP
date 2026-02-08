@@ -58,8 +58,24 @@ exports.generatePdf = async (
 
       settings.public_server_file = process.env.PUBLIC_SERVER_FILE;
 
+      let modelForPug = result;
+      if (modelName.toLowerCase() === 'invoice') {
+        const contractor = result.sourceContractorId || result.client;
+        const hasDetails = contractor && typeof contractor === 'object' && contractor.name != null;
+        const billTo = hasDetails
+          ? {
+              name: String(contractor.name || '-'),
+              address: String(contractor.address ?? '-'),
+              phone: String(contractor.phone ?? '-'),
+              email: String(contractor.email ?? '-'),
+            }
+          : { name: '-', address: '-', phone: '-', email: '-' };
+        modelForPug = result.toObject ? result.toObject() : { ...result };
+        modelForPug.billTo = billTo;
+      }
+
       const htmlContent = pug.renderFile('src/pdf/' + modelName + '.pug', {
-        model: result,
+        model: modelForPug,
         settings,
         translate,
         dateFormat,

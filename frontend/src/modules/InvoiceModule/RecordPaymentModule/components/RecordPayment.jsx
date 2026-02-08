@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Form, Button } from 'antd';
+import { Form, Button, message } from 'antd';
 
 import { useSelector, useDispatch } from 'react-redux';
 import { erp } from '@/redux/erp/actions';
@@ -26,8 +26,10 @@ export default function RecordPayment({ config }) {
   const [maxAmount, setMaxAmount] = useState(0);
   useEffect(() => {
     if (currentInvoice) {
-      const { credit, total, discount } = currentInvoice;
-      setMaxAmount(calculate.sub(calculate.sub(total, discount), credit));
+      const credit = currentInvoice.credit ?? 0;
+      const total = currentInvoice.total ?? 0;
+      const discount = currentInvoice.discount ?? 0;
+      setMaxAmount(Math.max(0, calculate.sub(calculate.sub(total, discount), credit)));
     }
   }, [currentInvoice]);
   useEffect(() => {
@@ -40,20 +42,38 @@ export default function RecordPayment({ config }) {
   }, [isSuccess]);
 
   const onSubmit = (fieldsValue) => {
-    if (currentInvoice) {
-      const { _id: invoice } = currentInvoice;
-      const client = currentInvoice.client && currentInvoice.client._id;
-      fieldsValue = {
-        ...fieldsValue,
-        invoice,
-        client,
-      };
+    if (!currentInvoice) return;
+    const toId = (v) => (v && typeof v === 'object' && v._id ? v._id : v);
+    const contractorId = toId(currentInvoice.sourceContractorId);
+    if (!contractorId) {
+      message.error(translate('Invoice has no contractor; cannot record payment.'));
+      return;
     }
+    const dateVal = fieldsValue.date;
+    const dateStr =
+      dateVal && typeof dateVal.toISOString === 'function'
+        ? dateVal.toISOString()
+        : dateVal && dateVal.$d
+          ? new Date(dateVal.$d).toISOString()
+          : new Date().toISOString();
+
+    const payload = {
+      invoice: currentInvoice._id,
+      contractor: contractorId,
+      number: fieldsValue.number ?? 1,
+      amount: Number(fieldsValue.amount),
+      date: dateStr,
+      currency: (currentInvoice.currency ?? 'INR').toString().toUpperCase(),
+      ref: fieldsValue.ref || undefined,
+      description: fieldsValue.description || undefined,
+    };
+    const paymentModeId = fieldsValue.paymentMode ? toId(fieldsValue.paymentMode) : null;
+    if (paymentModeId) payload.paymentMode = paymentModeId;
 
     dispatch(
       erp.recordPayment({
         entity: 'payment',
-        jsonData: fieldsValue,
+        jsonData: payload,
       })
     );
   };

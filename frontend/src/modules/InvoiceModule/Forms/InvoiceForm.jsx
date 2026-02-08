@@ -68,8 +68,8 @@ function LoadInvoiceForm({ subTotal = 0, current = null }) {
       <Row gutter={[12, 0]}>
         <Col className="gutter-row" span={8}>
           <Form.Item
-            name="client"
-            label={translate('Client')}
+            name="sourceContractorId"
+            label={translate('Contractor')}
             rules={[
               {
                 required: true,
@@ -77,12 +77,12 @@ function LoadInvoiceForm({ subTotal = 0, current = null }) {
             ]}
           >
             <AutoCompleteAsync
-              entity={'client'}
+              entity={'vendor'}
               displayLabels={['name']}
               searchFields={'name'}
-              redirectLabel={'Add New Client'}
+              redirectLabel={translate('Add New Contractor') || 'Add New Contractor'}
               withRedirect
-              urlToRedirect={'/customer'}
+              urlToRedirect={'/vendor'}
             />
           </Form.Item>
         </Col>

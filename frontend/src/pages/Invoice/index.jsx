@@ -20,11 +20,7 @@ export default function Invoice() {
       dataIndex: 'contractorDisplayName',
       width: 160,
       ellipsis: true,
-      render: (_, record) =>
-        record?.contractorDisplayName ||
-        record?.sourceContractorId?.name ||
-        record?.client?.name ||
-        '-',
+      render: (_, record) => record?.contractorDisplayName || record?.sourceContractorId?.name || '-',
     },
     {
       title: 'Bill Type',
@@ -71,11 +67,11 @@ export default function Invoice() {
     RECORD_ENTITY: translate('record_payment'),
     dataTableColumns,
     searchConfig: {
-      entity: 'client',
+      entity: 'vendor',
       displayLabels: ['name'],
       searchFields: 'name',
     },
-    deleteModalLabels: ['number', 'sourceContractorId.name', 'client.name'],
+    deleteModalLabels: ['number', 'sourceContractorId.name'],
     headerExtra: [
       <Button
         key="from-planning"

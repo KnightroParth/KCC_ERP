@@ -132,9 +132,9 @@ export default function AuditCheck({
       });
 
       const subTotal = items.reduce((s, i) => s + i.total, 0);
-      const billToClientId = contractorId || selectedRows[0]?.contractorId?._id || selectedRows[0]?.contractorId;
+      const billToContractorId = contractorId || selectedRows[0]?.contractorId?._id || selectedRows[0]?.contractorId;
       const payload = {
-        client: billToClientId,
+        sourceContractorId: billToContractorId,
         number: 0, // backend or settings will set
         year: new Date().getFullYear(),
         status: 'draft',
@@ -148,7 +148,7 @@ export default function AuditCheck({
         billingWeekEnd: weekEndDate,
         billingWeekStart: weekStartDate,
         sourceProjectId: projectId || selectedRows[0]?.projectId?._id || selectedRows[0]?.projectId,
-        sourceContractorId: contractorId || selectedRows[0]?.contractorId?._id || selectedRows[0]?.contractorId,
+        sourceContractorId: billToContractorId,
         plannedWorkIds: selectedRows.map((r) => r._id),
         auditChecklist: selectedRows.map((r) => ({
           workAssignId: r._id,

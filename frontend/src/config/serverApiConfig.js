@@ -10,9 +10,10 @@ export const BASE_URL =
 export const WEBSITE_URL = import.meta.env.PROD
   ? 'http://cloud.idurarapp.com/'
   : 'http://localhost:3000/';
+// Download route is at server root /download/, not under /api
 export const DOWNLOAD_BASE_URL =
   import.meta.env.PROD || import.meta.env.VITE_DEV_REMOTE
-    ? import.meta.env.VITE_BACKEND_SERVER + 'download/'
+    ? (import.meta.env.VITE_BACKEND_SERVER || '').replace(/\/api\/?$/, '') + '/download/'
     : 'http://localhost:8888/download/';
 export const ACCESS_TOKEN_NAME = 'x-auth-token';
 

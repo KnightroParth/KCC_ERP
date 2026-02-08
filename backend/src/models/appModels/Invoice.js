@@ -31,7 +31,7 @@ const invoiceSchema = new mongoose.Schema({
   client: {
     type: mongoose.Schema.ObjectId,
     ref: 'Client',
-    required: true,
+    required: false,
     autopopulate: true,
   },
   converted: {

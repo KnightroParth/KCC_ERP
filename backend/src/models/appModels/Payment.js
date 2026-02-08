@@ -15,7 +15,13 @@ const paymentSchema = new mongoose.Schema({
     type: mongoose.Schema.ObjectId,
     ref: 'Client',
     autopopulate: true,
-    required: true,
+    required: false,
+  },
+  contractor: {
+    type: mongoose.Schema.ObjectId,
+    ref: 'Vendor',
+    autopopulate: true,
+    required: false,
   },
   invoice: {
     type: mongoose.Schema.ObjectId,

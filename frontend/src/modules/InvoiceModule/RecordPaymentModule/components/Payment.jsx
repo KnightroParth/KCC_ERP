@@ -4,14 +4,13 @@ import { Button, Row, Col, Descriptions, Tag, Divider } from 'antd';
 import { PageHeader } from '@ant-design/pro-layout';
 import { FileTextOutlined, CloseCircleOutlined } from '@ant-design/icons';
 
-import { generate as uniqueId } from 'shortid';
-
 import { useMoney } from '@/settings';
 
 import RecordPayment from './RecordPayment';
 import useLanguage from '@/locale/useLanguage';
 
 import { useNavigate } from 'react-router-dom';
+import PageLoader from '@/components/PageLoader';
 
 export default function Payment({ config, currentItem }) {
   const translate = useLanguage();
@@ -21,25 +20,30 @@ export default function Payment({ config, currentItem }) {
   const navigate = useNavigate();
 
   const [itemslist, setItemsList] = useState([]);
-  const [currentErp, setCurrentErp] = useState(currentItem);
+  const [currentErp, setCurrentErp] = useState(currentItem ?? {});
 
-  const [client, setClient] = useState({});
+  const [contractor, setContractor] = useState({});
   useEffect(() => {
-    if (currentErp?.client) {
-      setClient(currentErp.client);
+    if (currentErp?.sourceContractorId && typeof currentErp.sourceContractorId === 'object') {
+      setContractor(currentErp.sourceContractorId);
+    } else {
+      setContractor({});
     }
   }, [currentErp]);
 
   useEffect(() => {
-    const controller = new AbortController();
     if (currentItem) {
-      const { items } = currentItem;
-
-      setItemsList(items);
+      setItemsList(currentItem.items ?? []);
       setCurrentErp(currentItem);
     }
-    return () => controller.abort();
   }, [currentItem]);
+
+  const currency = currentErp?.currency ?? 'INR';
+  const billToName = currentErp?.sourceContractorId?.name ?? '-';
+
+  if (!currentItem || !currentErp._id) {
+    return <PageLoader />;
+  }
 
   return (
     <>
@@ -53,24 +57,20 @@ export default function Payment({ config, currentItem }) {
         >
           <PageHeader
             onBack={() => navigate(`/${entity.toLowerCase()}`)}
-            title={`Record Payment for ${ENTITY_NAME} # ${currentErp.number}/${
-              currentErp.year || ''
-            }`}
+            title={`Record Payment for ${ENTITY_NAME} # ${currentErp.number ?? ''}/${currentErp.year ?? ''}`}
             ghost={false}
-            tags={<span>{currentErp.paymentStatus && translate(currentErp.paymentStatus)}</span>}
+            tags={<span>{currentErp.paymentStatus ? translate(currentErp.paymentStatus) : '-'}</span>}
             // subTitle="This is cuurent erp page"
             extra={[
               <Button
-                key={`${uniqueId()}`}
-                onClick={() => {
-                  navigate(`/${entity.toLowerCase()}`);
-                }}
+                key="cancel"
+                onClick={() => navigate(`/${entity.toLowerCase()}`)}
                 icon={<CloseCircleOutlined />}
               >
                 {translate('Cancel')}
               </Button>,
               <Button
-                key={`${uniqueId()}`}
+                key="show-invoice"
                 onClick={() => navigate(`/invoice/read/${currentErp._id}`)}
                 icon={<FileTextOutlined />}
               >
@@ -93,36 +93,24 @@ export default function Payment({ config, currentItem }) {
           lg={{ span: 10, order: 2, push: 4 }}
         >
           <div className="space50"></div>
-          <Descriptions title={`${translate('Client')}  : ${currentErp.client.name}`} column={1}>
-            <Descriptions.Item label={translate('email')}>{client.email}</Descriptions.Item>
-            <Descriptions.Item label={translate('phone')}>{client.phone}</Descriptions.Item>
+          <Descriptions title={`${translate('Contractor')}: ${billToName}`} column={1}>
+            <Descriptions.Item label={translate('email')}>{contractor?.email ?? '-'}</Descriptions.Item>
+            <Descriptions.Item label={translate('phone')}>{contractor?.phone ?? '-'}</Descriptions.Item>
             <Divider dashed />
             <Descriptions.Item label={translate('payment status')}>
-              <span>{currentErp.paymentStatus && translate(currentErp.paymentStatus)}</span>
+              <span>{currentErp.paymentStatus ? translate(currentErp.paymentStatus) : '-'}</span>
             </Descriptions.Item>
             <Descriptions.Item label={translate('sub total')}>
-              {money.moneyFormatter({
-                amount: currentErp.subTotal,
-                currency_code: currentErp.currency,
-              })}
+              {money.moneyFormatter({ amount: currentErp.subTotal, currency_code: currency })}
             </Descriptions.Item>
             <Descriptions.Item label={translate('total')}>
-              {money.moneyFormatter({
-                amount: currentErp.total,
-                currency_code: currentErp.currency,
-              })}
+              {money.moneyFormatter({ amount: currentErp.total, currency_code: currency })}
             </Descriptions.Item>
             <Descriptions.Item label={translate('discount')}>
-              {money.moneyFormatter({
-                amount: currentErp.discount,
-                currency_code: currentErp.currency,
-              })}
+              {money.moneyFormatter({ amount: currentErp.discount ?? 0, currency_code: currency })}
             </Descriptions.Item>
             <Descriptions.Item label={translate('Paid')}>
-              {money.moneyFormatter({
-                amount: currentErp.credit,
-                currency_code: currentErp.currency,
-              })}
+              {money.moneyFormatter({ amount: currentErp.credit ?? 0, currency_code: currency })}
             </Descriptions.Item>
           </Descriptions>
         </Col>
