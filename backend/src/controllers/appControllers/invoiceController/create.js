@@ -47,6 +47,15 @@ const create = async (req, res) => {
   body['paymentStatus'] = paymentStatus;
   body['createdBy'] = req.admin._id;
 
+  // Billing: use only contractor (sourceContractorId); do not require client
+  if (value.sourceContractorId != null) {
+    body.sourceContractorId = value.sourceContractorId;
+    if (body.client === undefined || body.client === null || body.client === '') {
+      delete body.client;
+    }
+  }
+  if (value.client != null && value.client !== '') body.client = value.client;
+
   // Billing module: persist optional fields
   if (value.billType) body.billType = value.billType;
   if (value.billingStage) body.billingStage = value.billingStage;

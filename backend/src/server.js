@@ -63,7 +63,14 @@ function tryConnect() {
       }
 
       console.error('🔥 MongoDB connection failed.');
-      if (isENOTFOUND) {
+      const isESERVFAIL = err.message && err.message.includes('ESERVFAIL');
+      if (isESERVFAIL) {
+        console.error('   DNS could not resolve MongoDB Atlas (ESERVFAIL). Try:');
+        console.error('   1) Check internet connection');
+        console.error('   2) Use Google DNS: 8.8.8.8 and 8.8.4.4 in your network settings');
+        console.error('   3) In Atlas: Dashboard → your cluster → Connect → get a new connection string');
+        console.error('   4) If on VPN/corporate network, try disconnecting or use a different network');
+      } else if (isENOTFOUND) {
         console.error(
           '   One replica node failed DNS (ENOTFOUND). Try: 1) Different network/Wi‑Fi  2) DNS 8.8.8.8  3) Atlas → Get new connection string'
         );
