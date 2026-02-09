@@ -3,6 +3,7 @@
 const express = require('express');
 const router = express.Router();
 const { catchErrors } = require('@/handlers/errorHandlers');
+const checkPermission = require('@/middlewares/checkPermission');
 
 const {
   materialController,
@@ -14,81 +15,83 @@ const {
 } = require('@/controllers/appControllers/inventory');
 const supplierController = require('@/controllers/appControllers/supplierController')();
 
-// Material routes
-router.route('/material/create').post(catchErrors(materialController.create));
-router.route('/material/read/:id').get(catchErrors(materialController.read));
-router.route('/material/update/:id').patch(catchErrors(materialController.update));
-router.route('/material/delete/:id').delete(catchErrors(materialController.delete));
-router.route('/material/list').get(catchErrors(materialController.list));
-router.route('/material/listAll').get(catchErrors(materialController.listAll));
-router.route('/material/search').get(catchErrors(materialController.search));
-router.route('/material/filter').get(catchErrors(materialController.filter));
-router.route('/material/summary').get(catchErrors(materialController.summary));
-router.route('/material/stock').get(catchErrors(materialController.getStock));
+const can = (action) => checkPermission('inventory', action);
 
-// Supplier routes
-router.route('/supplier/create').post(catchErrors(supplierController.create));
-router.route('/supplier/read/:id').get(catchErrors(supplierController.read));
-router.route('/supplier/update/:id').patch(catchErrors(supplierController.update));
-router.route('/supplier/delete/:id').delete(catchErrors(supplierController.delete));
-router.route('/supplier/list').get(catchErrors(supplierController.list));
-router.route('/supplier/listAll').get(catchErrors(supplierController.listAll));
-router.route('/supplier/search').get(catchErrors(supplierController.search));
-router.route('/supplier/filter').get(catchErrors(supplierController.filter));
-router.route('/supplier/summary').get(catchErrors(supplierController.summary));
+// Material routes
+router.route('/material/create').post(can('create'), catchErrors(materialController.create));
+router.route('/material/read/:id').get(can('view'), catchErrors(materialController.read));
+router.route('/material/update/:id').patch(can('update'), catchErrors(materialController.update));
+router.route('/material/delete/:id').delete(can('delete'), catchErrors(materialController.delete));
+router.route('/material/list').get(can('view'), catchErrors(materialController.list));
+router.route('/material/listAll').get(can('view'), catchErrors(materialController.listAll));
+router.route('/material/search').get(can('view'), catchErrors(materialController.search));
+router.route('/material/filter').get(can('view'), catchErrors(materialController.filter));
+router.route('/material/summary').get(can('view'), catchErrors(materialController.summary));
+router.route('/material/stock').get(can('view'), catchErrors(materialController.getStock));
+
+// Supplier routes (inventory module)
+router.route('/supplier/create').post(can('create'), catchErrors(supplierController.create));
+router.route('/supplier/read/:id').get(can('view'), catchErrors(supplierController.read));
+router.route('/supplier/update/:id').patch(can('update'), catchErrors(supplierController.update));
+router.route('/supplier/delete/:id').delete(can('delete'), catchErrors(supplierController.delete));
+router.route('/supplier/list').get(can('view'), catchErrors(supplierController.list));
+router.route('/supplier/listAll').get(can('view'), catchErrors(supplierController.listAll));
+router.route('/supplier/search').get(can('view'), catchErrors(supplierController.search));
+router.route('/supplier/filter').get(can('view'), catchErrors(supplierController.filter));
+router.route('/supplier/summary').get(can('view'), catchErrors(supplierController.summary));
 
 // Stock Requirement routes
-router.route('/requirement/create').post(catchErrors(stockRequirementController.create));
-router.route('/requirement/read/:id').get(catchErrors(stockRequirementController.read));
-router.route('/requirement/update/:id').patch(catchErrors(stockRequirementController.update));
-router.route('/requirement/delete/:id').delete(catchErrors(stockRequirementController.delete));
-router.route('/requirement/list').get(catchErrors(stockRequirementController.list));
-router.route('/requirement/listAll').get(catchErrors(stockRequirementController.listAll));
-router.route('/requirement/search').get(catchErrors(stockRequirementController.search));
-router.route('/requirement/filter').get(catchErrors(stockRequirementController.filter));
-router.route('/requirement/summary').get(catchErrors(stockRequirementController.summary));
-router.route('/requirement/convertToPO/:id').post(catchErrors(stockRequirementController.convertToPO));
+router.route('/requirement/create').post(can('create'), catchErrors(stockRequirementController.create));
+router.route('/requirement/read/:id').get(can('view'), catchErrors(stockRequirementController.read));
+router.route('/requirement/update/:id').patch(can('update'), catchErrors(stockRequirementController.update));
+router.route('/requirement/delete/:id').delete(can('delete'), catchErrors(stockRequirementController.delete));
+router.route('/requirement/list').get(can('view'), catchErrors(stockRequirementController.list));
+router.route('/requirement/listAll').get(can('view'), catchErrors(stockRequirementController.listAll));
+router.route('/requirement/search').get(can('view'), catchErrors(stockRequirementController.search));
+router.route('/requirement/filter').get(can('view'), catchErrors(stockRequirementController.filter));
+router.route('/requirement/summary').get(can('view'), catchErrors(stockRequirementController.summary));
+router.route('/requirement/convertToPO/:id').post(can('create'), catchErrors(stockRequirementController.convertToPO));
 
 // Purchase Order routes
-router.route('/purchase-order/create').post(catchErrors(purchaseOrderController.create));
-router.route('/purchase-order/read/:id').get(catchErrors(purchaseOrderController.read));
-router.route('/purchase-order/update/:id').patch(catchErrors(purchaseOrderController.update));
-router.route('/purchase-order/delete/:id').delete(catchErrors(purchaseOrderController.delete));
-router.route('/purchase-order/list').get(catchErrors(purchaseOrderController.list));
-router.route('/purchase-order/listAll').get(catchErrors(purchaseOrderController.listAll));
-router.route('/purchase-order/search').get(catchErrors(purchaseOrderController.search));
-router.route('/purchase-order/filter').get(catchErrors(purchaseOrderController.filter));
-router.route('/purchase-order/summary').get(catchErrors(purchaseOrderController.summary));
-router.route('/purchase-order/getForGRN/:id').get(catchErrors(purchaseOrderController.getForGRN));
-router.route('/purchase-order/pdf/:id').get(catchErrors(purchaseOrderController.pdf));
+router.route('/purchase-order/create').post(can('create'), catchErrors(purchaseOrderController.create));
+router.route('/purchase-order/read/:id').get(can('view'), catchErrors(purchaseOrderController.read));
+router.route('/purchase-order/update/:id').patch(can('update'), catchErrors(purchaseOrderController.update));
+router.route('/purchase-order/delete/:id').delete(can('delete'), catchErrors(purchaseOrderController.delete));
+router.route('/purchase-order/list').get(can('view'), catchErrors(purchaseOrderController.list));
+router.route('/purchase-order/listAll').get(can('view'), catchErrors(purchaseOrderController.listAll));
+router.route('/purchase-order/search').get(can('view'), catchErrors(purchaseOrderController.search));
+router.route('/purchase-order/filter').get(can('view'), catchErrors(purchaseOrderController.filter));
+router.route('/purchase-order/summary').get(can('view'), catchErrors(purchaseOrderController.summary));
+router.route('/purchase-order/getForGRN/:id').get(can('view'), catchErrors(purchaseOrderController.getForGRN));
+router.route('/purchase-order/pdf/:id').get(can('view'), catchErrors(purchaseOrderController.pdf));
 
 // Stock Transaction routes
-router.route('/transaction/create').post(catchErrors(stockTransactionController.create));
-router.route('/transaction/read/:id').get(catchErrors(stockTransactionController.read));
-router.route('/transaction/update/:id').patch(catchErrors(stockTransactionController.update));
-router.route('/transaction/delete/:id').delete(catchErrors(stockTransactionController.delete));
-router.route('/transaction/list').get(catchErrors(stockTransactionController.list));
-router.route('/transaction/listAll').get(catchErrors(stockTransactionController.listAll));
-router.route('/transaction/search').get(catchErrors(stockTransactionController.search));
-router.route('/transaction/filter').get(catchErrors(stockTransactionController.filter));
-router.route('/transaction/summary').get(catchErrors(stockTransactionController.summary));
+router.route('/transaction/create').post(can('create'), catchErrors(stockTransactionController.create));
+router.route('/transaction/read/:id').get(can('view'), catchErrors(stockTransactionController.read));
+router.route('/transaction/update/:id').patch(can('update'), catchErrors(stockTransactionController.update));
+router.route('/transaction/delete/:id').delete(can('delete'), catchErrors(stockTransactionController.delete));
+router.route('/transaction/list').get(can('view'), catchErrors(stockTransactionController.list));
+router.route('/transaction/listAll').get(can('view'), catchErrors(stockTransactionController.listAll));
+router.route('/transaction/search').get(can('view'), catchErrors(stockTransactionController.search));
+router.route('/transaction/filter').get(can('view'), catchErrors(stockTransactionController.filter));
+router.route('/transaction/summary').get(can('view'), catchErrors(stockTransactionController.summary));
 
 // Site Transfer routes (site A → site B)
-router.route('/site-transfer/create').post(catchErrors(siteTransferController.create));
-router.route('/site-transfer/read/:id').get(catchErrors(siteTransferController.read));
-router.route('/site-transfer/update/:id').patch(catchErrors(siteTransferController.update));
-router.route('/site-transfer/delete/:id').delete(catchErrors(siteTransferController.delete));
-router.route('/site-transfer/list').get(catchErrors(siteTransferController.list));
-router.route('/site-transfer/listAll').get(catchErrors(siteTransferController.listAll));
-router.route('/site-transfer/search').get(catchErrors(siteTransferController.search));
-router.route('/site-transfer/filter').get(catchErrors(siteTransferController.filter));
-router.route('/site-transfer/summary').get(catchErrors(siteTransferController.summary));
+router.route('/site-transfer/create').post(can('create'), catchErrors(siteTransferController.create));
+router.route('/site-transfer/read/:id').get(can('view'), catchErrors(siteTransferController.read));
+router.route('/site-transfer/update/:id').patch(can('update'), catchErrors(siteTransferController.update));
+router.route('/site-transfer/delete/:id').delete(can('delete'), catchErrors(siteTransferController.delete));
+router.route('/site-transfer/list').get(can('view'), catchErrors(siteTransferController.list));
+router.route('/site-transfer/listAll').get(can('view'), catchErrors(siteTransferController.listAll));
+router.route('/site-transfer/search').get(can('view'), catchErrors(siteTransferController.search));
+router.route('/site-transfer/filter').get(can('view'), catchErrors(siteTransferController.filter));
+router.route('/site-transfer/summary').get(can('view'), catchErrors(siteTransferController.summary));
 
 // Project Inventory routes
-router.route('/inventory/list').get(catchErrors(projectInventoryController.list));
-router.route('/inventory/read/:id').get(catchErrors(projectInventoryController.read));
-router.route('/inventory/dashboard').get(catchErrors(projectInventoryController.dashboard));
-router.route('/inventory/getCurrentStock').get(catchErrors(projectInventoryController.getCurrentStock));
+router.route('/inventory/list').get(can('view'), catchErrors(projectInventoryController.list));
+router.route('/inventory/read/:id').get(can('view'), catchErrors(projectInventoryController.read));
+router.route('/inventory/dashboard').get(can('view'), catchErrors(projectInventoryController.dashboard));
+router.route('/inventory/getCurrentStock').get(can('view'), catchErrors(projectInventoryController.getCurrentStock));
 
 // Import route
 const importMaterials = require('../../../scripts/importMaterials');
@@ -113,6 +116,7 @@ const upload = multer({
 });
 
 router.route('/material/import').post(
+  can('create'),
   upload.single('file'),
   catchErrors(async (req, res) => {
     if (!req.file) {

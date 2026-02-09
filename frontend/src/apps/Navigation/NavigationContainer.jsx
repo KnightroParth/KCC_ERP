@@ -1,9 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button, Drawer, Layout, Menu } from 'antd';
+import { useSelector } from 'react-redux';
 
 import { useAppContext } from '@/context/appContext';
 import useResponsive from '@/hooks/useResponsive';
+import { selectCurrentAdmin } from '@/redux/auth/selectors';
+import { hasPermission, MENU_MODULE_MAP } from '@/config/roles';
 
 import logoText from '@/style/images/logo-text.png';
 import "@/style/custom/kcc-brand.css";
@@ -28,11 +31,19 @@ export default function Navigation() {
   return isMobile ? <MobileSidebar /> : <Sidebar collapsible={false} />;
 }
 
+function canView(role, key) {
+  const module = MENU_MODULE_MAP[key];
+  if (module == null) return true;
+  return hasPermission(role, module, 'view');
+}
+
 function Sidebar({ collapsible, isMobile = false }) {
   const location = useLocation();
   const { state: stateApp, appContextAction } = useAppContext();
   const { isNavMenuClose } = stateApp;
   const { navMenu } = appContextAction;
+  const currentAdmin = useSelector(selectCurrentAdmin);
+  const role = currentAdmin?.role;
 
   const navigate = useNavigate();
 
@@ -83,12 +94,11 @@ function Sidebar({ collapsible, isMobile = false }) {
   const subLinkStyle = { fontSize: '13px', fontWeight: '400' };
   const iconStyle = { fontSize: '18px' };
 
-  const items = [
+  const allItems = [
     { key: 'dashboard', icon: <DashboardOutlined style={iconStyle} />, label: <Link to="/" style={parentLabelStyle}>Dashboard</Link> },
     { key: 'customer', icon: <CustomerServiceOutlined style={iconStyle} />, label: <Link to="/customer" style={parentLabelStyle}>Projects</Link> },
     { key: 'units', icon: <ContainerOutlined style={iconStyle} />, label: <Link to="/units" style={parentLabelStyle}>Units</Link> },
 
-    // ✅ WORK MODULE
     {
       key: 'work-module',
       className: 'work-submenu',
@@ -100,7 +110,6 @@ function Sidebar({ collapsible, isMobile = false }) {
       ],
     },
 
-    // ✅ ATTENDANCE MODULE
     {
       key: 'attendance-module',
       className: 'attendance-submenu',
@@ -113,7 +122,6 @@ function Sidebar({ collapsible, isMobile = false }) {
       ],
     },
 
-    // ✅ INVENTORY MODULE (YOUR STYLING PRESERVED)
     {
       key: 'inventory-module',
       className: 'inventory-submenu',
@@ -127,7 +135,6 @@ function Sidebar({ collapsible, isMobile = false }) {
         { key: 'inventory/grn', label: <Link to="/inventory/grn" style={{ ...subLinkStyle, color: currentPath === 'inventory/grn' ? '#ffffff' : '#1677ff' }}>Receive Stock (GRN)</Link> },
         { key: 'inventory/consumption', label: <Link to="/inventory/consumption" style={{ ...subLinkStyle, color: currentPath === 'inventory/consumption' ? '#ffffff' : '#1677ff' }}>Issue Stock</Link> },
         { key: 'inventory/site-transfer', label: <Link to="/inventory/site-transfer" style={{ ...subLinkStyle, color: currentPath === 'inventory/site-transfer' ? '#ffffff' : '#1677ff' }}>Site Transfer</Link> },
-        // Added Supplier Link Here
         { key: 'inventory/supplier', label: <Link to="/inventory/supplier" style={{ ...subLinkStyle, color: currentPath === 'inventory/supplier' ? '#ffffff' : '#1677ff' }}>Suppliers</Link> },
       ],
     },
@@ -145,6 +152,21 @@ function Sidebar({ collapsible, isMobile = false }) {
     },
     { key: 'about', icon: <ReconciliationOutlined style={iconStyle} />, label: <Link to="/about" style={parentLabelStyle}>About</Link> },
   ];
+
+  // Filter menu by role: hide items (and parent groups) when user has no view permission for that module
+  const items = useMemo(() => {
+    if (!role) return allItems;
+    return allItems
+      .map((item) => {
+        if (item.children) {
+          const visibleChildren = item.children.filter((c) => canView(role, c.key));
+          if (visibleChildren.length === 0) return null; // hide parent if no child is visible
+          return { ...item, children: visibleChildren };
+        }
+        return canView(role, item.key) ? item : null;
+      })
+      .filter(Boolean);
+  }, [role, currentPath]);
 
   return (
     <Sider

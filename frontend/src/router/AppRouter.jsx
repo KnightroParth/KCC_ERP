@@ -1,8 +1,8 @@
 import { lazy, useEffect } from 'react';
-import { Navigate, useLocation, useRoutes } from 'react-router-dom';
+import { useLocation, useRoutes } from 'react-router-dom';
 import { useAppContext } from '@/context/appContext';
 import routes from './routes';
-import UnitsModule from "@/modules/UnitsModule";
+import RouteGuard from '@/components/RouteGuard';
 
 
 export default function AppRouter() {
@@ -38,5 +38,5 @@ export default function AppRouter() {
 
   let element = useRoutes(routesList);
 
-  return element;
+  return <RouteGuard>{element}</RouteGuard>;
 }

@@ -15,6 +15,7 @@ const authUser = async (req, res, { user, databasePassword, password, UserPasswo
     const token = jwt.sign(
       {
         id: user._id,
+        role: user.role,
       },
       process.env.JWT_SECRET,
       { expiresIn: req.body.remember ? 365 * 24 + 'h' : '24h' }

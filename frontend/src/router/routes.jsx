@@ -3,6 +3,7 @@ import { Navigate } from 'react-router-dom';
 
 const Logout = lazy(() => import('@/pages/Logout.jsx'));
 const NotFound = lazy(() => import('@/pages/NotFound.jsx'));
+const NotAuthorized = lazy(() => import('@/pages/NotAuthorized.jsx'));
 
 const Dashboard = lazy(() => import('@/pages/Dashboard'));
 const Customer = lazy(() => import('@/pages/Customer'));
@@ -97,6 +98,7 @@ let routes = {
     { path: '/inventory/supplier', element: <Supplier /> },
 
     { path: '/profile', element: <Profile /> },
+    { path: '/not-authorized', element: <NotAuthorized /> },
     { path: '*', element: <NotFound /> },
   ],
 };

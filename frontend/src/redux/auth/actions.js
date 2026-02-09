@@ -11,7 +11,7 @@ export const login =
 
     if (data.success === true) {
       const token = data.result.token;
-      const admin = data.result.admin;
+      const admin = data.result.admin ?? data.result; // backend returns result = user (with role)
 
       // ✅ Store token
       localStorage.setItem("token", token);

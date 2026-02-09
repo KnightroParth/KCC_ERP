@@ -112,12 +112,17 @@
 .auth-form-box {
   position: relative;
   width: 380px;
+  max-width: 95vw;
   padding: 45px 38px;
   background: rgba(255, 255, 255, 0.94);
   border-radius: 16px;
   backdrop-filter: blur(3px);
   box-shadow: 0 8px 28px rgba(0, 0, 0, 0.25);
   z-index: 5;
+}
+
+.auth-form-box .login-profiles-step {
+  width: 100%;
 }
 
 .auth-form-box h2 {
@@ -146,4 +151,101 @@
 
 .ant-btn-primary:hover {
   background-color: #144c60 !important;
+}
+
+/* ===== NETFLIX-STYLE PROFILE PICKER ===== */
+.login-profiles-step {
+  width: 100%;
+  text-align: center;
+}
+
+.login-profiles-title {
+  font-size: 26px;
+  font-weight: 600;
+  color: #0d2845;
+  margin-bottom: 8px;
+}
+
+.login-profiles-subtitle {
+  font-size: 14px;
+  color: #666;
+  margin-bottom: 28px;
+}
+
+.login-profiles-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  justify-content: center;
+  align-items: flex-start;
+  max-width: 320px;
+  margin: 0 auto;
+}
+
+.login-profile-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  border-radius: 12px;
+  transition: transform 0.2s, background 0.2s;
+}
+
+.login-profile-item:hover {
+  transform: scale(1.08);
+  background: rgba(26, 97, 125, 0.08);
+}
+
+.login-profile-avatar {
+  background: linear-gradient(135deg, #1a617d, #144c60) !important;
+  font-size: 32px !important;
+  color: #fff !important;
+}
+
+.login-profile-label {
+  font-size: 14px;
+  font-weight: 500;
+  color: #0d2845;
+  max-width: 90px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Password step (after profile selected) */
+.login-password-step {
+  width: 100%;
+}
+
+.login-back-profiles {
+  margin-bottom: 16px;
+  color: #666;
+  padding-left: 0;
+}
+
+.login-back-profiles:hover {
+  color: #1a617d;
+}
+
+.login-selected-profile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.login-selected-label {
+  font-size: 18px;
+  font-weight: 600;
+  color: #0d2845;
+}
+
+.login-avatar {
+  background: linear-gradient(135deg, #1a617d, #144c60) !important;
+  font-size: 36px !important;
+  color: #fff !important;
 }

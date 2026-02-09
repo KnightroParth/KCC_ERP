@@ -16,11 +16,21 @@ import { dataForTable } from '@/utils/dataStructure';
 import { useMoney, useDate } from '@/settings';
 import { generate as uniqueId } from 'shortid';
 import { useCrudContext } from '@/context/crud';
+import usePermission from '@/hooks/usePermission';
+import { ENTITY_TO_MODULE, ALLOW_ALL_MODULE } from '@/config/roles';
 
-function AddNewItem({ config }) {
+function getPermissionModule(config) {
+  if (config.permissionModule) return config.permissionModule;
+  const entity = (config.entity || '').toLowerCase();
+  return ENTITY_TO_MODULE[entity] || ALLOW_ALL_MODULE;
+}
+
+function AddNewItem({ config, canCreate }) {
   const { crudContextAction } = useCrudContext();
   const { collapsedBox, panel } = crudContextAction;
   const { ADD_NEW_ENTITY } = config;
+
+  if (!canCreate) return null;
 
   const handelClick = () => {
     panel.open();
@@ -42,6 +52,11 @@ export default function DataTable({ config, extra = [] }) {
   const translate = useLanguage();
   const { moneyFormatter } = useMoney();
   const { dateFormat } = useDate();
+
+  const permissionModule = getPermissionModule(config);
+  const canCreate = usePermission(permissionModule, 'create');
+  const canUpdate = usePermission(permissionModule, 'update');
+  const canDelete = usePermission(permissionModule, 'delete');
   
   // Data Selectors
   const { result: listResult, isLoading: listIsLoading } = useSelector(selectListItems);
@@ -88,30 +103,38 @@ export default function DataTable({ config, extra = [] }) {
 
   const columns = [
     ...dispatchColumns,
-    {
-      title: 'Actions',
-      key: 'actions',
-      fixed: 'right',
-      width: 100,
-      render: (_, record) => (
-        <Space size="small" wrap>
-          <Button
-            size="small"
-            type="primary"
-            icon={<EditOutlined />}
-            onClick={() => handleEdit(record)}
-          />
-          <Button
-            size="small"
-            danger
-            type="primary"
-            icon={<DeleteOutlined />}
-            onClick={() => handleDelete(record)}
-            style={{ backgroundColor: '#ff4d4f', borderColor: '#ff4d4f' }}
-          />
-        </Space>
-      ),
-    },
+    ...((canUpdate || canDelete)
+      ? [
+          {
+            title: 'Actions',
+            key: 'actions',
+            fixed: 'right',
+            width: 100,
+            render: (_, record) => (
+              <Space size="small" wrap>
+                {canUpdate && (
+                  <Button
+                    size="small"
+                    type="primary"
+                    icon={<EditOutlined />}
+                    onClick={() => handleEdit(record)}
+                  />
+                )}
+                {canDelete && (
+                  <Button
+                    size="small"
+                    danger
+                    type="primary"
+                    icon={<DeleteOutlined />}
+                    onClick={() => handleDelete(record)}
+                    style={{ backgroundColor: '#ff4d4f', borderColor: '#ff4d4f' }}
+                  />
+                )}
+              </Space>
+            ),
+          },
+        ]
+      : []),
   ];
 
   // --- 4. DATA LOADING ---
@@ -165,7 +188,7 @@ export default function DataTable({ config, extra = [] }) {
           >
             {translate('Refresh')}
           </Button>,
-          <AddNewItem key={`${uniqueId()}`} config={config} />,
+          <AddNewItem key={`${uniqueId()}`} config={config} canCreate={canCreate} />,
         ]}
         style={{ padding: '20px 0px' }}
       ></PageHeader>

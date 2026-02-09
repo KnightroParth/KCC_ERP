@@ -38,7 +38,7 @@ export default function AuthModule({ authContent, AUTH_TITLE }) {
         ))}
 
         <div className="auth-form-box">
-          {AUTH_TITLE && <h2 className="login-title">{AUTH_TITLE}</h2>}
+          {AUTH_TITLE ? <h2 className="login-title">{AUTH_TITLE}</h2> : null}
           {authContent}
         </div>
       </div>
