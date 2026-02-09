@@ -139,6 +139,32 @@
   height: 44px !important;
 }
 
+/* Align prefix icon (lock) with password input – auth form */
+.auth-form-box .ant-input-affix-wrapper {
+  display: flex !important;
+  align-items: center !important;
+  height: 44px !important;
+  border-radius: 10px !important;
+  padding: 0 11px 0 12px !important;
+}
+
+.auth-form-box .ant-input-affix-wrapper .ant-input-prefix {
+  display: flex;
+  align-items: center;
+  margin-right: 8px;
+}
+
+.auth-form-box .ant-input-affix-wrapper .ant-input {
+  height: 42px !important;
+  padding: 0 !important;
+  border: none !important;
+  background: transparent !important;
+}
+
+.auth-form-box .ant-input-affix-wrapper .ant-input:focus {
+  box-shadow: none !important;
+}
+
 /* Login Button */
 .ant-btn-primary {
   height: 48px !important;
@@ -221,7 +247,7 @@
 }
 
 .login-back-profiles {
-  margin-bottom: 16px;
+  margin-bottom: 8px;
   color: #666;
   padding-left: 0;
 }
@@ -234,8 +260,8 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 24px;
+  gap: 8px;
+  margin-bottom: 16px;
 }
 
 .login-selected-label {
@@ -248,4 +274,13 @@
   background: linear-gradient(135deg, #1a617d, #144c60) !important;
   font-size: 36px !important;
   color: #fff !important;
+}
+
+/* Match password step form spacing – password field right under profile */
+.login-password-step .ant-form-item {
+  margin-bottom: 16px;
+}
+
+.login-password-step .ant-form-item:last-child {
+  margin-bottom: 0;
 }

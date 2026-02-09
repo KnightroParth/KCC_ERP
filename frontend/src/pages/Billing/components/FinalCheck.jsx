@@ -112,7 +112,6 @@ export default function FinalCheck({ invoice, onFinalized }) {
         billingWeekEnd: invoice?.billingWeekEnd,
         billingWeekStart: invoice?.billingWeekStart,
         sourceProjectId: toId(invoice?.sourceProjectId),
-        sourceContractorId: contractorId,
         plannedWorkIds: Array.isArray(invoice?.plannedWorkIds) ? invoice.plannedWorkIds.map(toId) : undefined,
         auditChecklist,
         finalChecklist,

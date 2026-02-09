@@ -1,11 +1,14 @@
 const pug = require('pug');
 const fs = require('fs');
+const path = require('path');
 const moment = require('moment');
 let pdf = require('html-pdf');
 const { listAllSettings, loadSettings } = require('@/middlewares/settings');
-const { getData } = require('@/middlewares/serverData');
+const getData = require('@/middlewares/serverData');
 const useLanguage = require('@/locale/useLanguage');
 const { useMoney, useDate } = require('@/settings');
+
+const KCC_LOGO_PATH = path.join(__dirname, '../../public/uploads/setting/kcc-logo.png');
 
 const pugFiles = ['invoice', 'offer', 'quote', 'payment'];
 
@@ -32,6 +35,13 @@ exports.generatePdf = async (
       // Compile Pug template
 
       const settings = await loadSettings();
+      // Always use KCC logo on billing PDFs – embed as base64 so it loads without URL
+      if (fs.existsSync(KCC_LOGO_PATH)) {
+        const logoBase64 = fs.readFileSync(KCC_LOGO_PATH).toString('base64');
+        settings.company_logo = 'data:image/png;base64,' + logoBase64;
+      } else {
+        settings.company_logo = 'public/uploads/setting/kcc-logo.png';
+      }
       const selectedLang = settings['idurar_app_language'];
       const translate = useLanguage({ selectedLang });
 
@@ -56,7 +66,8 @@ exports.generatePdf = async (
       });
       const { dateFormat } = useDate({ settings });
 
-      settings.public_server_file = process.env.PUBLIC_SERVER_FILE;
+      // For img src: base64 logo is used as-is; otherwise prepend server URL
+      settings.public_server_file = settings.company_logo.startsWith('data:') ? '' : (process.env.PUBLIC_SERVER_FILE || '');
 
       let modelForPug = result;
       if (modelName.toLowerCase() === 'invoice') {

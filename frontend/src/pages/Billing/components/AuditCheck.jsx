@@ -148,7 +148,6 @@ export default function AuditCheck({
         billingWeekEnd: weekEndDate,
         billingWeekStart: weekStartDate,
         sourceProjectId: projectId || selectedRows[0]?.projectId?._id || selectedRows[0]?.projectId,
-        sourceContractorId: billToContractorId,
         plannedWorkIds: selectedRows.map((r) => r._id),
         auditChecklist: selectedRows.map((r) => ({
           workAssignId: r._id,

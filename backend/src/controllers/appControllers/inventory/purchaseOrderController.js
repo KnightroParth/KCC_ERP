@@ -337,9 +337,11 @@ const purchaseOrderController = () => {
 
       const { dateFormat } = useDate({ settings });
       
-      // ✅ FIX: Ensure logo paths are safe strings
+      // ✅ FIX: Ensure logo paths are safe strings; default to KCC logo on PDFs
       settings.public_server_file = process.env.PUBLIC_SERVER_FILE || '';
-      if(!settings.company_logo) settings.company_logo = '';
+      if (!settings.company_logo || String(settings.company_logo).trim() === '') {
+        settings.company_logo = 'public/uploads/setting/kcc-logo.png';
+      }
 
       // Render PDF template
       // ✅ CONFIRMED: Path is correct relative to this controller
