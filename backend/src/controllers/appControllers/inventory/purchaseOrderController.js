@@ -12,6 +12,8 @@ const { loadSettings } = require('@/middlewares/settings');
 const useLanguage = require('@/locale/useLanguage');
 const { useMoney, useDate } = require('@/settings');
 
+const KCC_LOGO_PATH = path.join(__dirname, '../../../public/uploads/setting/kcc-logo.png');
+
 const purchaseOrderController = () => {
   const methods = createCRUDController('PurchaseOrder');
 
@@ -337,11 +339,22 @@ const purchaseOrderController = () => {
 
       const { dateFormat } = useDate({ settings });
       
-      // ✅ FIX: Ensure logo paths are safe strings; default to KCC logo on PDFs
-      settings.public_server_file = process.env.PUBLIC_SERVER_FILE || '';
-      if (!settings.company_logo || String(settings.company_logo).trim() === '') {
-        settings.company_logo = 'public/uploads/setting/kcc-logo.png';
+      // KCC logo and company block on PO PDF (same as billing – always use KCC)
+      if (fs.existsSync(KCC_LOGO_PATH)) {
+        const logoBase64 = fs.readFileSync(KCC_LOGO_PATH).toString('base64');
+        settings.company_logo = 'data:image/png;base64,' + logoBase64;
+        settings.public_server_file = '';
+      } else {
+        settings.public_server_file = process.env.PUBLIC_SERVER_FILE || '';
+        settings.company_logo = settings.company_logo || 'public/uploads/setting/kcc-logo.png';
       }
+      settings.company_name = 'Kothari Construction Company';
+      settings.company_address = 'KCC-A-103, Rami Heritage, Opp. –Old Rto Office, Murtizapur Road, Akola -444001, Maharashtra, India';
+      settings.company_address_lines = [
+        'KCC-A-103, Rami Heritage, Opp. –Old Rto Office, Murtizapur Road, Akola -444001',
+        'Maharashtra, India',
+      ];
+      settings.company_phone = '+919764999715';
 
       // Render PDF template
       // ✅ CONFIRMED: Path is correct relative to this controller

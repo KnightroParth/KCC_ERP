@@ -52,14 +52,24 @@ html
       }
       .logo {
         width: 150px;
+        height: auto;
+        max-height: 60px;
+        object-fit: contain;
       }
       .company-info{
         text-align: right;
         font-size:12px;
+        line-height: 1.5;
+      }
+      .company-info .label{
+        font-size: 11px;
+        color: #666;
+        font-weight: 600;
+        margin-bottom: 4px;
       }
       h1.invoice{
         font-size:32px;
-        color:#52008c;
+        color:#0A1528;
         margin-top:0;
       }
       p.strong{
@@ -77,7 +87,7 @@ html
       }
 
       .tableHeader{
-        color:#52008c;
+        color:#0A1528;
       }
       .clearfix {
         display: block; }
@@ -203,15 +213,16 @@ html
       }
       .table-invoice th {
         padding: 8px 10px;
-        border-bottom: 1px solid #c2e0f2;
-        color:#52008c;
+        border-bottom: 2px solid #1a617d;
+        background: #0A1528;
+        color: #fff;
         white-space: nowrap;
         font-weight: 700;
         font-size: 12px;
         text-align: right;
       }
       tbody{
-        border-bottom: 1px solid #c2e0f2;
+        border-bottom: 1px solid #e0e8ee;
       }
       .table-invoice .service, .table-invoice .desc {
         text-align: left;
@@ -262,9 +273,17 @@ html
         .top-area
           img.logo.left(src=settings.public_server_file+settings.company_logo)
           .right.company-info
+              p.label Company Name
               p.strong #{settings.company_name}
-              p #{settings.company_address}
-              p #{settings.company_reg_number}
+              if settings.company_address_lines && settings.company_address_lines.length
+                each line in settings.company_address_lines
+                  p #{line}
+              else
+                p #{settings.company_address}
+              if settings.company_phone
+                p #{settings.company_phone}
+              if settings.company_reg_number
+                p #{settings.company_reg_number}
               
         .col.col-24
           .space  

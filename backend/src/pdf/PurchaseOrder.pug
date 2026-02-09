@@ -37,8 +37,9 @@ html
         margin-bottom: 20px;
       }
       .logo {
-        width: 180px;
-        max-height: 80px;
+        width: 150px;
+        height: auto;
+        max-height: 60px;
         object-fit: contain;
       }
       .company-info {
@@ -201,9 +202,17 @@ html
             img.logo.left(src=settings.public_server_file+settings.company_logo)
         
         .right.company-info
+            p(style="font-size: 11px; color: #666; font-weight: 600; margin-bottom: 4px") Company Name
             p.strong(style="font-size: 16px; color: #0A1528") #{settings.company_name}
-            p #{settings.company_address}
-            p #{settings.company_email}
+            if settings.company_address_lines && settings.company_address_lines.length
+              each line in settings.company_address_lines
+                p #{line}
+            else
+              p #{settings.company_address}
+            if settings.company_phone
+                p #{settings.company_phone}
+            if settings.company_email
+                p #{settings.company_email}
             if settings.company_reg_number
                 p GST/Reg: #{settings.company_reg_number}
             
@@ -236,7 +245,11 @@ html
           .shipTo(style="margin-top: 15px")
               p.strong(style="background: #0A1528; color: #fff; padding: 2px 5px; display: inline-block; margin-bottom: 8px;") Ship To:
               p.strong #{settings.company_name}
-              p #{settings.company_address}
+              if settings.company_address_lines && settings.company_address_lines.length
+                each line in settings.company_address_lines
+                  p #{line}
+              else
+                p #{settings.company_address}
               p Contact: #{settings.company_phone || 'N/A'}
         
       .col.col-24

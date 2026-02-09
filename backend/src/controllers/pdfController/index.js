@@ -42,6 +42,14 @@ exports.generatePdf = async (
       } else {
         settings.company_logo = 'public/uploads/setting/kcc-logo.png';
       }
+      // KCC company block on all billing PDFs – always override so DB placeholders don’t show
+      settings.company_name = 'Kothari Construction Company';
+      settings.company_address = 'KCC-A-103, Rami Heritage, Opp. –Old Rto Office, Murtizapur Road, Akola -444001, Maharashtra, India';
+      settings.company_address_lines = [
+        'KCC-A-103, Rami Heritage, Opp. –Old Rto Office, Murtizapur Road, Akola -444001',
+        'Maharashtra, India',
+      ];
+      settings.company_phone = '+919764999715';
       const selectedLang = settings['idurar_app_language'];
       const translate = useLanguage({ selectedLang });
 
@@ -85,7 +93,8 @@ exports.generatePdf = async (
         modelForPug.billTo = billTo;
       }
 
-      const htmlContent = pug.renderFile('src/pdf/' + modelName + '.pug', {
+      const pugPath = path.join(__dirname, '../../pdf', modelName + '.pug');
+      const htmlContent = pug.renderFile(pugPath, {
         model: modelForPug,
         settings,
         translate,

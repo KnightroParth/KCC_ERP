@@ -2,7 +2,7 @@
   {
     "settingCategory": "company_settings",
     "settingKey": "company_name",
-    "settingValue": "COMPANY Name",
+    "settingValue": "Kothari Construction Company",
     "valueType": "string"
   },
   {
@@ -20,7 +20,7 @@
   {
     "settingCategory": "company_settings",
     "settingKey": "company_address",
-    "settingValue": "25 , Your Company Address",
+    "settingValue": "KCC-A-103, Rami Heritage, Opp. –Old Rto Office, Murtizapur Road, Akola -444001, Maharashtra, India",
     "valueType": "string"
   },
   {
@@ -44,7 +44,7 @@
   {
     "settingCategory": "company_settings",
     "settingKey": "company_phone",
-    "settingValue": "+1 345234654",
+    "settingValue": "+919764999715",
     "valueType": "string"
   },
   {

@@ -1,9 +1,10 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { Card, Table, Button, Row, Col, Typography } from 'antd';
-import { PrinterOutlined, DownloadOutlined } from '@ant-design/icons';
+import { DownloadOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import request from '@/request/request';
 import { downloadBillPDF } from '../utils/pdfGenerator';
+import logoUrl from '@/style/images/logo-text.png';
 
 /**
  * Print Bill: Header (KCC, Project, Bill No, Date), Body (grouped by Work Type), Footer (Gross, Deductions, Net, Signatures).
@@ -49,12 +50,33 @@ export default function PrintBill({ invoice, projectName, contractorName: contra
     { title: 'Amount (₹)', dataIndex: 'total', key: 'total', width: 120, align: 'right', render: (v) => Number(v || 0).toFixed(2) },
   ];
 
-  const handlePrint = () => {
-    window.print();
-  };
-
-  const handleDownload = () => {
-    downloadBillPDF(invoice, projectName, `KCC-Bill-${invoice?.number ?? 'draft'}.pdf`, displayContractorName);
+  const handleDownload = async () => {
+    let logoBase64 = '';
+    let logoSize = null;
+    try {
+      const res = await fetch(logoUrl);
+      const blob = await res.blob();
+      logoBase64 = await new Promise((resolve, reject) => {
+        const r = new FileReader();
+        r.onload = () => resolve(r.result);
+        r.onerror = reject;
+        r.readAsDataURL(blob);
+      });
+      logoSize = await new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => resolve({ w: img.naturalWidth, h: img.naturalHeight });
+        img.onerror = () => resolve(null);
+        img.src = logoBase64;
+      });
+    } catch (_) {}
+    downloadBillPDF(
+      invoice,
+      projectName,
+      `KCC-Bill-${invoice?.number ?? 'draft'}.pdf`,
+      displayContractorName,
+      logoBase64,
+      logoSize,
+    );
   };
 
   return (
@@ -62,14 +84,9 @@ export default function PrintBill({ invoice, projectName, contractorName: contra
       title="Print Bill"
       size="small"
       extra={
-        <>
-          <Button icon={<PrinterOutlined />} onClick={handlePrint} style={{ marginRight: 8 }}>
-            Print
-          </Button>
-          <Button type="primary" icon={<DownloadOutlined />} onClick={handleDownload}>
-            Download PDF
-          </Button>
-        </>
+        <Button type="primary" icon={<DownloadOutlined />} onClick={handleDownload}>
+          Download PDF
+        </Button>
       }
       className="print-bill-card"
     >
