@@ -9,7 +9,9 @@ import {
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { useNavigate } from 'react-router-dom';
+import { useSelector } from 'react-redux';
 import request from '@/request/request';
+import { selectCurrentProject, selectShouldLockProject } from '@/redux/erp/selectors';
 import AttendanceModal from './AttendanceModal';
 import { ErpLayout } from '@/layout';
 
@@ -174,12 +176,14 @@ const LabourAttendanceRow = ({ labour, record, onMark, onEdit, onDelete }) => {
 // 3. Main Page
 // ==========================================
 export default function Attendance() {
-  const navigate = useNavigate(); // Hook for navigation
+  const navigate = useNavigate();
+  const currentProject = useSelector(selectCurrentProject);
+  const shouldLockProject = useSelector(selectShouldLockProject);
   const [projects, setProjects] = useState([]);
   const [selectedProject, setSelectedProject] = useState(null);
   const [selectedDate, setSelectedDate] = useState(dayjs());
   const [activeTab, setActiveTab] = useState('staff');
-  
+
   const [labours, setLabours] = useState([]);
   const [vendors, setVendors] = useState([]);
   const [records, setRecords] = useState([]);
@@ -189,10 +193,15 @@ export default function Attendance() {
   const [currentLabour, setCurrentLabour] = useState(null);
   const [currentRecord, setCurrentRecord] = useState(null);
 
-  // Initial Load
+  useEffect(() => {
+    if (shouldLockProject && currentProject) {
+      setSelectedProject(currentProject);
+    }
+  }, [shouldLockProject, currentProject]);
+
   useEffect(() => {
     request.listAll({ entity: 'project' }).then(res => {
-      if(res.result) setProjects(res.result);
+      if (res.result) setProjects(res.result);
     });
   }, []);
 
@@ -275,15 +284,25 @@ export default function Attendance() {
             <Card bodyStyle={{ padding: '16px' }} style={{ marginBottom: 24 }} bordered={false}>
               <Row gutter={[16, 16]}>
                 <Col xs={24} sm={12} md={8}>
-                  <Select
-                    placeholder="Select Project"
-                    style={{ width: '100%' }}
-                    size="large"
-                    value={selectedProject?._id}
-                    onChange={(val) => setSelectedProject(projects.find(p => p._id === val))}
-                  >
-                    {projects.map(p => <Option key={p._id} value={p._id}>{p.name}</Option>)}
-                  </Select>
+                  {shouldLockProject && currentProject ? (
+                    <Input
+                      readOnly
+                      disabled
+                      size="large"
+                      style={{ width: '100%', color: 'rgba(0,0,0,0.88)', cursor: 'not-allowed' }}
+                      value={currentProject.projectCode ? `${currentProject.name} (${currentProject.projectCode})` : currentProject.name}
+                    />
+                  ) : (
+                    <Select
+                      placeholder="Select Project"
+                      style={{ width: '100%' }}
+                      size="large"
+                      value={selectedProject?._id}
+                      onChange={(val) => setSelectedProject(projects.find(p => p._id === val))}
+                    >
+                      {projects.map(p => <Option key={p._id} value={p._id}>{p.name}</Option>)}
+                    </Select>
+                  )}
                 </Col>
                 <Col xs={24} sm={12} md={8}>
                   <DatePicker

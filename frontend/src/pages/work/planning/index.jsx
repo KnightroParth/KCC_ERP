@@ -2,11 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { Layout, Select, Card, Empty, Typography, Table, Checkbox, Button, Modal, Form, DatePicker, Row, Col, message, Input } from 'antd';
 const { TextArea } = Input;
 import { EditOutlined, DeleteOutlined } from '@ant-design/icons';
+import { useSelector } from 'react-redux';
 import dayjs from 'dayjs';
 
 import { WORK_CATEGORIES, COMPLEX_TASK_COMPONENTS } from '@/config/workConfig';
 import { assignWork } from '@/request/assignWork';
 import request from '@/request/request';
+import { selectCurrentProject, selectShouldLockProject } from '@/redux/erp/selectors';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -264,6 +266,8 @@ function generatePDF(data, vendors, staff, groupOption, headerDetails, projectNa
 const FORM_COMPONENTS = {};
 
 export default function Planning() {
+    const currentProject = useSelector(selectCurrentProject);
+    const shouldLockProject = useSelector(selectShouldLockProject);
     const [projects, setProjects] = useState([]);
     const [unitsList, setUnitsList] = useState([]);
     const [staff, setStaff] = useState([]);
@@ -277,6 +281,12 @@ export default function Planning() {
 
     const [buildings, setBuildings] = useState([]);
     const [loadingProjects, setLoadingProjects] = useState(true);
+
+    useEffect(() => {
+        if (shouldLockProject && currentProject?._id) {
+            setSelectedProject(currentProject);
+        }
+    }, [shouldLockProject, currentProject]);
     const [tableData, setTableData] = useState([]);
     const [isChartModalOpen, setIsChartModalOpen] = useState(false);
     const [chartGroupOption, setChartGroupOption] = useState('Contractors');
@@ -740,17 +750,26 @@ export default function Planning() {
                     </div>
 
                     <div className="filter-bar">
-                        <Select
-                            placeholder="Select Project"
-                            style={{ flex: 1, minWidth: 200 }}
-                            onChange={(val) => {
-                                const p = projects.find(x => x._id === val);
-                                setSelectedProject(p);
-                            }}
-                            value={selectedProject?._id}
-                        >
-                            {projects.map(p => <Option key={p._id} value={p._id}>{p.name}</Option>)}
-                        </Select>
+                        {shouldLockProject && currentProject ? (
+                            <Input
+                                readOnly
+                                disabled
+                                style={{ flex: 1, minWidth: 200, color: 'rgba(0,0,0,0.88)', cursor: 'not-allowed' }}
+                                value={currentProject.projectCode ? `${currentProject.name} (${currentProject.projectCode})` : currentProject.name}
+                            />
+                        ) : (
+                            <Select
+                                placeholder="Select Project"
+                                style={{ flex: 1, minWidth: 200 }}
+                                onChange={(val) => {
+                                    const p = projects.find(x => x._id === val);
+                                    setSelectedProject(p);
+                                }}
+                                value={selectedProject?._id}
+                            >
+                                {projects.map(p => <Option key={p._id} value={p._id}>{p.name}</Option>)}
+                            </Select>
+                        )}
 
                         <Select
                             placeholder="Select Building"

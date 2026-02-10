@@ -24,7 +24,26 @@ function includeToken() {
   }
 }
 
+/**
+ * Fetch project list without auth (for login screen).
+ * Uses public API so user can select project before logging in.
+ */
+async function listPublicProjects(options = {}) {
+  try {
+    const params = new URLSearchParams({ page: options.page || 1, items: options.items || 500 });
+    const response = await axios.get(`${API_BASE_URL}public/project/list?${params}`, {
+      withCredentials: true,
+      // Do not set Authorization so this works before login
+    });
+    return response.data;
+  } catch (error) {
+    return errorHandler(error);
+  }
+}
+
 const request = {
+  listPublicProjects,
+
   create: async ({ entity, jsonData }) => {
     try {
       includeToken();

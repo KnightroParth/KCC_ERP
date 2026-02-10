@@ -1,9 +1,10 @@
 import * as actionTypes from "./types";
 import * as authService from "@/auth";
 import { request } from "@/request";
+import { erp } from "@/redux/erp/actions";
 
 export const login =
-  ({ loginData }) =>
+  ({ loginData, selectedProject }) =>
   async (dispatch) => {
     dispatch({ type: actionTypes.REQUEST_LOADING });
 
@@ -30,6 +31,11 @@ export const login =
         type: actionTypes.REQUEST_SUCCESS,
         payload: authData.current,
       });
+
+      // ✅ Set project context immediately (Login component unmounts on auth success, so do it here)
+      if (selectedProject && typeof selectedProject === 'object' && selectedProject._id) {
+        dispatch(erp.setCurrentProject(selectedProject));
+      }
     } else {
       dispatch({ type: actionTypes.REQUEST_FAILED });
     }

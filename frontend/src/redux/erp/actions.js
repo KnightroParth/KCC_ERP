@@ -7,6 +7,19 @@ export const erp = {
       type: actionTypes.RESET_STATE,
     });
   },
+  setCurrentProject:
+    (project) =>
+    (dispatch) => {
+      dispatch({
+        type: actionTypes.SET_CURRENT_PROJECT,
+        payload: project,
+      });
+    },
+  clearCurrentProject: () => (dispatch) => {
+    dispatch({
+      type: actionTypes.CLEAR_CURRENT_PROJECT,
+    });
+  },
   resetAction:
     ({ actionType }) =>
     (dispatch) => {

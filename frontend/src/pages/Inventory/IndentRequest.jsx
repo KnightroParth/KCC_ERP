@@ -7,13 +7,17 @@ import dayjs from 'dayjs';
 import CrudModule from '@/modules/CrudModule/CrudModule';
 import AutoCompleteAsync from '@/components/AutoCompleteAsync';
 import SelectAsync from '@/components/SelectAsync';
+import LockedProjectInput from '@/components/LockedProjectInput';
 import { selectCurrentItem } from '@/redux/crud/selectors';
+import { selectCurrentProject, selectShouldLockProject } from '@/redux/erp/selectors';
 import useLanguage from '@/locale/useLanguage';
 
 function IndentRequestForm({ isUpdateForm = false }) {
   const translate = useLanguage();
   const form = Form.useFormInstance();
   const items = Form.useWatch('items', form) || [];
+  const currentProject = useSelector(selectCurrentProject);
+  const shouldLockProject = useSelector(selectShouldLockProject);
 
   const estimatedCost = items.reduce((sum, item) => {
     if (!item) return sum;
@@ -54,9 +58,12 @@ function IndentRequestForm({ isUpdateForm = false }) {
       }
     } else if (!isUpdateForm) {
       form.resetFields();
-      form.setFieldsValue({ items: [] });
+      form.setFieldsValue({
+        items: [],
+        ...(shouldLockProject && currentProject ? { projectId: currentProject._id } : {}),
+      });
     }
-  }, [isUpdateForm, currentItem, form]);
+  }, [isUpdateForm, currentItem, currentProject, shouldLockProject, form]);
 
   return (
     <div style={{ paddingRight: 10 }}>
@@ -66,13 +73,18 @@ function IndentRequestForm({ isUpdateForm = false }) {
           name="projectId"
           rules={[{ required: true, message: 'Please select a project' }]}
           style={{ flex: 1 }}
+          initialValue={shouldLockProject && currentProject ? currentProject._id : undefined}
         >
-          <SelectAsync
-            entity="project"
-            displayLabels={['name', 'projectCode']}
-            outputValue="_id"
-            placeholder="Select Project"
-          />
+          {shouldLockProject && currentProject ? (
+            <LockedProjectInput />
+          ) : (
+            <SelectAsync
+              entity="project"
+              displayLabels={['name', 'projectCode']}
+              outputValue="_id"
+              placeholder="Select Project"
+            />
+          )}
         </Form.Item>
 
         <Form.Item

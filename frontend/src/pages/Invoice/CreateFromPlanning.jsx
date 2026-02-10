@@ -13,6 +13,7 @@ import {
   Empty,
   Row,
   Col,
+  Input,
 } from 'antd';
 import { FileTextOutlined, CalendarOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
@@ -20,6 +21,7 @@ import request from '@/request/request';
 import { useDispatch, useSelector } from 'react-redux';
 import { settingsAction } from '@/redux/settings/actions';
 import { selectFinanceSettings } from '@/redux/settings/selectors';
+import { selectCurrentProject, selectShouldLockProject } from '@/redux/erp/selectors';
 import { ErpLayout } from '@/layout';
 import AutoCompleteAsync from '@/components/AutoCompleteAsync';
 
@@ -39,10 +41,11 @@ function getLastSaturday() {
 export default function CreateFromPlanning() {
   const navigate = useNavigate();
   const dispatch = useDispatch();
+  const currentProject = useSelector(selectCurrentProject);
+  const shouldLockProject = useSelector(selectShouldLockProject);
   const { last_invoice_number } = useSelector(selectFinanceSettings) || {};
   const [weekEnd, setWeekEnd] = useState(getLastSaturday());
   const [projectId, setProjectId] = useState(null);
-  const [contractorId, setContractorId] = useState(null);
   const [contractorId, setContractorId] = useState(null);
   const [projects, setProjects] = useState([]);
   const [vendors, setVendors] = useState([]);
@@ -50,6 +53,12 @@ export default function CreateFromPlanning() {
   const [loading, setLoading] = useState(false);
   const [creating, setCreating] = useState(false);
   const [selectedRowKeys, setSelectedRowKeys] = useState([]);
+
+  useEffect(() => {
+    if (shouldLockProject && currentProject?._id) {
+      setProjectId(currentProject._id);
+    }
+  }, [shouldLockProject, currentProject]);
 
   useEffect(() => {
     dispatch(settingsAction.list({ entity: 'setting' }));
@@ -226,16 +235,25 @@ export default function CreateFromPlanning() {
             </Col>
             <Col>
               <span style={{ marginRight: 8, fontWeight: 500 }}>Project</span>
-              <Select
-                placeholder="All projects"
-                allowClear
-                style={{ width: 220 }}
-                value={projectId}
-                onChange={setProjectId}
-                showSearch
-                optionFilterProp="label"
-                options={projects.map((p) => ({ label: p.name || p.projectCode, value: p._id }))}
-              />
+              {shouldLockProject && currentProject ? (
+                <Input
+                  readOnly
+                  disabled
+                  style={{ width: 220, color: 'rgba(0,0,0,0.88)', cursor: 'not-allowed' }}
+                  value={currentProject.projectCode ? `${currentProject.name} (${currentProject.projectCode})` : currentProject.name}
+                />
+              ) : (
+                <Select
+                  placeholder="All projects"
+                  allowClear
+                  style={{ width: 220 }}
+                  value={projectId}
+                  onChange={setProjectId}
+                  showSearch
+                  optionFilterProp="label"
+                  options={projects.map((p) => ({ label: p.name || p.projectCode, value: p._id }))}
+                />
+              )}
             </Col>
             <Col>
               <span style={{ marginRight: 8, fontWeight: 500 }}>Contractor</span>

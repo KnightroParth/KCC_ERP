@@ -12,9 +12,12 @@ import {
   Spin,
 } from 'antd';
 import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
+import { useSelector } from 'react-redux';
 import axios from 'axios';
 import CrudModule from '@/modules/CrudModule/CrudModule';
 import SelectAsync from '@/components/SelectAsync';
+import LockedProjectInput from '@/components/LockedProjectInput';
+import { selectCurrentProject, selectShouldLockProject } from '@/redux/erp/selectors';
 import { API_BASE_URL } from '@/config/serverApiConfig';
 import storePersist from '@/redux/storePersist';
 import dayjs from 'dayjs';
@@ -54,6 +57,8 @@ async function fetchMaterialsAtSite(projectId) {
 
 function SiteTransferForm() {
   const form = Form.useFormInstance();
+  const currentProject = useSelector(selectCurrentProject);
+  const shouldLockProject = useSelector(selectShouldLockProject);
   const [items, setItems] = useState([]);
   const [materialsAtSourceSite, setMaterialsAtSourceSite] = useState([]);
   const [loadingMaterials, setLoadingMaterials] = useState(false);
@@ -61,6 +66,12 @@ function SiteTransferForm() {
   const [stockErrors, setStockErrors] = useState({});
   const prevFormItemsLengthRef = useRef(0);
   const prevFromProjectIdRef = useRef(undefined);
+
+  useEffect(() => {
+    if (shouldLockProject && currentProject) {
+      form.setFieldsValue({ fromProjectId: currentProject._id });
+    }
+  }, [shouldLockProject, currentProject, form]);
 
   const fromProjectId = Form.useWatch('fromProjectId', form);
   const toProjectId = Form.useWatch('toProjectId', form);
@@ -307,13 +318,18 @@ function SiteTransferForm() {
         label="From Site (Source)"
         name="fromProjectId"
         rules={[{ required: true, message: 'Select source site' }]}
+        initialValue={shouldLockProject && currentProject ? currentProject._id : undefined}
       >
-        <SelectAsync
-          entity="project"
-          displayLabels={['name', 'projectCode']}
-          outputValue="_id"
-          placeholder="Select source project/site"
-        />
+        {shouldLockProject && currentProject ? (
+          <LockedProjectInput />
+        ) : (
+          <SelectAsync
+            entity="project"
+            displayLabels={['name', 'projectCode']}
+            outputValue="_id"
+            placeholder="Select source project/site"
+          />
+        )}
       </Form.Item>
 
       <Form.Item

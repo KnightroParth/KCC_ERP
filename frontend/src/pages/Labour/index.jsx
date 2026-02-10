@@ -5,26 +5,14 @@ import { Form } from 'antd';
 import CrudModule from '@/modules/CrudModule/CrudModule';
 import DynamicForm from '@/forms/DynamicForm';
 import SelectAsync from '@/components/SelectAsync';
+import LockedProjectInput from '@/components/LockedProjectInput';
 import useLanguage from '@/locale/useLanguage';
 import { fields } from './config';
 import { useSelector } from 'react-redux';
 import { selectUpdatedItem } from '@/redux/crud/selectors';
+import { selectCurrentProject, selectShouldLockProject } from '@/redux/erp/selectors';
 
-function ProjectSelect({ value, onChange, form, ...props }) {
-  const [projects, setProjects] = React.useState([]);
-
-  React.useEffect(() => {
-    (async () => {
-      const { request } = await import('@/request');
-      const res = await request.listAll({ entity: 'project' });
-      if (res?.result) setProjects(res.result);
-    })();
-  }, []);
-
-  const handleChange = (projectId) => {
-    onChange?.(projectId);
-  };
-
+function ProjectSelect({ value, onChange, ...props }) {
   return (
     <SelectAsync
       entity="project"
@@ -32,7 +20,7 @@ function ProjectSelect({ value, onChange, form, ...props }) {
       outputValue="_id"
       placeholder="Select Project"
       value={value}
-      onChange={handleChange}
+      onChange={onChange}
       {...props}
     />
   );
@@ -42,33 +30,32 @@ function LabourForm({ fields: fieldConfig, isUpdateForm = false }) {
   const translate = useLanguage();
   const form = Form.useFormInstance();
   const { current } = useSelector(selectUpdatedItem);
+  const currentProject = useSelector(selectCurrentProject);
+  const shouldLockProject = useSelector(selectShouldLockProject);
 
   React.useEffect(() => {
     if (isUpdateForm && current) {
       const updates = {};
       if (current.projectId) {
-        // Extract ID from populated project object or use ID directly
         updates.projectId = typeof current.projectId === 'object' ? current.projectId._id : current.projectId;
       }
       if (Object.keys(updates).length > 0) {
         form.setFieldsValue(updates);
       }
+    } else if (!isUpdateForm && shouldLockProject && currentProject) {
+      form.setFieldsValue({ projectId: currentProject._id });
     }
-  }, [current, isUpdateForm, form]);
+  }, [current, isUpdateForm, currentProject, shouldLockProject, form]);
 
   return (
     <>
       <Form.Item
         label={translate('Project')}
         name="projectId"
-        rules={[
-          {
-            required: true,
-            message: 'Please select a project',
-          },
-        ]}
+        rules={[{ required: true, message: 'Please select a project' }]}
+        initialValue={shouldLockProject && currentProject ? currentProject._id : undefined}
       >
-        <ProjectSelect form={form} />
+        {shouldLockProject && currentProject ? <LockedProjectInput /> : <ProjectSelect />}
       </Form.Item>
 
       <DynamicForm fields={fieldConfig} isUpdateForm={isUpdateForm} />

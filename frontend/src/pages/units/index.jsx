@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { Layout, Select, Typography, message, Empty, Button, Drawer, Form, Input, InputNumber, Collapse, Modal, Popconfirm, Space } from "antd";
 import { PlusOutlined, EditOutlined, DeleteOutlined } from "@ant-design/icons";
+import { useSelector } from "react-redux";
 import { request } from "@/request";
+import { selectCurrentProject, selectShouldLockProject } from "@/redux/erp/selectors";
 import UnitsTable from "./UnitsTable";
 
 const { Content } = Layout;
@@ -9,12 +11,20 @@ const { Option } = Select;
 const { Title } = Typography;
 
 export default function Units() {
+  const currentProject = useSelector(selectCurrentProject);
+  const shouldLockProject = useSelector(selectShouldLockProject);
   const [projects, setProjects] = useState([]);
   const [unitsList, setUnitsList] = useState([]);
   const [selectedProject, setSelectedProject] = useState(null);
   const [tableData, setTableData] = useState([]);
   const [buildings, setBuildings] = useState([]);
   const [loadingProjects, setLoadingProjects] = useState(true);
+
+  useEffect(() => {
+    if (shouldLockProject && currentProject?._id) {
+      setSelectedProject(currentProject);
+    }
+  }, [shouldLockProject, currentProject]);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isBuildingDrawerOpen, setIsBuildingDrawerOpen] = useState(false);
   const [selectedBuilding, setSelectedBuilding] = useState(null);
@@ -345,24 +355,34 @@ export default function Units() {
           <div className="filter-bar" style={{ marginBottom: '24px' }}>
             <div className="filter-bar-item" style={{ flex: 1, minWidth: 250 }}>
               <label className="filter-bar-label">Project</label>
-              <Select
-                placeholder="Select Project"
-                style={{ width: "100%" }}
-                onChange={(value) => {
-                  const project = projects.find((p) => p._id === value);
-                  setSelectedProject(project || null);
-                }}
-                size="large"
-                loading={loadingProjects}
-                value={selectedProject ? selectedProject._id : undefined}
-                allowClear
-              >
-                {projects.map((p) => (
-                  <Option key={p._id} value={p._id}>
-                    {p.name}
-                  </Option>
-                ))}
-              </Select>
+              {shouldLockProject && currentProject ? (
+                <Input
+                  readOnly
+                  disabled
+                  size="large"
+                  value={currentProject.projectCode ? `${currentProject.name} (${currentProject.projectCode})` : currentProject.name}
+                  style={{ width: "100%", color: "rgba(0,0,0,0.88)", cursor: "not-allowed" }}
+                />
+              ) : (
+                <Select
+                  placeholder="Select Project"
+                  style={{ width: "100%" }}
+                  onChange={(value) => {
+                    const project = projects.find((p) => p._id === value);
+                    setSelectedProject(project || null);
+                  }}
+                  size="large"
+                  loading={loadingProjects}
+                  value={selectedProject ? selectedProject._id : undefined}
+                  allowClear
+                >
+                  {projects.map((p) => (
+                    <Option key={p._id} value={p._id}>
+                      {p.name}
+                    </Option>
+                  ))}
+                </Select>
+              )}
             </div>
           </div>
 

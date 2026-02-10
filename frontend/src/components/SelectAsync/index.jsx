@@ -22,6 +22,7 @@ const SelectAsync = ({
   formatter,
   size,
   style,
+  disabled = false,
 }) => {
   const translate = useLanguage();
   const [selectOptions, setOptions] = useState([]);
@@ -135,7 +136,8 @@ const SelectAsync = ({
       filterOption={false}
       placeholder={translate(placeholder)}
       notFoundContent={fetchIsLoading ? 'Loading...' : 'No options available'}
-      allowClear
+      allowClear={!disabled}
+      disabled={disabled}
       getPopupContainer={(triggerNode) => triggerNode.parentElement || document.body}
     >
       {options.map((option, index) => {

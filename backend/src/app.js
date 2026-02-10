@@ -41,6 +41,10 @@ app.use(compression());
 // ⛔️ DO NOT MOVE THIS — Auth routes (login/register) must be open
 app.use('/api', coreAuthRouter);
 
+// ✅ Public app routes (no auth) — e.g. project list for login screen
+const publicAppRouter = require('./routes/appRoutes/publicAppRouter');
+app.use('/api/public', publicAppRouter);
+
 // ✅ Protected core modules (customers, invoices, etc.)
 app.use('/api', adminAuth.isValidAuthToken, coreApiRouter);
 

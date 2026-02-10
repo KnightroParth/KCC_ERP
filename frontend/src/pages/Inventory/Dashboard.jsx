@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Table, Tag, Card, Statistic, Row, Col, message } from 'antd';
+import { Table, Tag, Card, Statistic, Row, Col, message, Input } from 'antd';
+import { useSelector } from 'react-redux';
 import axios from 'axios';
 import { request } from '@/request';
 import { API_BASE_URL } from '@/config/serverApiConfig';
 import storePersist from '@/redux/storePersist';
 import SelectAsync from '@/components/SelectAsync';
+import { selectCurrentProject, selectShouldLockProject } from '@/redux/erp/selectors';
 import dayjs from 'dayjs';
 
 // Helper function to include token (same pattern as request utility)
@@ -18,12 +20,20 @@ function includeToken() {
 }
 
 export default function InventoryDashboard() {
+  const currentProject = useSelector(selectCurrentProject);
+  const shouldLockProject = useSelector(selectShouldLockProject);
   const [projectId, setProjectId] = useState(null);
   const [inventoryData, setInventoryData] = useState([]);
   const [totals, setTotals] = useState({ totalReceived: 0, totalConsumed: 0, totalValue: 0 });
   const [loading, setLoading] = useState(false);
   const [pendingShipments, setPendingShipments] = useState([]);
   const [loadingShipments, setLoadingShipments] = useState(false);
+
+  useEffect(() => {
+    if (shouldLockProject && currentProject?._id) {
+      setProjectId(currentProject._id);
+    }
+  }, [shouldLockProject, currentProject]);
 
   useEffect(() => {
     if (projectId) {
@@ -248,16 +258,25 @@ export default function InventoryDashboard() {
     <div style={{ padding: '24px' }}>
       <Card title="Inventory Dashboard" style={{ marginBottom: 24 }}>
         <div style={{ marginBottom: 16 }}>
-          <label style={{ marginRight: 8, fontWeight: 'bold' }}>Select Project:</label>
-          <SelectAsync
-            entity="project"
-            displayLabels={['name', 'projectCode']}
-            outputValue="_id"
-            placeholder="Select Project"
-            value={projectId}
-            onChange={setProjectId}
-            style={{ width: 300 }}
-          />
+          <label style={{ marginRight: 8, fontWeight: 'bold' }}>Project:</label>
+          {shouldLockProject && currentProject ? (
+            <Input
+              readOnly
+              disabled
+              value={currentProject.projectCode ? `${currentProject.name} (${currentProject.projectCode})` : currentProject.name}
+              style={{ width: 300, color: 'rgba(0,0,0,0.88)', cursor: 'not-allowed' }}
+            />
+          ) : (
+            <SelectAsync
+              entity="project"
+              displayLabels={['name', 'projectCode']}
+              outputValue="_id"
+              placeholder="Select Project"
+              value={projectId}
+              onChange={setProjectId}
+              style={{ width: 300 }}
+            />
+          )}
         </div>
 
         {projectId && (

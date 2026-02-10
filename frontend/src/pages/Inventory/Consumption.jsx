@@ -2,9 +2,12 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Form, InputNumber, Button, Table, Tag, message, Input, DatePicker, Select } from 'antd';
 import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
 import axios from 'axios';
+import { useSelector } from 'react-redux';
 import CrudModule from '@/modules/CrudModule/CrudModule';
 import AutoCompleteAsync from '@/components/AutoCompleteAsync';
 import SelectAsync from '@/components/SelectAsync';
+import LockedProjectInput from '@/components/LockedProjectInput';
+import { selectCurrentProject, selectShouldLockProject } from '@/redux/erp/selectors';
 import { request } from '@/request';
 import { API_BASE_URL } from '@/config/serverApiConfig';
 import storePersist from '@/redux/storePersist';
@@ -26,12 +29,20 @@ function includeToken() {
 
 function ConsumptionForm({ isUpdateForm = false }) {
   const form = Form.useFormInstance();
+  const currentProject = useSelector(selectCurrentProject);
+  const shouldLockProject = useSelector(selectShouldLockProject);
   const [items, setItems] = useState([]);
   const [stockInfo, setStockInfo] = useState({});
   const [canSave, setCanSave] = useState(true);
   const [stockErrors, setStockErrors] = useState({});
   const [contractorOptions, setContractorOptions] = useState([]);
   const prevFormItemsLengthRef = useRef(0);
+
+  useEffect(() => {
+    if (!isUpdateForm && shouldLockProject && currentProject) {
+      form.setFieldsValue({ projectId: currentProject._id });
+    }
+  }, [isUpdateForm, shouldLockProject, currentProject, form]);
 
   // When editing, sync form's items (from setFieldsValue) into local state so the table shows them
   const formItems = Form.useWatch('items', form);
@@ -334,15 +345,20 @@ function ConsumptionForm({ isUpdateForm = false }) {
         label="Project"
         name="projectId"
         rules={[{ required: true, message: 'Please select a project' }]}
+        initialValue={shouldLockProject && currentProject ? currentProject._id : undefined}
       >
-        <SelectAsync
-          entity="project"
-          displayLabels={['name', 'projectCode']}
-          outputValue="_id"
-          placeholder="Select Project"
-          size="large"
-          style={fieldStyle}
-        />
+        {shouldLockProject && currentProject ? (
+          <LockedProjectInput />
+        ) : (
+          <SelectAsync
+            entity="project"
+            displayLabels={['name', 'projectCode']}
+            outputValue="_id"
+            placeholder="Select Project"
+            size="large"
+            style={fieldStyle}
+          />
+        )}
       </Form.Item>
 
       <Form.Item

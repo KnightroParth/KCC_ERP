@@ -1,6 +1,7 @@
 import { useLocation, Navigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { selectCurrentAdmin } from '@/redux/auth/selectors';
+import { selectCurrentProject } from '@/redux/erp/selectors';
 import { hasPermission, PATH_TO_MODULE } from '@/config/roles';
 
 /**
@@ -16,9 +17,19 @@ function getModuleForPath(path) {
 export default function RouteGuard({ children }) {
   const location = useLocation();
   const current = useSelector(selectCurrentAdmin);
+  const currentProject = useSelector(selectCurrentProject);
   const path = location.pathname || '';
 
   if (!current?.role) return children;
+
+  // Mandatory project selection: all roles except 'master' must have a project selected
+  const roleNormalized = String(current.role || '').toLowerCase().trim();
+  const isMaster = roleNormalized === 'master' || roleNormalized === 'owner';
+  const mustSelectProject = !isMaster && !currentProject;
+  const isSelectProjectPage = path === '/select-project';
+  if (mustSelectProject && !isSelectProjectPage) {
+    return <Navigate to="/select-project" replace state={{ from: path }} />;
+  }
 
   const module = getModuleForPath(path);
   if (module == null) return children;

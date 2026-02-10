@@ -8,6 +8,7 @@ import {
   Steps,
   Button,
   Space,
+  Input,
 } from 'antd';
 import { ErpLayout } from '@/layout';
 import SelectAsync from '@/components/SelectAsync';
@@ -16,6 +17,7 @@ import dayjs from 'dayjs';
 import request from '@/request/request';
 import { useSelector } from 'react-redux';
 import { selectFinanceSettings } from '@/redux/settings/selectors';
+import { selectCurrentProject, selectShouldLockProject } from '@/redux/erp/selectors';
 import { settingsAction } from '@/redux/settings/actions';
 import { useDispatch } from 'react-redux';
 
@@ -42,6 +44,8 @@ function getLastSaturday() {
 
 export default function BillingFromPlanning() {
   const dispatch = useDispatch();
+  const currentProject = useSelector(selectCurrentProject);
+  const shouldLockProject = useSelector(selectShouldLockProject);
   const { last_invoice_number } = useSelector(selectFinanceSettings) || {};
   const [projectId, setProjectId] = useState(undefined);
   const [projectName, setProjectName] = useState('');
@@ -50,6 +54,13 @@ export default function BillingFromPlanning() {
   const [weekEnd, setWeekEnd] = useState(getLastSaturday());
   const [currentStep, setCurrentStep] = useState(0);
   const [draftInvoice, setDraftInvoice] = useState(null);
+
+  useEffect(() => {
+    if (shouldLockProject && currentProject?._id) {
+      setProjectId(currentProject._id);
+      setProjectName(currentProject.name || '');
+    }
+  }, [shouldLockProject, currentProject]);
 
   useEffect(() => {
     dispatch(settingsAction.list({ entity: 'setting' }));
@@ -92,13 +103,22 @@ export default function BillingFromPlanning() {
               <Col xs={24} sm={12} md={6}>
                 <Space direction="vertical" size={4} style={{ width: '100%' }}>
                   <span style={{ fontWeight: 500 }}>Project <span style={{ color: '#ff4d4f' }}>*</span></span>
-                  <SelectAsync
-                    entity="project"
-                    displayLabels={['name']}
-                    placeholder="Select Project"
-                    value={projectId}
-                    onChange={setProjectId}
-                  />
+                  {shouldLockProject && currentProject ? (
+                    <Input
+                      readOnly
+                      disabled
+                      value={currentProject.projectCode ? `${currentProject.name} (${currentProject.projectCode})` : currentProject.name}
+                      style={{ color: 'rgba(0,0,0,0.88)', cursor: 'not-allowed' }}
+                    />
+                  ) : (
+                    <SelectAsync
+                      entity="project"
+                      displayLabels={['name']}
+                      placeholder="Select Project"
+                      value={projectId}
+                      onChange={setProjectId}
+                    />
+                  )}
                 </Space>
               </Col>
               <Col xs={24} sm={12} md={6}>

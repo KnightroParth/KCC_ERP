@@ -1,6 +1,7 @@
 import * as actionTypes from './types';
 
 const INITIAL_STATE = {
+  currentProject: null, // Persisted via storePersist (redux-persist style); used for project-scoped workflow
   current: {
     result: null,
   },
@@ -67,12 +68,24 @@ const INITIAL_STATE = {
   },
 };
 
+export { INITIAL_STATE as ERP_INITIAL_STATE };
+
 const erpReducer = (state = INITIAL_STATE, action) => {
   const { payload, keyState } = action;
 
   switch (action.type) {
     case actionTypes.RESET_STATE:
       return INITIAL_STATE;
+    case actionTypes.SET_CURRENT_PROJECT:
+      return {
+        ...state,
+        currentProject: payload,
+      };
+    case actionTypes.CLEAR_CURRENT_PROJECT:
+      return {
+        ...state,
+        currentProject: null,
+      };
     case actionTypes.CURRENT_ITEM:
       return {
         ...state,

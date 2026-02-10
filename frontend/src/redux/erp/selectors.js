@@ -2,6 +2,22 @@ import { createSelector } from 'reselect';
 
 const selectErp = (state) => state.erp;
 
+// Ensure we only return a valid project object (has _id) or null — guards against corrupt state
+export const selectCurrentProject = createSelector([selectErp], (erp) => {
+  const p = erp.currentProject ?? null;
+  return p && typeof p === 'object' && p._id ? p : null;
+});
+
+/** True when project field should be locked (non-master with currentProject set). Master always gets dropdown. */
+export const selectShouldLockProject = createSelector(
+  [selectCurrentProject, (state) => state.auth?.current],
+  (project, auth) => {
+    if (!project) return false;
+    const role = String((auth && auth.role) || '').toLowerCase().trim();
+    const isMaster = role === 'master' || role === 'owner';
+    return !isMaster;
+  }
+);
 export const selectCurrentItem = createSelector([selectErp], (erp) => erp.current);
 
 export const selectListItems = createSelector([selectErp], (erp) => erp.list);

@@ -1,12 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { Form, InputNumber, Table, Tag, message, Input, DatePicker } from 'antd';
+import { useSelector } from 'react-redux';
 import CrudModule from '@/modules/CrudModule/CrudModule';
 import SelectAsync from '@/components/SelectAsync';
+import { selectCurrentProject, selectShouldLockProject } from '@/redux/erp/selectors';
+import LockedProjectInput from '@/components/LockedProjectInput';
 import { request } from '@/request';
 import dayjs from 'dayjs';
 
 function GRNForm({ isUpdateForm = false }) {
   const form = Form.useFormInstance();
+  const currentProject = useSelector(selectCurrentProject);
+  const shouldLockProject = useSelector(selectShouldLockProject);
   const [poItems, setPoItems] = useState([]);
   const [expectedDeliveryDate, setExpectedDeliveryDate] = useState(null);
   
@@ -42,9 +47,10 @@ function GRNForm({ isUpdateForm = false }) {
         if (itemsWithPending.length === 0) {
           message.warning('All items in this Purchase Order have been fully received. No items to receive.');
           setPoItems([]);
+          const projectId = (shouldLockProject && currentProject?._id) ?? (po?.referenceRequirement?.projectId?._id || po?.referenceRequirement?.projectId || null);
           form.setFieldsValue({
             purchaseOrder: poId,
-            projectId: po?.referenceRequirement?.projectId?._id || po?.referenceRequirement?.projectId || null,
+            projectId,
             date: dayjs(),
             items: [],
           });
@@ -64,10 +70,11 @@ function GRNForm({ isUpdateForm = false }) {
             ...item,
             quantity: Math.max(parseFloat(item.quantity) || 0.01, 0.01)
           }));
-          
+
+          const projectId = (shouldLockProject && currentProject?._id) ?? (po?.referenceRequirement?.projectId?._id || po?.referenceRequirement?.projectId || null);
           form.setFieldsValue({
             purchaseOrder: poId,
-            projectId: po?.referenceRequirement?.projectId?._id || po?.referenceRequirement?.projectId || null,
+            projectId,
             date: dayjs(),
             items: validatedFormItems,
           });
@@ -313,13 +320,18 @@ function GRNForm({ isUpdateForm = false }) {
         label="Project"
         name="projectId"
         rules={[{ required: true, message: 'Please select a project' }]}
+        initialValue={shouldLockProject && currentProject ? currentProject._id : undefined}
       >
-        <SelectAsync
-          entity="project"
-          displayLabels={['name', 'projectCode']}
-          outputValue="_id"
-          placeholder="Select Project"
-        />
+        {shouldLockProject && currentProject ? (
+          <LockedProjectInput />
+        ) : (
+          <SelectAsync
+            entity="project"
+            displayLabels={['name', 'projectCode']}
+            outputValue="_id"
+            placeholder="Select Project"
+          />
+        )}
       </Form.Item>
 
       <Form.Item

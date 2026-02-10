@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Layout, Select, Card, Empty, Table, Tag, message, Button, Modal, Space, Form } from 'antd';
+import { Layout, Select, Card, Empty, Table, Tag, message, Button, Modal, Space, Form, Input } from 'antd';
 import { DeleteOutlined, CameraOutlined } from '@ant-design/icons';
+import { useSelector } from 'react-redux';
 import request from '@/request/request';
+import { selectCurrentProject, selectShouldLockProject } from '@/redux/erp/selectors';
 import { WORK_CATEGORIES, COMPLEX_TASK_COMPONENTS } from '@/config/workConfig';
 import ImageUpload from '@/components/ImageUpload';
 
@@ -27,6 +29,8 @@ const { Content } = Layout;
 const { Option } = Select;
 
 export default function WorkInProgress() {
+    const currentProject = useSelector(selectCurrentProject);
+    const shouldLockProject = useSelector(selectShouldLockProject);
     const [projects, setProjects] = useState([]);
     const [unitsList, setUnitsList] = useState([]);
     const [selectedProject, setSelectedProject] = useState(null);
@@ -37,6 +41,12 @@ export default function WorkInProgress() {
     const [loading, setLoading] = useState(false);
     const [data, setData] = useState([]);
     const [progressData, setProgressData] = useState({});
+
+    useEffect(() => {
+        if (shouldLockProject && currentProject?._id) {
+            setSelectedProject(currentProject._id);
+        }
+    }, [shouldLockProject, currentProject]);
 
     // Photo and checklist states
     const [isChecklistModalOpen, setIsChecklistModalOpen] = useState(false);
@@ -447,15 +457,24 @@ export default function WorkInProgress() {
                     </div>
 
                     <div className="filter-bar" style={{ display: 'flex', gap: 16, marginBottom: 24 }}>
-                        <Select
-                            placeholder="Select Project"
-                            style={{ flex: 1 }}
-                            onChange={setSelectedProject}
-                            value={selectedProject}
-                            allowClear
-                        >
-                            {projects.map(p => <Option key={p._id} value={p._id}>{p.name}</Option>)}
-                        </Select>
+                        {shouldLockProject && currentProject ? (
+                            <Input
+                                readOnly
+                                disabled
+                                style={{ flex: 1, color: 'rgba(0,0,0,0.88)', cursor: 'not-allowed' }}
+                                value={currentProject.projectCode ? `${currentProject.name} (${currentProject.projectCode})` : currentProject.name}
+                            />
+                        ) : (
+                            <Select
+                                placeholder="Select Project"
+                                style={{ flex: 1 }}
+                                onChange={setSelectedProject}
+                                value={selectedProject}
+                                allowClear
+                            >
+                                {projects.map(p => <Option key={p._id} value={p._id}>{p.name}</Option>)}
+                            </Select>
+                        )}
 
                         <Select
                             placeholder="Select Building"
