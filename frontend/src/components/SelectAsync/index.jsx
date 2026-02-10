@@ -20,6 +20,8 @@ const SelectAsync = ({
   onChange,
   searchFields,
   formatter,
+  size,
+  style,
 }) => {
   const translate = useLanguage();
   const [selectOptions, setOptions] = useState([]);
@@ -123,8 +125,9 @@ const SelectAsync = ({
   
   return (
     <Select
+      size={size}
+      style={style}
       loading={fetchIsLoading}
-      // disabled={fetchIsLoading} // Commented out to allow typing while loading
       value={currentValue}
       onChange={handleSelectChange}
       onSearch={searchFields ? handleSearch : undefined}

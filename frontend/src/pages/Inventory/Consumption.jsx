@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Form, InputNumber, Button, Table, Tag, message, Input, DatePicker } from 'antd';
+import React, { useState, useEffect, useRef } from 'react';
+import { Form, InputNumber, Button, Table, Tag, message, Input, DatePicker, Select } from 'antd';
 import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
 import axios from 'axios';
 import CrudModule from '@/modules/CrudModule/CrudModule';
@@ -8,7 +8,11 @@ import SelectAsync from '@/components/SelectAsync';
 import { request } from '@/request';
 import { API_BASE_URL } from '@/config/serverApiConfig';
 import storePersist from '@/redux/storePersist';
+import { WORK_CATEGORIES } from '@/config/workConfig';
 import dayjs from 'dayjs';
+
+// Work type options from planning (same as Planning "Select Work Type" dropdown)
+const WORK_TYPE_OPTIONS = WORK_CATEGORIES.map((c) => ({ value: c.label, label: c.label }));
 
 // Helper function to include token
 function includeToken() {
@@ -26,6 +30,45 @@ function ConsumptionForm({ isUpdateForm = false }) {
   const [stockInfo, setStockInfo] = useState({});
   const [canSave, setCanSave] = useState(true);
   const [stockErrors, setStockErrors] = useState({});
+  const [contractorOptions, setContractorOptions] = useState([]);
+  const prevFormItemsLengthRef = useRef(0);
+
+  // When editing, sync form's items (from setFieldsValue) into local state so the table shows them
+  const formItems = Form.useWatch('items', form);
+  useEffect(() => {
+    if (!isUpdateForm) return;
+    const formItemsArray = Array.isArray(formItems) ? formItems : [];
+    if (formItemsArray.length === 0) {
+      prevFormItemsLengthRef.current = 0;
+      setItems([]);
+      return;
+    }
+    // Only sync when form just got populated from server (0 -> N items), not when user adds rows
+    if (prevFormItemsLengthRef.current === 0 && formItemsArray.length > 0) {
+      const normalized = formItemsArray.map((row, i) => ({
+        key: row.key || row._id || `edit-row-${i}-${Date.now()}`,
+        material: row.material?._id || row.material,
+        quantity: row.quantity ?? 1,
+        unit: row.unit || 'nos',
+      }));
+      setItems(normalized);
+    }
+    prevFormItemsLengthRef.current = formItemsArray.length;
+  }, [isUpdateForm, formItems]);
+
+  // Load all contractors (vendors) for Issued To dropdown
+  useEffect(() => {
+    request
+      .listAll({ entity: 'vendor', options: { enabled: true } })
+      .then((res) => {
+        if (Array.isArray(res)) {
+          setContractorOptions(res.map((v) => ({ value: v.name || v._id, label: v.name || '—' })));
+        } else if (res?.result && Array.isArray(res.result)) {
+          setContractorOptions(res.result.map((v) => ({ value: v.name || v._id, label: v.name || '—' })));
+        }
+      })
+      .catch(() => setContractorOptions([]));
+  }, []);
 
   const checkStock = async (projectId, materialId) => {
     if (!materialId) return;
@@ -130,7 +173,7 @@ function ConsumptionForm({ isUpdateForm = false }) {
     {
       title: 'Material',
       key: 'material',
-      width: '30%',
+      width: '32%',
       render: (_, record, index) => {
         const stock = record.material ? stockInfo[record.material] : null;
         const available = stock?.currentStock || 0;
@@ -149,6 +192,10 @@ function ConsumptionForm({ isUpdateForm = false }) {
                 searchFields="name,category"
                 outputValue="_id"
                 placeholder="Search material..."
+                size="large"
+                style={{ width: '100%', minHeight: 44, fontSize: 15 }}
+                dropdownMinWidth={400}
+                dropdownMatchSelectWidth={false}
                 onChange={(value) => {
                   updateItem(record.key, 'material', value);
                   if (value) {
@@ -189,7 +236,8 @@ function ConsumptionForm({ isUpdateForm = false }) {
     {
       title: 'Quantity',
       key: 'quantity',
-      width: '20%',
+      width: '18%',
+      minWidth: 140,
       render: (_, record, index) => {
         const info = stockInfo[record.material];
         const maxQty = info?.currentStock || 0;
@@ -218,10 +266,11 @@ function ConsumptionForm({ isUpdateForm = false }) {
             help={exceedsStock ? `Insufficient Stock for Construction Site. Available: ${maxQty.toFixed(2)}` : ''}
           >
             <InputNumber
+              size="large"
               min={0.01}
               max={maxQty}
               step={0.01}
-              style={{ width: '100%' }}
+              style={{ width: '100%', minWidth: 120, fontSize: 15 }}
               onChange={(value) => updateItem(record.key, 'quantity', value)}
             />
           </Form.Item>
@@ -231,7 +280,8 @@ function ConsumptionForm({ isUpdateForm = false }) {
     {
       title: 'Unit',
       key: 'unit',
-      width: '200px',
+      width: '16%',
+      minWidth: 140,
       render: (_, record, index) => {
         const info = stockInfo[record.material];
         return (
@@ -240,10 +290,11 @@ function ConsumptionForm({ isUpdateForm = false }) {
             style={{ margin: 0 }}
           >
             <Input
+              size="large"
               placeholder="Unit"
               value={info?.material?.uom || 'nos'}
               readOnly
-              style={{ minWidth: '150px', fontSize: '14px' }}
+              style={{ minWidth: 120, fontSize: 15 }}
             />
           </Form.Item>
         );
@@ -275,6 +326,8 @@ function ConsumptionForm({ isUpdateForm = false }) {
     });
   }, [items]);
 
+  const fieldStyle = { width: '100%', minHeight: 44, fontSize: 15 };
+
   return (
     <>
       <Form.Item
@@ -287,22 +340,42 @@ function ConsumptionForm({ isUpdateForm = false }) {
           displayLabels={['name', 'projectCode']}
           outputValue="_id"
           placeholder="Select Project"
+          size="large"
+          style={fieldStyle}
         />
       </Form.Item>
 
       <Form.Item
         label="Issued To"
         name="issuedTo"
-        rules={[{ required: true, message: 'Please enter who this is issued to' }]}
+        rules={[{ required: true, message: 'Please select contractor' }]}
       >
-        <Input placeholder="e.g., Contractor Name, Department" />
+        <Select
+          size="large"
+          placeholder="Select contractor"
+          allowClear
+          showSearch
+          optionFilterProp="label"
+          options={contractorOptions}
+          notFoundContent="No contractors loaded"
+          style={fieldStyle}
+        />
       </Form.Item>
 
       <Form.Item
         label="Work Activity"
         name="workActivity"
       >
-        <Input placeholder="e.g., Slab Casting, Wall Construction" />
+        <Select
+          size="large"
+          placeholder="Select work type (from Planning)"
+          allowClear
+          showSearch
+          optionFilterProp="label"
+          options={WORK_TYPE_OPTIONS}
+          notFoundContent="No work types"
+          style={fieldStyle}
+        />
       </Form.Item>
 
       <Form.Item
@@ -310,7 +383,7 @@ function ConsumptionForm({ isUpdateForm = false }) {
         name="date"
         rules={[{ required: true, message: 'Please select date' }]}
       >
-        <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
+        <DatePicker size="large" style={{ width: '100%', fontSize: 15 }} format="DD/MM/YYYY" />
       </Form.Item>
 
       <Form.Item label="Items" required>
@@ -327,7 +400,7 @@ function ConsumptionForm({ isUpdateForm = false }) {
             dataSource={items}
             columns={columns}
             pagination={false}
-            size="small"
+            size="middle"
             rowKey="key"
           />
         </Form.Item>
@@ -339,7 +412,7 @@ function ConsumptionForm({ isUpdateForm = false }) {
       </Form.Item>
 
       <Form.Item label="Notes" name="notes">
-        <Input.TextArea rows={3} placeholder="Additional notes..." />
+        <Input.TextArea rows={4} placeholder="Additional notes..." style={{ fontSize: 15 }} />
       </Form.Item>
 
       <Form.Item name="type" initialValue="OUT" hidden>
@@ -360,7 +433,7 @@ export default function Consumption() {
   const deleteModalLabels = ['date'];
 
   const tableActions = {
-    showEdit: false,
+    showEdit: true,
     showDelete: true,
     position: 'right',
   };
@@ -388,15 +461,21 @@ export default function Consumption() {
       title: 'Issued To',
       dataIndex: 'issuedTo',
       key: 'issuedTo',
+      ellipsis: false,
+      width: 160,
     },
     {
       title: 'Work Activity',
       dataIndex: 'workActivity',
       key: 'workActivity',
+      ellipsis: false,
+      width: 180,
+      render: (val) => (val && String(val).trim() ? val : '—'),
     },
     {
       title: 'Items Count',
       key: 'itemsCount',
+      width: 100,
       render: (_, record) => record?.items?.length || 0,
     },
   ];

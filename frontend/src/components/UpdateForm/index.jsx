@@ -74,13 +74,47 @@ export default function UpdateForm({ config, formElements, withUpload = false })
       if (newValues.projectId && typeof newValues.projectId === 'object') {
           newValues.projectId = newValues.projectId._id;
       }
+      // Site transfer: From/To site are populated objects -> use _id for form dropdowns
+      if (newValues.fromProjectId && typeof newValues.fromProjectId === 'object') {
+        newValues.fromProjectId = newValues.fromProjectId._id;
+      }
+      if (newValues.toProjectId && typeof newValues.toProjectId === 'object') {
+        newValues.toProjectId = newValues.toProjectId._id;
+      }
 
       // Ensure material rate (price) is a number when opening edit
       if (entity === 'inventory/material') {
         newValues.price = newValues.price != null ? Number(newValues.price) : 0;
       }
 
+      // Inventory transaction (Consumption): items[].material may be populated object -> use _id for form
+      if (entity === 'inventory/transaction' && Array.isArray(newValues.items) && newValues.items.length > 0) {
+        newValues.items = newValues.items.map((row) => ({
+          ...row,
+          material: row.material?._id || row.material,
+          quantity: row.quantity ?? 1,
+          unit: row.unit || 'nos',
+        }));
+      }
+
+      // Site transfer: items[].material may be populated object -> use _id for form
+      if (entity === 'inventory/site-transfer' && Array.isArray(newValues.items) && newValues.items.length > 0) {
+        newValues.items = newValues.items.map((row) => ({
+          ...row,
+          material: row.material?._id || row.material,
+          quantity: row.quantity ?? 1,
+          unit: row.unit || 'nos',
+        }));
+      }
+
       form.resetFields();
+      // Defer setFieldsValue for site-transfer so form children don't overwrite items on first paint
+      if (entity === 'inventory/site-transfer') {
+        const timer = setTimeout(() => {
+          form.setFieldsValue(newValues);
+        }, 0);
+        return () => clearTimeout(timer);
+      }
       form.setFieldsValue(newValues);
     }
   }, [currentItem]); // Dependency is now currentItem

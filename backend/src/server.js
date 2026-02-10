@@ -27,8 +27,9 @@ if (!DATABASE) {
 const mongooseOptions = {
   serverSelectionTimeoutMS: 20000,
   connectTimeoutMS: 20000,
-  // If one Atlas node fails DNS (ENOTFOUND), allow using secondaries when possible
-  readPreference: 'secondaryPreferred',
+  // Use primary so transactions work (MongoDB: "Read preference in a transaction must be primary").
+  // Inventory stock transactions and site transfers use sessions; secondaryPreferred breaks them.
+  readPreference: 'primary',
 };
 
 function connectMongo() {

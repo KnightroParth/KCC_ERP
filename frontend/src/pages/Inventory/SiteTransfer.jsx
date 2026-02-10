@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Form,
   InputNumber,
@@ -59,18 +59,46 @@ function SiteTransferForm() {
   const [loadingMaterials, setLoadingMaterials] = useState(false);
   const [canSave, setCanSave] = useState(true);
   const [stockErrors, setStockErrors] = useState({});
+  const prevFormItemsLengthRef = useRef(0);
+  const prevFromProjectIdRef = useRef(undefined);
 
   const fromProjectId = Form.useWatch('fromProjectId', form);
   const toProjectId = Form.useWatch('toProjectId', form);
+  const formItems = Form.useWatch('items', form);
 
-  // When user selects source site (e.g. Lotus Green), load only materials available at THAT site
+  // When editing, sync form's items (from setFieldsValue) into local state so the table shows them
+  useEffect(() => {
+    const formItemsArray = Array.isArray(formItems) ? formItems : [];
+    if (formItemsArray.length === 0) {
+      prevFormItemsLengthRef.current = 0;
+      setItems([]);
+      return;
+    }
+    if (prevFormItemsLengthRef.current === 0 && formItemsArray.length > 0) {
+      const normalized = formItemsArray.map((row, i) => ({
+        key: row.key || row._id || `edit-row-${i}-${Date.now()}`,
+        material: row.material?._id || row.material,
+        quantity: row.quantity ?? 1,
+        unit: row.unit || 'nos',
+      }));
+      setItems(normalized);
+    }
+    prevFormItemsLengthRef.current = formItemsArray.length;
+  }, [formItems]);
+
+  // When user selects source site (e.g. Lotus Green), load only materials available at THAT site.
+  // Don't clear form items when fromProjectId is first undefined (edit mode load) - only clear when user clears the selection.
   useEffect(() => {
     if (!fromProjectId) {
       setMaterialsAtSourceSite([]);
       setItems([]);
-      form.setFieldValue('items', []);
+      if (prevFromProjectIdRef.current != null) {
+        form.setFieldValue('items', []);
+      }
+      prevFromProjectIdRef.current = fromProjectId;
       return;
     }
+    prevFromProjectIdRef.current = fromProjectId;
     setLoadingMaterials(true);
     fetchMaterialsAtSite(fromProjectId)
       .then((list) => {
@@ -380,7 +408,7 @@ export default function SiteTransfer() {
   const deleteModalLabels = ['date'];
 
   const tableActions = {
-    showEdit: false,
+    showEdit: true,
     showDelete: true,
     position: 'right',
   };
@@ -445,7 +473,7 @@ export default function SiteTransfer() {
     <CrudModule
       config={config}
       createForm={<SiteTransferForm />}
-      updateForm={null}
+      updateForm={<SiteTransferForm />}
     />
   );
 }

@@ -14,8 +14,12 @@ export default function AutoCompleteAsync({
   redirectLabel = 'Add New',
   withRedirect = false,
   urlToRedirect = '/',
-  value, 
-  onChange, 
+  value,
+  onChange,
+  size,
+  style,
+  dropdownMinWidth = 320,
+  dropdownMatchSelectWidth = false,
 }) {
   const translate = useLanguage();
 
@@ -134,6 +138,10 @@ export default function AutoCompleteAsync({
 
   return (
     <Select
+      size={size}
+      style={{ minWidth: '100%', ...style }}
+      dropdownStyle={{ minWidth: dropdownMinWidth }}
+      dropdownMatchSelectWidth={dropdownMatchSelectWidth}
       loading={isLoading || searching}
       showSearch
       allowClear
@@ -145,19 +153,25 @@ export default function AutoCompleteAsync({
       onSearch={onSearch}
       onClear={() => {
         setSearching(false);
-        setValToSearch(''); 
+        setValToSearch('');
       }}
       onChange={handleSelectChange}
-      style={{ minWidth: '100%' }}
+      optionLabelProp="label"
     >
-      {selectOptions.map((optionField) => (
-        <Select.Option
-          key={optionField[outputValue] || optionField}
-          value={optionField[outputValue] || optionField}
-        >
-          {labels(optionField)}
-        </Select.Option>
-      ))}
+      {selectOptions.map((optionField) => {
+        const label = labels(optionField);
+        return (
+          <Select.Option
+            key={optionField[outputValue] || optionField}
+            value={optionField[outputValue] || optionField}
+            label={label}
+          >
+            <span style={{ whiteSpace: 'nowrap' }} title={label}>
+              {label}
+            </span>
+          </Select.Option>
+        );
+      })}
       {withRedirect && <Select.Option value={addNewValue.value}>{addNewValue.label}</Select.Option>}
     </Select>
   );
