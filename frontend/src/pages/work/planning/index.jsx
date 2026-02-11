@@ -317,8 +317,9 @@ export default function Planning() {
                 const unitsResult = await assignWork.fetchUnits();
                 if (unitsResult.success) setUnitsList(unitsResult.result || []);
 
-                const staffResult = await request.list({ entity: 'labour', options: { status: 'Active' } });
-                if (staffResult.result) setStaff(staffResult.result);
+                // Company staff (Site Engineer, Incharge, Supervisor) from Manage Company Staff
+                const staffResult = await request.listAll({ entity: 'staff' });
+                if (staffResult.success && staffResult.result) setStaff(staffResult.result);
 
                 const vendorResult = await request.listAll({ entity: 'vendor', options: { enabled: true } });
                 if (vendorResult.result) setVendors(vendorResult.result);
@@ -846,10 +847,10 @@ export default function Planning() {
                                     <div style={{ marginBottom: 4, fontWeight: 500 }}>Site Engineer</div>
                                     <Select
                                         style={{ width: '100%' }}
-                                        placeholder="Select"
+                                        placeholder="Select Site Engineer"
                                         showSearch
                                         optionFilterProp="label"
-                                        options={staff.map(s => ({ label: s.name, value: s._id }))}
+                                        options={staff.filter(s => s.role === 'site_engineer' || s.designation === 'Site Engineer').map(s => ({ label: s.name, value: s._id }))}
                                         value={headerDetails.siteEngineer}
                                         onChange={(val) => setHeaderDetails(prev => ({ ...prev, siteEngineer: val }))}
                                     />
@@ -858,10 +859,10 @@ export default function Planning() {
                                     <div style={{ marginBottom: 4, fontWeight: 500 }}>Supervisor</div>
                                     <Select
                                         style={{ width: '100%' }}
-                                        placeholder="Select"
+                                        placeholder="Select Supervisor"
                                         showSearch
                                         optionFilterProp="label"
-                                        options={staff.map(s => ({ label: s.name, value: s._id }))}
+                                        options={staff.filter(s => s.role === 'planner' || s.designation === 'Site Incharge').map(s => ({ label: s.name, value: s._id }))}
                                         value={headerDetails.supervisor}
                                         onChange={(val) => setHeaderDetails(prev => ({ ...prev, supervisor: val }))}
                                     />
@@ -870,10 +871,10 @@ export default function Planning() {
                                     <div style={{ marginBottom: 4, fontWeight: 500 }}>Incharge</div>
                                     <Select
                                         style={{ width: '100%' }}
-                                        placeholder="Select"
+                                        placeholder="Select Incharge"
                                         showSearch
                                         optionFilterProp="label"
-                                        options={staff.map(s => ({ label: s.name, value: s._id }))}
+                                        options={staff.filter(s => s.role === 'planner' || s.designation === 'Site Incharge').map(s => ({ label: s.name, value: s._id }))}
                                         value={headerDetails.incharge}
                                         onChange={(val) => setHeaderDetails(prev => ({ ...prev, incharge: val }))}
                                     />

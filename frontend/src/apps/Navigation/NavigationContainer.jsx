@@ -66,6 +66,7 @@ function Sidebar({ collapsible, isMobile = false }) {
   const isAttendanceActive =
     currentPath === 'attendance' ||
     currentPath === 'labour' ||
+    currentPath === 'attendance/manage-company-staff' ||
     currentPath === 'vendor';
 
   const isWorkActive =
@@ -117,7 +118,8 @@ function Sidebar({ collapsible, isMobile = false }) {
       label: <span style={parentModuleLabelStyle}>Attendance</span>,
       children: [
         { key: 'attendance', label: <Link to="/attendance" style={{ ...subLinkStyle, color: currentPath === 'attendance' ? '#ffffff' : '#1677ff' }}>Mark Attendance</Link> },
-        { key: 'labour', label: <Link to="/labour" style={{ ...subLinkStyle, color: currentPath === 'labour' ? '#ffffff' : '#1677ff' }}>Manage Staff</Link> },
+        { key: 'labour', label: <Link to="/labour" style={{ ...subLinkStyle, color: currentPath === 'labour' ? '#ffffff' : '#1677ff' }}>Manage Company Labour</Link> },
+        { key: 'attendance/manage-company-staff', label: <Link to="/attendance/manage-company-staff" style={{ ...subLinkStyle, color: currentPath === 'attendance/manage-company-staff' ? '#ffffff' : '#1677ff' }}>Manage Company Staff</Link> },
         { key: 'vendor', label: <Link to="/vendor" style={{ ...subLinkStyle, color: currentPath === 'vendor' ? '#ffffff' : '#1677ff' }}>Manage Contractor</Link> },
       ],
     },

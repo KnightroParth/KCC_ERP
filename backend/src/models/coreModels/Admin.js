@@ -23,6 +23,22 @@ const adminSchema = new Schema({
     type: String,
     trim: true,
   },
+  /** Mobile number (unique, used for login). */
+  mobile: {
+    type: String,
+    trim: true,
+    sparse: true,
+  },
+  /** Display designation (e.g. "Project Manager", "Site Engineer"). */
+  designation: {
+    type: String,
+    trim: true,
+  },
+  /** Project IDs this staff is assigned to. */
+  assignedProjects: [{
+    type: Schema.Types.ObjectId,
+    ref: 'Project',
+  }],
   created: {
     type: Date,
     default: Date.now,

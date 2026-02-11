@@ -43,6 +43,14 @@ export default function UpdateForm({ config, formElements, withUpload = false })
     if (entity === 'inventory/material' && fieldsValue.price !== undefined) {
       fieldsValue.price = Number(fieldsValue.price) || 0;
     }
+
+    // Staff: single project field -> assignedProjects array for API
+    if (entity === 'staff') {
+      fieldsValue.assignedProjects = fieldsValue.assignedProjectId
+        ? [fieldsValue.assignedProjectId]
+        : [];
+      delete fieldsValue.assignedProjectId;
+    }
     
     dispatch(crud.update({ entity, id, jsonData: fieldsValue, withUpload }));
   };
@@ -105,6 +113,13 @@ export default function UpdateForm({ config, formElements, withUpload = false })
           quantity: row.quantity ?? 1,
           unit: row.unit || 'nos',
         }));
+      }
+
+      // Staff (Manage Company Staff): enabled -> status, assignedProjects -> single assignedProjectId for form
+      if (entity === 'staff') {
+        newValues.status = newValues.enabled ? 'Active' : 'Inactive';
+        const firstProject = newValues.assignedProjects?.[0];
+        newValues.assignedProjectId = typeof firstProject === 'object' && firstProject?._id ? firstProject._id : firstProject;
       }
 
       form.resetFields();

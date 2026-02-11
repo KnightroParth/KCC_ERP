@@ -4,10 +4,12 @@ const mongoose = require('mongoose');
 
 const authUser = require('./authUser');
 
+const ROLES = ['master', 'admin', 'pm', 'planner', 'site_engineer', 'store_incharge', 'accounts'];
+
 const login = async (req, res, { userModel }) => {
   const UserPasswordModel = mongoose.model(userModel + 'Password');
   const UserModel = mongoose.model(userModel);
-  const { email, password } = req.body;
+  const { email, password, requestedRole } = req.body;
 
   // validate
   const objectSchema = Joi.object({
@@ -15,9 +17,10 @@ const login = async (req, res, { userModel }) => {
       .email({ tlds: { allow: true } })
       .required(),
     password: Joi.string().required(),
+    requestedRole: Joi.string().valid(...ROLES).optional(),
   });
 
-  const { error, value } = objectSchema.validate({ email, password });
+  const { error, value } = objectSchema.validate({ email, password, requestedRole });
   if (error) {
     return res.status(409).json({
       success: false,
@@ -46,6 +49,29 @@ const login = async (req, res, { userModel }) => {
       result: null,
       message: 'Your account is disabled, contact your account adminstrator',
     });
+
+  // When signing in "with my account" for a specific profile, ensure this user has that role
+  if (requestedRole && requestedRole.trim()) {
+    const userRole = (user.role || '').toLowerCase().trim();
+    const requested = requestedRole.toLowerCase().trim();
+    if (userRole !== requested) {
+      const roleLabels = {
+        site_engineer: 'Site Engineer',
+        accounts: 'Accounts',
+        store_incharge: 'Store Incharge',
+        planner: 'Planner / Site Incharge',
+        pm: 'Project Manager',
+        admin: 'Admin',
+        master: 'Master',
+      };
+      const label = roleLabels[requested] || requested;
+      return res.status(403).json({
+        success: false,
+        result: null,
+        message: `This account is not registered as ${label}. Please sign in with the correct profile or use the default account.`,
+      });
+    }
+  }
 
   //  authUser if your has correct password
   authUser(req, res, {

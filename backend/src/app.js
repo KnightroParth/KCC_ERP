@@ -15,6 +15,9 @@ const attendanceRouter = require('./routes/appRoutes/attendanceRoutes');
 // Load Labour Router
 const labourRouter = require('./routes/appRoutes/labourRoutes');
 
+// Load Staff Router (Manage Company Staff - creates Admin/login)
+const staffRouter = require('./routes/appRoutes/staffRoutes');
+
 // Load Vendor Router
 const vendorRouter = require('./routes/appRoutes/vendorRoutes');
 
@@ -59,6 +62,9 @@ app.use('/api/attendance', adminAuth.isValidAuthToken, attendanceRouter);
 
 // ✅ Labour custom routes
 app.use('/api/labour', adminAuth.isValidAuthToken, labourRouter);
+
+// ✅ Staff custom routes (company staff = Admin users with login)
+app.use('/api/staff', adminAuth.isValidAuthToken, staffRouter);
 
 // ✅ Vendor custom routes
 app.use('/api/vendor', adminAuth.isValidAuthToken, vendorRouter);

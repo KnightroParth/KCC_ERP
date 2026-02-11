@@ -37,6 +37,9 @@ routesList.forEach(({ entity, controllerName }) => {
   }
 });
 
+// Staff (Manage Company Staff) – no Staff model in appModels; register explicitly
+const staffController = require('@/controllers/appControllers/staffController');
+routerApp('staff', staffController);
 
 module.exports = router;
 

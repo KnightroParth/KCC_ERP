@@ -133,6 +133,7 @@ const ENTITY_TO_MODULE = {
   activities: 'work_progress',
   workassign: 'work_progress',
   attendancerecord: 'attendance',
+  staff: 'attendance',
   invoice: 'billing',
   payment: 'billing',
   quote: 'billing',

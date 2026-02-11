@@ -36,6 +36,7 @@ const Planning = lazy(() => import('@/pages/work/planning'));
 
 const Attendance = lazy(() => import('@/pages/Attendance'));
 const Labour = lazy(() => import('@/pages/Labour'));
+const ManageCompanyStaff = lazy(() => import('@/pages/Attendance/ManageCompanyStaff'));
 const Vendor = lazy(() => import('@/pages/Vendor'));
 
 // ✅ Supplier (moved to Inventory module)
@@ -87,6 +88,7 @@ let routes = {
 
     { path: '/attendance', element: <Attendance /> },
     { path: '/labour', element: <Labour /> },
+    { path: '/attendance/manage-company-staff', element: <ManageCompanyStaff /> },
     { path: '/vendor', element: <Vendor /> },
 
     // Inventory Module (Supplier moved here as last child)

@@ -74,10 +74,10 @@ export default function Labour() {
   const deleteModalLabels = ['name', 'trade'];
 
   const Labels = {
-    PANEL_TITLE: 'Manage Staff',
-    DATATABLE_TITLE: 'Staff List',
-    ADD_NEW_ENTITY: 'Add New Staff',
-    ENTITY_NAME: 'Staff',
+    PANEL_TITLE: 'Manage Company Labour',
+    DATATABLE_TITLE: 'Company Labour List',
+    ADD_NEW_ENTITY: 'Add New Labour',
+    ENTITY_NAME: 'Labour',
   };
 
   const tableActions = {

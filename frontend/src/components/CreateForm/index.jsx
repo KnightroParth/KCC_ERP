@@ -67,6 +67,17 @@ export default function CreateForm({ config, formElements, withUpload = false })
       fieldsValue.items = validItems;
     }
 
+    // Staff (Manage Company Staff): single project -> assignedProjects array; drop empty password
+    if (entity === 'staff') {
+      fieldsValue.assignedProjects = fieldsValue.assignedProjectId
+        ? [fieldsValue.assignedProjectId]
+        : [];
+      delete fieldsValue.assignedProjectId;
+      if (fieldsValue.password === undefined || fieldsValue.password === null || !String(fieldsValue.password).trim()) {
+        delete fieldsValue.password;
+      }
+    }
+
     // const trimmedValues = Object.keys(fieldsValue).reduce((acc, key) => {
     //   acc[key] = typeof fieldsValue[key] === 'string' ? fieldsValue[key].trim() : fieldsValue[key];
     //   return acc;
