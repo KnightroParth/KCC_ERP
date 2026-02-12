@@ -31,6 +31,11 @@ const PurchaseOrderSchema = new mongoose.Schema(
       type: mongoose.Schema.ObjectId,
       ref: 'Supplier',
     },
+    projectId: {
+      type: mongoose.Schema.ObjectId,
+      ref: 'Project',
+      index: true,
+    },
     referenceRequirement: {
       type: mongoose.Schema.ObjectId,
       ref: 'StockRequirement',

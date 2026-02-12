@@ -139,13 +139,14 @@ const stockRequirementController = () => {
   methods.convertToPO = async (req, res) => {
     try {
       const { id } = req.params;
-      const { vendor, terms, notes } = req.body;
+      const { vendor, supplier, terms, notes } = req.body;
+      const supplierId = supplier || vendor;
 
-      if (!vendor) {
+      if (!supplierId) {
         return res.status(400).json({
           success: false,
           result: null,
-          message: 'Vendor is required',
+          message: 'Supplier is required',
         });
       }
 
@@ -178,9 +179,10 @@ const stockRequirementController = () => {
         receivedQuantity: 0,
       }));
 
-      // Create Purchase Order
+      // Create Purchase Order (include projectId from requirement for project-scoping)
       const purchaseOrder = await PurchaseOrder.create({
-        vendor,
+        supplier: supplierId,
+        projectId: requirement.projectId,
         referenceRequirement: requirement._id,
         date: new Date(),
         status: 'Draft',
@@ -195,7 +197,7 @@ const stockRequirementController = () => {
       await requirement.save();
 
       const result = await PurchaseOrder.findById(purchaseOrder._id)
-        .populate('vendor', 'name phone email')
+        .populate('supplier', 'name phone email')
         .populate('referenceRequirement', 'requestDate priority')
         .populate('items.material', 'name category uom');
 

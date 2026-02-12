@@ -77,8 +77,8 @@ const VendorAttendanceCard = ({ vendor, existingRecord, onSave }) => {
   return (
     <Card
       size="small"
-      style={{ 
-        marginBottom: 12, 
+      style={{
+        marginBottom: 12,
         borderLeft: isSaved ? '5px solid #52c41a' : '5px solid #d9d9d9',
         boxShadow: isSaved ? '0 2px 8px rgba(82, 196, 26, 0.15)' : 'none'
       }}
@@ -103,13 +103,13 @@ const VendorAttendanceCard = ({ vendor, existingRecord, onSave }) => {
           </Col>
         ))}
         <Col span={24} style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: 8 }}>
-           <Button size="small" type="dashed" onClick={() => setIsModalOpen(true)} icon={<PlusOutlined />}>
+          <Button size="small" type="dashed" onClick={() => setIsModalOpen(true)} icon={<PlusOutlined />}>
             Add Type
           </Button>
-          <Button 
-            type={isSaved ? "default" : "primary"} 
-            icon={<SaveOutlined />} 
-            loading={loading} 
+          <Button
+            type={isSaved ? "default" : "primary"}
+            icon={<SaveOutlined />}
+            loading={loading}
             onClick={handleSave}
             style={isSaved ? { borderColor: '#52c41a', color: '#52c41a' } : {}}
           >
@@ -130,9 +130,9 @@ const VendorAttendanceCard = ({ vendor, existingRecord, onSave }) => {
 const LabourAttendanceRow = ({ labour, record, onMark, onEdit, onDelete }) => {
   const isMarked = !!record;
   const isAbsent = record?.status === 'Absent';
-  
+
   return (
-    <div style={{ 
+    <div style={{
       background: '#fff', padding: '12px', marginBottom: '8px', borderRadius: '6px',
       border: '1px solid #f0f0f0', borderLeft: isMarked ? (isAbsent ? '4px solid #ff4d4f' : '4px solid #52c41a') : '4px solid #d9d9d9',
       display: 'flex', alignItems: 'center', justifyContent: 'space-between'
@@ -142,8 +142,9 @@ const LabourAttendanceRow = ({ labour, record, onMark, onEdit, onDelete }) => {
         <div>
           <div style={{ fontWeight: 600 }}>{labour.name}</div>
           <Space size={4}>
-            <Tag style={{margin:0}}>{labour.trade}</Tag>
-            {labour.labourType && <Tag color="blue" style={{margin:0}}>{labour.labourType}</Tag>}
+            {labour.trade && <Tag style={{ margin: 0 }}>{labour.trade}</Tag>}
+            {labour.labourType && <Tag color="blue" style={{ margin: 0 }}>{labour.labourType}</Tag>}
+            {labour.type && <Tag color="orange" style={{ margin: 0 }}>{labour.type}</Tag>}
           </Space>
         </div>
       </Space>
@@ -209,9 +210,9 @@ export default function Attendance() {
   const fetchData = useCallback(async () => {
     if (!selectedProject) return;
     try {
-      const recordRes = await request.list({ 
-        entity: 'attendance', 
-        options: { projectId: selectedProject._id, date: selectedDate.format('YYYY-MM-DD') } 
+      const recordRes = await request.list({
+        entity: 'attendance',
+        options: { projectId: selectedProject._id, date: selectedDate.format('YYYY-MM-DD') }
       });
       setRecords(recordRes.result || []);
 

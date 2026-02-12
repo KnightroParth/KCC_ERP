@@ -26,6 +26,8 @@ export default function Payment({ config, currentItem }) {
   useEffect(() => {
     if (currentErp?.sourceContractorId && typeof currentErp.sourceContractorId === 'object') {
       setContractor(currentErp.sourceContractorId);
+    } else if (currentErp?.client && typeof currentErp.client === 'object') {
+      setContractor(currentErp.client);
     } else {
       setContractor({});
     }
@@ -39,7 +41,11 @@ export default function Payment({ config, currentItem }) {
   }, [currentItem]);
 
   const currency = currentErp?.currency ?? 'INR';
-  const billToName = currentErp?.sourceContractorId?.name ?? '-';
+  const billToName =
+    currentErp?.sourceContractorId?.name ??
+    currentErp?.client?.name ??
+    currentErp?.contractorDisplayName ??
+    '-';
 
   if (!currentItem || !currentErp._id) {
     return <PageLoader />;

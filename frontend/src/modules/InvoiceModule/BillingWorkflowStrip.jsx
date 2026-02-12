@@ -15,8 +15,14 @@ const STAGES = [
 // Backend may use audit_check / approved; map to strip keys
 function normalizeStage(s) {
   if (s === 'audit_check') return 'audit';
+  if (s === 'final_check') return 'checking';
   if (s === 'approved') return 'approval';
   return s;
+}
+
+function toBackendStage(key) {
+  const map = { audit: 'audit_check', checking: 'final_check', approval: 'approved' };
+  return map[key] || key;
 }
 
 export default function BillingWorkflowStrip({ invoice, onRefresh }) {
@@ -38,7 +44,7 @@ export default function BillingWorkflowStrip({ invoice, onRefresh }) {
     try {
       const payload = {
         ...invoice,
-        billingStage: nextStage.key,
+        billingStage: toBackendStage(nextStage.key),
         status: nextStage.key === 'payment' ? invoice.status : invoice.status,
       };
       const res = await request.update({

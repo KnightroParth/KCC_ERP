@@ -10,6 +10,8 @@ import {
   Space,
   Input,
 } from 'antd';
+import { CreditCardOutlined, DownloadOutlined, UnorderedListOutlined } from '@ant-design/icons';
+import { useNavigate } from 'react-router-dom';
 import { ErpLayout } from '@/layout';
 import SelectAsync from '@/components/SelectAsync';
 import AutoCompleteAsync from '@/components/AutoCompleteAsync';
@@ -28,9 +30,9 @@ import PrintBill from './components/PrintBill';
 const { Content } = Layout;
 
 const STEPS = [
-  { title: 'Draft / Audit Check', key: 'audit' },
-  { title: 'Final Check', key: 'final' },
-  { title: 'Print Bill', key: 'print' },
+  { title: '1. Draft & Audit Check', key: 'audit' },
+  { title: '2. Final Check & Approve', key: 'final' },
+  { title: '3. Download PDF & Payment', key: 'payment' },
 ];
 
 function getLastSaturday() {
@@ -44,6 +46,7 @@ function getLastSaturday() {
 
 export default function BillingFromPlanning() {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
   const currentProject = useSelector(selectCurrentProject);
   const shouldLockProject = useSelector(selectShouldLockProject);
   const { last_invoice_number } = useSelector(selectFinanceSettings) || {};
@@ -94,8 +97,10 @@ export default function BillingFromPlanning() {
     <ErpLayout>
       <Content style={{ padding: '32px 24px' }}>
         <div className="page-content-inner">
-          <h1 className="page-title">Project RA Bill Generation</h1>
-          <p style={{ color: '#8c8c8c', marginBottom: 24 }}>Planning (100% complete) → Draft → Audit Check → Final Check → Print</p>
+          <h1 className="page-title">Create Bill from Planning</h1>
+          <p style={{ color: '#8c8c8c', marginBottom: 24 }}>
+            Complete flow in one place: Draft & Audit → Final Check & Approve → Download PDF & Record Payment
+          </p>
 
           {/* Filters - always visible */}
           <Card size="small" style={{ marginBottom: 24 }}>
@@ -185,18 +190,41 @@ export default function BillingFromPlanning() {
           )}
 
           {currentStep === 2 && draftInvoice && (
-            <PrintBill
-              invoice={draftInvoice}
-              projectName={projectName}
-              contractorName={contractorName || draftInvoice?.sourceContractorId?.name}
-            />
+            <>
+              <PrintBill
+                invoice={draftInvoice}
+                projectName={projectName}
+                contractorName={contractorName || draftInvoice?.sourceContractorId?.name}
+              />
+              <Card size="small" style={{ marginTop: 24, color: '#333' }} className="billing-step-card">
+                <p style={{ marginBottom: 8, fontWeight: 500 }}>More actions</p>
+                <p style={{ marginBottom: 16, fontSize: 12, color: '#666' }}>
+                  Use <strong>Record Payment</strong> when payment is received so the bill shows as Paid and the paid amount is updated.
+                </p>
+                <Space wrap size="middle">
+                  <Button
+                    type="primary"
+                    icon={<CreditCardOutlined />}
+                    onClick={() => navigate(`/invoice/pay/${draftInvoice._id}`)}
+                  >
+                    Record Payment
+                  </Button>
+                  <Button
+                    icon={<UnorderedListOutlined />}
+                    onClick={() => navigate(`/invoice/read/${draftInvoice._id}`)}
+                  >
+                    View in All Bills
+                  </Button>
+                </Space>
+              </Card>
+            </>
           )}
 
           {currentStep === 1 && !draftInvoice && (
-            <Card className="billing-step-card" style={{ color: '#333' }}><p style={{ color: '#333', margin: 0 }}>No draft invoice. Complete Audit Check first.</p></Card>
+            <Card className="billing-step-card" style={{ color: '#333' }}><p style={{ color: '#333', margin: 0 }}>No draft invoice. Complete step 1 (Draft & Audit Check) first.</p></Card>
           )}
           {currentStep === 2 && !draftInvoice && (
-            <Card className="billing-step-card" style={{ color: '#333' }}><p style={{ color: '#333', margin: 0 }}>No bill to print. Complete Final Check first.</p></Card>
+            <Card className="billing-step-card" style={{ color: '#333' }}><p style={{ color: '#333', margin: 0 }}>No bill yet. Complete step 2 (Final Check & Approve) first.</p></Card>
           )}
           </div>
         </div>

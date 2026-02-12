@@ -152,20 +152,19 @@ function SiteTransferForm() {
   }, [items, stockInfo]);
 
   const addItem = () => {
-    setItems((prev) => [
-      ...prev,
-      {
-        key: Date.now(),
-        material: null,
-        quantity: 1,
-        unit: 'nos',
-      },
-    ]);
+    const newItems = [
+      ...items,
+      { key: Date.now(), material: null, quantity: 1, unit: 'nos' },
+    ];
+    setItems(newItems);
+    form.setFieldValue('items', newItems);
   };
 
   const removeItem = (key) => {
-    setItems((prev) => prev.filter((item) => item.key !== key));
     const removed = items.find((item) => item.key === key);
+    const newItems = items.filter((item) => item.key !== key);
+    setItems(newItems);
+    form.setFieldValue('items', newItems);
     if (removed?.material) {
       setStockErrors((prev) => {
         const next = { ...prev };

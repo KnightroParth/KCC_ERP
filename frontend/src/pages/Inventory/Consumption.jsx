@@ -137,20 +137,21 @@ function ConsumptionForm({ isUpdateForm = false }) {
   }, [items, stockInfo]);
 
   const addItem = () => {
-    setItems([
-      ...items,
-      {
-        key: Date.now(),
-        material: null,
-        quantity: 1,
-        unit: 'nos',
-      },
-    ]);
+    const newItem = {
+      key: Date.now(),
+      material: null,
+      quantity: 1,
+      unit: 'nos',
+    };
+    const newItems = [...items, newItem];
+    setItems(newItems);
+    form.setFieldValue('items', newItems);
   };
 
   const removeItem = (key) => {
     const newItems = items.filter((item) => item.key !== key);
     setItems(newItems);
+    form.setFieldValue('items', newItems);
     const newStockInfo = { ...stockInfo };
     const newErrors = { ...stockErrors };
     const removedItem = items.find(item => item.key === key);
@@ -170,6 +171,7 @@ function ConsumptionForm({ isUpdateForm = false }) {
       return item;
     });
     setItems(newItems);
+    form.setFieldValue('items', newItems);
 
     // Check stock when material or project changes
     if (field === 'material') {

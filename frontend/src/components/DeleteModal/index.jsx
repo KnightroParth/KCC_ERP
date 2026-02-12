@@ -5,7 +5,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { crud } from '@/redux/crud/actions';
 import { useCrudContext } from '@/context/crud';
 import { useAppContext } from '@/context/appContext';
-import { selectDeletedItem } from '@/redux/crud/selectors';
+import { selectDeletedItem, selectListItems } from '@/redux/crud/selectors';
 import { valueByString } from '@/utils/helpers';
 
 import useLanguage from '@/locale/useLanguage';
@@ -28,11 +28,15 @@ export default function DeleteModal({ config }) {
   const { modal } = crudContextAction;
   const [displayItem, setDisplayItem] = useState('');
 
+  const { result: listResult } = useSelector(selectListItems);
+
   useEffect(() => {
     if (isSuccess) {
       console.log('🚀 ~ useEffect ~ DeleteModal isSuccess:', isSuccess);
       modal.close();
-      dispatch(crud.list({ entity }));
+      const { pagination } = listResult;
+      const options = { page: pagination.current || 1, items: pagination.pageSize || 10 };
+      dispatch(crud.list({ entity, options }));
       // dispatch(crud.resetAction({actionType:"delete"})); // check here maybe it wrong
     }
     if (current) {

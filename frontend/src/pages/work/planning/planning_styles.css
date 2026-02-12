@@ -1,0 +1,16 @@
+/* Billed Checkbox (Red) */
+.billed-checkbox .ant-checkbox-checked .ant-checkbox-inner {
+    background-color: #FF0000 !important;
+    border-color: #FF0000 !important;
+}
+
+/* Planned Checkbox (Green) */
+.planned-checkbox .ant-checkbox-checked .ant-checkbox-inner {
+    background-color: #008000 !important;
+    border-color: #008000 !important;
+}
+
+/* Ensure disabled ticked checkboxes are visible */
+.ant-checkbox-disabled.ant-checkbox-checked .ant-checkbox-inner::after {
+    border-color: #fff !important;
+}

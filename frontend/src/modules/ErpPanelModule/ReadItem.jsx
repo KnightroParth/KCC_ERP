@@ -20,7 +20,8 @@ import { DOWNLOAD_BASE_URL } from '@/config/serverApiConfig';
 import { useMoney } from '@/settings';
 import useMail from '@/hooks/useMail';
 import { useNavigate } from 'react-router-dom';
-import request from '@/request/request';
+import { downloadBillPDF } from '@/pages/Billing/utils/pdfGenerator';
+import logoUrl from '@/style/images/logo-text.png';
 
 export default function ReadItem({ config, selectedItem }) {
   const translate = useLanguage();
@@ -99,10 +100,18 @@ export default function ReadItem({ config, selectedItem }) {
         title={`${ENTITY_NAME} # ${currentErp.number}/${currentErp.year || ''}`}
         ghost={false}
         tags={[
-          currentErp.status && (
+          entity === 'invoice' && currentErp.billingStage && (
+            <span key="stage" style={{ marginRight: 8 }}>
+              Stage: {String(currentErp.billingStage).replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())}
+            </span>
+          ),
+          entity === 'invoice' && currentErp.paymentStatus && (
+            <span key="paymentStatus">Payment: {String(currentErp.paymentStatus).replace(/\b\w/g, (c) => c.toUpperCase())}</span>
+          ),
+          entity !== 'invoice' && currentErp.status && (
             <span key="status" style={{ marginRight: 8 }}>{translate(currentErp.status)}</span>
           ),
-          currentErp.paymentStatus && (
+          entity !== 'invoice' && currentErp.paymentStatus && (
             <span key="paymentStatus">{translate(currentErp.paymentStatus)}</span>
           ),
         ].filter(Boolean)}
@@ -130,17 +139,37 @@ export default function ReadItem({ config, selectedItem }) {
                   key="download-pdf"
                   loading={downloadingPdf}
                   onClick={async () => {
-                    if (!currentErp?._id) return;
+                    if (!currentErp) return;
                     setDownloadingPdf(true);
-                    const pdfUrl = `${DOWNLOAD_BASE_URL}${entity}/${entity}-${currentErp._id}.pdf`;
                     try {
-                      window.open(pdfUrl, '_blank');
-                      const res = await request.markInvoicePaid(currentErp._id);
-                      if (res?.success) {
-                        dispatch(erp.read({ entity: config.entity, id: currentErp._id }));
-                      }
-                    } catch (e) {
-                      // PDF was already opened; mark-paid failure is non-blocking
+                      const projectName = currentErp.sourceProjectId?.name ?? 'Project';
+                      const contractorName = currentErp.sourceContractorId?.name ?? currentErp.client?.name ?? '';
+                      let logoBase64 = '';
+                      let logoSize = null;
+                      try {
+                        const res = await fetch(logoUrl);
+                        const blob = await res.blob();
+                        logoBase64 = await new Promise((resolve, reject) => {
+                          const r = new FileReader();
+                          r.onload = () => resolve(r.result);
+                          r.onerror = reject;
+                          r.readAsDataURL(blob);
+                        });
+                        logoSize = await new Promise((resolve) => {
+                          const img = new Image();
+                          img.onload = () => resolve({ w: img.naturalWidth, h: img.naturalHeight });
+                          img.onerror = () => resolve(null);
+                          img.src = logoBase64;
+                        });
+                      } catch (_) {}
+                      downloadBillPDF(
+                        currentErp,
+                        projectName,
+                        `KCC-Bill-${currentErp.number ?? 'draft'}.pdf`,
+                        contractorName,
+                        logoBase64,
+                        logoSize,
+                      );
                     } finally {
                       setDownloadingPdf(false);
                     }
@@ -197,8 +226,12 @@ export default function ReadItem({ config, selectedItem }) {
         <Row gutter={24} align="middle" style={{ flexWrap: 'nowrap' }}>
           <Col flex="none">
             <Statistic
-              title="Status"
-              value={currentErp.status ? translate(currentErp.status) : '-'}
+              title={entity === 'invoice' ? 'Billing stage' : 'Status'}
+              value={
+                entity === 'invoice'
+                  ? (currentErp.billingStage ? String(currentErp.billingStage).replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()) : '-')
+                  : (currentErp.status ? translate(currentErp.status) : '-')
+              }
               valueStyle={{ fontSize: 14, fontWeight: 500 }}
             />
           </Col>

@@ -29,10 +29,10 @@ export default function Invoice() {
       render: (v) => (v === 'normal' ? 'From Planning' : v === 'direct' ? 'Direct' : '-'),
     },
     {
-      title: 'Billing Stage',
+      title: 'Stage',
       dataIndex: 'billingStage',
       key: 'billingStage',
-      render: (v) => (v ? v.replace('_', ' ').replace(/\b\w/g, (c) => c.toUpperCase()) : '-'),
+      render: (v) => (v ? v.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()) : '-'),
     },
     {
       title: translate('Date'),
@@ -54,14 +54,18 @@ export default function Invoice() {
       dataIndex: 'credit',
       render: (total, record) => moneyFormatter({ amount: total, currency_code: record.currency }),
     },
-    { title: translate('Status'), dataIndex: 'status' },
-    { title: translate('Payment'), dataIndex: 'paymentStatus' },
+    {
+      title: 'Payment status',
+      dataIndex: 'paymentStatus',
+      key: 'paymentStatus',
+      render: (v) => (v ? v.replace(/\b\w/g, (c) => c.toUpperCase()) : '-'),
+    },
   ];
 
   const config = {
     entity: 'invoice',
-    PANEL_TITLE: translate('invoice'),
-    DATATABLE_TITLE: translate('invoice_list'),
+    PANEL_TITLE: 'Bills',
+    DATATABLE_TITLE: 'All Bills',
     ADD_NEW_ENTITY: translate('add_new_invoice'),
     ENTITY_NAME: translate('invoice'),
     RECORD_ENTITY: translate('record_payment'),
@@ -71,11 +75,11 @@ export default function Invoice() {
       displayLabels: ['name'],
       searchFields: 'name',
     },
-    deleteModalLabels: ['number', 'sourceContractorId.name'],
+    deleteModalLabels: ['number', 'contractorDisplayName'],
     headerExtra: [
       <Button
         key="from-planning"
-        onClick={() => navigate('/invoice/create-from-planning')}
+        onClick={() => navigate('/billing/planning')}
         icon={<FileTextOutlined />}
       >
         Create from Planning
@@ -86,7 +90,7 @@ export default function Invoice() {
         onClick={() => navigate('/invoice/create')}
         icon={<PlusOutlined />}
       >
-        {translate('add_new_invoice')}
+        Direct Bill
       </Button>,
     ],
   };

@@ -29,7 +29,7 @@ const labourController = {
     try {
       const Model = mongoose.model('LabourMaster');
       const { page = 1, items = 10, sort = 'created', sortBy = 'desc', projectId, vendorType, status, search } = req.query;
-      
+
       const skip = (parseInt(page) - 1) * parseInt(items);
       const sortValue = sortBy === 'desc' ? -1 : 1;
 
@@ -39,13 +39,12 @@ const labourController = {
       if (projectId) query.projectId = new mongoose.Types.ObjectId(projectId);
       if (vendorType && vendorType !== 'All') query.vendorType = vendorType;
       if (status && status !== 'All') query.status = status;
-      
+
       // Search logic
       if (search) {
         query.$or = [
           { name: { $regex: search, $options: 'i' } },
-          { trade: { $regex: search, $options: 'i' } },
-          { labourType: { $regex: search, $options: 'i' } }
+          { phone: { $regex: search, $options: 'i' } },
         ];
       }
 
@@ -111,7 +110,7 @@ const labourController = {
     try {
       const Model = mongoose.model('LabourMaster');
       const { id } = req.params;
-      
+
       const result = await Model.findOneAndUpdate(
         { _id: id, removed: false },
         req.body,
@@ -147,7 +146,7 @@ const labourController = {
     try {
       const Model = mongoose.model('LabourMaster');
       const { id } = req.params;
-      
+
       // Soft delete
       const result = await Model.findByIdAndUpdate(
         id,
@@ -219,11 +218,11 @@ const labourController = {
         removed: false,
         $or: [
           { name: { $regex: q, $options: 'i' } },
-          { trade: { $regex: q, $options: 'i' } },
+          { phone: { $regex: q, $options: 'i' } },
         ],
       })
-      .populate('projectId', 'name projectCode')
-      .limit(20);
+        .populate('projectId', 'name projectCode')
+        .limit(20);
 
       return res.status(200).json({
         success: true,
@@ -243,7 +242,7 @@ const labourController = {
     // Basic implementation to satisfy the router
     try {
       const Model = mongoose.model('LabourMaster');
-      const { filter } = req.query; 
+      const { filter } = req.query;
       // You can expand this logic later
       const result = await Model.find({ removed: false });
       return res.status(200).json({ success: true, result, message: 'Filter not fully implemented yet' });
@@ -254,10 +253,10 @@ const labourController = {
 
   summary: async (req, res) => {
     try {
-       // Basic implementation to satisfy the router
-       const Model = mongoose.model('LabourMaster');
-       const count = await Model.countDocuments({ removed: false });
-       return res.status(200).json({ success: true, result: { count }, message: 'Summary fetch success' });
+      // Basic implementation to satisfy the router
+      const Model = mongoose.model('LabourMaster');
+      const count = await Model.countDocuments({ removed: false });
+      return res.status(200).json({ success: true, result: { count }, message: 'Summary fetch success' });
     } catch (error) {
       return res.status(500).json({ success: false, message: error.message });
     }

@@ -74,13 +74,17 @@ const projectInventoryController = () => {
         .populate('projectId', 'name projectCode')
         .sort({ 'material.name': 1 });
 
-      // Calculate totals
+      // Calculate totals (robust against null/undefined)
       const totals = result.reduce(
-        (acc, inv) => ({
-          totalReceived: acc.totalReceived + (inv.totalReceived || 0),
-          totalConsumed: acc.totalConsumed + (inv.totalConsumed || 0),
-          totalValue: acc.totalValue + (inv.currentStock * inv.avgRate),
-        }),
+        (acc, inv) => {
+          const stock = inv.currentStock ?? 0;
+          const rate = inv.avgRate ?? 0;
+          return {
+            totalReceived: acc.totalReceived + (inv.totalReceived || 0),
+            totalConsumed: acc.totalConsumed + (inv.totalConsumed || 0),
+            totalValue: acc.totalValue + (stock * rate),
+          };
+        },
         { totalReceived: 0, totalConsumed: 0, totalValue: 0 }
       );
 

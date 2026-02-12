@@ -16,13 +16,12 @@ export default function RecordPaymentModule({ config }) {
   const { result: currentResult } = useSelector(selectCurrentItem);
   const item = currentResult?._id === id ? currentResult : listItem?._id === id ? listItem : currentResult;
 
+  // Always fetch full invoice (with populated sourceContractorId) so Contractor/Email/Phone load
   useEffect(() => {
-    if (listItem && listItem._id === id) {
-      dispatch(erp.currentItem({ data: listItem }));
-    } else if (!currentResult || currentResult._id !== id) {
+    if (id && config?.entity) {
       dispatch(erp.read({ entity: config.entity, id }));
     }
-  }, [id, listItem?._id]);
+  }, [id, config?.entity]);
 
   useEffect(() => {
     const invoice = currentResult?._id === id ? currentResult : listItem?._id === id ? listItem : null;

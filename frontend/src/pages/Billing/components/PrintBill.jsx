@@ -1,8 +1,8 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { Card, Table, Button, Row, Col, Typography } from 'antd';
 import { DownloadOutlined } from '@ant-design/icons';
-import dayjs from 'dayjs';
 import request from '@/request/request';
+import dayjs from 'dayjs';
 import { downloadBillPDF } from '../utils/pdfGenerator';
 import logoUrl from '@/style/images/logo-text.png';
 
@@ -81,7 +81,7 @@ export default function PrintBill({ invoice, projectName, contractorName: contra
 
   return (
     <Card
-      title="Print Bill"
+      title="Download PDF"
       size="small"
       extra={
         <Button type="primary" icon={<DownloadOutlined />} onClick={handleDownload}>

@@ -67,8 +67,8 @@ export default function Labour() {
   const entity = 'labour';
 
   const searchConfig = {
-    displayLabels: ['name', 'trade'],
-    searchFields: 'name,trade',
+    displayLabels: ['name', 'phone'],
+    searchFields: 'name,phone',
   };
 
   const deleteModalLabels = ['name', 'trade'];
@@ -88,7 +88,7 @@ export default function Labour() {
 
   const dataTableColumns = [
     {
-      title: 'Name',
+      title: 'Labour Name',
       dataIndex: 'name',
       key: 'name',
     },
@@ -97,22 +97,26 @@ export default function Labour() {
       dataIndex: 'type',
       key: 'type',
       filters: [
-        { text: 'Contractors', value: 'Contractors' },
-        { text: 'Labours', value: 'Labours' },
-        { text: 'Supervisors', value: 'Supervisors' },
-        { text: 'Site Incharge', value: 'Site Incharge' },
+        { text: 'Skilled', value: 'Skilled' },
+        { text: 'Unskilled', value: 'Unskilled' },
       ],
       onFilter: (value, record) => record.type === value,
     },
     {
-      title: 'Trade',
-      dataIndex: 'trade',
-      key: 'trade',
+      title: 'Gender',
+      dataIndex: 'gender',
+      key: 'gender',
     },
     {
-      title: 'Designation / Labour Type',
-      dataIndex: 'labourType',
-      key: 'labourType',
+      title: 'Wages',
+      dataIndex: 'wages',
+      key: 'wages',
+      render: (val) => val || 0,
+    },
+    {
+      title: 'Mobile Number',
+      dataIndex: 'phone',
+      key: 'phone',
     },
     {
       title: 'Project',

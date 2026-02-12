@@ -30,10 +30,10 @@ export default function InventoryDashboard() {
   const [loadingShipments, setLoadingShipments] = useState(false);
 
   useEffect(() => {
-    if (shouldLockProject && currentProject?._id) {
+    if (currentProject?._id) {
       setProjectId(currentProject._id);
     }
-  }, [shouldLockProject, currentProject]);
+  }, [currentProject]);
 
   useEffect(() => {
     if (projectId) {
@@ -52,17 +52,20 @@ export default function InventoryDashboard() {
       const response = await axios.get(
         `inventory/inventory/dashboard?projectId=${projectId}`
       );
-      
-      if (response?.data?.result) {
-        setInventoryData(response.data.result.items || []);
-        setTotals(response.data.result.totals || {});
-      } else if (response?.data?.success && response?.data?.result) {
-        setInventoryData(response.data.result.items || []);
-        setTotals(response.data.result.totals || {});
+
+      const data = response?.data?.result;
+      if (data) {
+        setInventoryData(Array.isArray(data.items) ? data.items : []);
+        setTotals(data.totals || { totalReceived: 0, totalConsumed: 0, totalValue: 0 });
+      } else {
+        setInventoryData([]);
+        setTotals({ totalReceived: 0, totalConsumed: 0, totalValue: 0 });
       }
     } catch (error) {
       console.error('Error loading dashboard:', error);
       message.error('Failed to load dashboard data');
+      setInventoryData([]);
+      setTotals({ totalReceived: 0, totalConsumed: 0, totalValue: 0 });
     } finally {
       setLoading(false);
     }
@@ -71,17 +74,17 @@ export default function InventoryDashboard() {
   const loadPendingShipments = async () => {
     setLoadingShipments(true);
     try {
-      const res = await request.list({ 
-        entity: 'inventory/purchase-order', 
-        options: { 
+      const res = await request.list({
+        entity: 'inventory/purchase-order',
+        options: {
           status: 'Issued',
           items: 100
-        } 
+        }
       });
 
-      if (res?.success && res?.result) {
-        // Filter and sort by expected delivery date (expiredDate) - soonest first
-        const shipments = res.result
+      const items = Array.isArray(res?.result) ? res.result : [];
+      if (items.length > 0) {
+        const shipments = items
           .filter(po => po?.expiredDate)
           .map(po => ({
             ...po,
@@ -91,11 +94,13 @@ export default function InventoryDashboard() {
             if (!a.expiredDate || !b.expiredDate) return 0;
             return a.expiredDate.valueOf() - b.expiredDate.valueOf();
           });
-        
         setPendingShipments(shipments);
+      } else {
+        setPendingShipments([]);
       }
     } catch (error) {
       console.error('Error loading pending shipments:', error);
+      setPendingShipments([]);
     } finally {
       setLoadingShipments(false);
     }

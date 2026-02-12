@@ -33,7 +33,12 @@ const purchaseOrderController = () => {
 
       const result = await Model.find(query)
         .populate('supplier', 'name phone email address')
-        .populate('referenceRequirement', 'requestDate priority')
+        .populate('projectId', 'name projectCode')
+        .populate({
+          path: 'referenceRequirement',
+          select: 'requestDate priority projectId',
+          populate: { path: 'projectId', select: 'name projectCode' },
+        })
         .populate({
           path: 'items.material',
           select: 'name code unit uom category',
@@ -73,7 +78,12 @@ const purchaseOrderController = () => {
 
       const result = await PurchaseOrder.findOne({ _id: id, removed: false })
         .populate('supplier', 'name phone email address')
-        .populate('referenceRequirement', 'requestDate priority')
+        .populate('projectId', 'name projectCode')
+        .populate({
+          path: 'referenceRequirement',
+          select: 'requestDate priority projectId',
+          populate: { path: 'projectId', select: 'name projectCode' },
+        })
         .populate({
           path: 'items.material',
           select: 'name code unit uom category',
@@ -101,16 +111,24 @@ const purchaseOrderController = () => {
     }
   };
 
-  // Override create to ensure leadTimeDays, taxRate, and terms are saved
+  // Override create to ensure leadTimeDays, taxRate, terms, and projectId are saved
   methods.create = async (req, res) => {
     try {
       const body = req.body;
-      
+
       // Ensure leadTimeDays, taxRate, and terms are included
       if (body.leadTimeDays === undefined) body.leadTimeDays = 0;
       if (body.taxRate === undefined) body.taxRate = 0;
       if (body.terms === undefined) body.terms = '';
-      
+
+      // Auto-set projectId from referenceRequirement if not provided
+      if (!body.projectId && body.referenceRequirement) {
+        const requirement = await StockRequirement.findById(body.referenceRequirement).select('projectId').lean();
+        if (requirement?.projectId) {
+          body.projectId = requirement.projectId;
+        }
+      }
+
       // Set createdBy if available
       if (req.admin && req.admin._id) {
         body.createdBy = req.admin._id;

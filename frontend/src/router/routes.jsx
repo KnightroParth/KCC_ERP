@@ -10,7 +10,6 @@ const Customer = lazy(() => import('@/pages/Customer'));
 
 const Invoice = lazy(() => import('@/pages/Invoice'));
 const InvoiceCreate = lazy(() => import('@/pages/Invoice/InvoiceCreate'));
-const InvoiceCreateFromPlanning = lazy(() => import('@/pages/Invoice/CreateFromPlanning'));
 const InvoiceRead = lazy(() => import('@/pages/Invoice/InvoiceRead'));
 const InvoiceUpdate = lazy(() => import('@/pages/Invoice/InvoiceUpdate'));
 const InvoiceRecordPayment = lazy(() => import('@/pages/Invoice/InvoiceRecordPayment'));
@@ -76,7 +75,7 @@ let routes = {
     // Invoice / Bills list & CRUD
     { path: '/invoice', element: <Invoice /> },
     { path: '/invoice/create', element: <InvoiceCreate /> },
-    { path: '/invoice/create-from-planning', element: <InvoiceCreateFromPlanning /> },
+    { path: '/invoice/create-from-planning', element: <Navigate to="/billing/planning" replace /> },
     { path: '/invoice/read/:id', element: <InvoiceRead /> },
     { path: '/invoice/update/:id', element: <InvoiceUpdate /> },
     { path: '/invoice/pay/:id', element: <InvoiceRecordPayment /> },

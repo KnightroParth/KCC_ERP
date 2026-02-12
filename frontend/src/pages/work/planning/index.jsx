@@ -11,6 +11,7 @@ import request from '@/request/request';
 import { selectCurrentProject, selectShouldLockProject } from '@/redux/erp/selectors';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import './planning_styles.css';
 
 const { Content } = Layout;
 const { Option } = Select;
@@ -134,24 +135,29 @@ function generatePDF(data, vendors, staff, groupOption, headerDetails, projectNa
                 doc.text(categoryName, 14, yPos);
                 yPos += 6;
 
+                const isExtraWork = categoryName === 'Extra Work';
                 const tableBody = items.map(item => {
                     const rate = item.rate || 0;
                     const floor = item.floor || item.floorNumber || '-';
                     const unitType = item.unitType || '-';
-                    return [
+                    const row = [
                         item.workType || item.category, // Task Name
                         item.buildingName,
                         unitType,
                         floor,
                         item.unitNumber,
-                        rate.toFixed(2),
-                        item.description || '-'
+                        rate.toFixed(2)
                     ];
+                    if (isExtraWork) row.push(item.description || '-');
+                    return row;
                 });
+
+                const headRow = ['Task', 'Building', 'Unit Type', 'Floor', 'Unit', 'Rate'];
+                if (isExtraWork) headRow.push('Description');
 
                 autoTable(doc, {
                     startY: yPos,
-                    head: [['Task', 'Building', 'Unit Type', 'Floor', 'Unit', 'Rate', 'Description']],
+                    head: [headRow],
                     body: tableBody,
                     theme: 'grid',
                     headStyles: { fillColor: [22, 119, 255] },
@@ -160,7 +166,7 @@ function generatePDF(data, vendors, staff, groupOption, headerDetails, projectNa
                         2: { cellWidth: 25 },
                         3: { halign: 'center' },
                         5: { halign: 'right' },
-                        6: { cellWidth: 40 },
+                        ...(isExtraWork ? { 6: { cellWidth: 40 } } : {}),
                     },
                     didDrawPage: (data) => {
                         yPos = data.cursor.y;
@@ -192,21 +198,23 @@ function generatePDF(data, vendors, staff, groupOption, headerDetails, projectNa
                 return (a.unitNumber || '').localeCompare(b.unitNumber || '', undefined, { numeric: true });
             });
 
+            const isExtraWork = groupName === 'Extra Work';
             const tableBody = items.map(item => {
                 const contractorName = vendors.find(v => v._id === (item.contractorId?._id || item.contractorId))?.name || '-';
                 const rate = item.rate || 0;
                 const floor = item.floor || item.floorNumber || '-';
                 const unitType = item.unitType || '-';
-                return [
+                const row = [
                     item.workType || item.category, // Task Name
                     contractorName,
                     item.buildingName,
                     unitType,
                     floor,
                     item.unitNumber,
-                    rate.toFixed(2),
-                    item.description || '-'
+                    rate.toFixed(2)
                 ];
+                if (isExtraWork) row.push(item.description || '-');
+                return row;
             });
 
             // Group Header
@@ -215,9 +223,12 @@ function generatePDF(data, vendors, staff, groupOption, headerDetails, projectNa
             doc.text(`${groupOption}: ${groupName}`, 14, yPos);
             yPos += 6;
 
+            const headRow = ['Task', 'Contractor', 'Building', 'Unit Type', 'Floor', 'Unit', 'Rate'];
+            if (isExtraWork) headRow.push('Description');
+
             autoTable(doc, {
                 startY: yPos,
-                head: [['Task', 'Contractor', 'Building', 'Unit Type', 'Floor', 'Unit', 'Rate', 'Description']],
+                head: [headRow],
                 body: tableBody,
                 theme: 'grid',
                 headStyles: { fillColor: [22, 119, 255] },
@@ -226,7 +237,7 @@ function generatePDF(data, vendors, staff, groupOption, headerDetails, projectNa
                     3: { cellWidth: 20 },
                     4: { halign: 'center' },
                     6: { halign: 'right' },
-                    7: { cellWidth: 35 },
+                    ...(isExtraWork ? { 7: { cellWidth: 35 } } : {}),
                 },
                 didDrawPage: (data) => {
                     yPos = data.cursor.y;
@@ -274,6 +285,8 @@ export default function Planning() {
     const [vendors, setVendors] = useState([]);
     const [materials, setMaterials] = useState([]);
     const [plannedWorks, setPlannedWorks] = useState([]);
+    const [workRates, setWorkRates] = useState([]);
+    const [invoices, setInvoices] = useState([]);
 
     const [selectedProject, setSelectedProject] = useState(null);
     const [selectedBuilding, setSelectedBuilding] = useState(null);
@@ -329,6 +342,12 @@ export default function Planning() {
 
                 const plannedResult = await request.listAll({ entity: 'plannedwork' });
                 if (plannedResult.success) setPlannedWorks(plannedResult.result || []);
+
+                const workRateResult = await request.listAll({ entity: 'workrate', options: { projectId: 'KCC-2026-001' } });
+                if (workRateResult.success) setWorkRates(workRateResult.result || []);
+
+                const invoiceResult = await request.listAll({ entity: 'invoice' });
+                if (invoiceResult.success) setInvoices(invoiceResult.result || []);
 
             } catch (error) {
                 console.error('Error fetching initial data:', error);
@@ -577,6 +596,12 @@ export default function Planning() {
             const plannedResult = await request.listAll({ entity: 'plannedwork' });
             if (plannedResult.success) setPlannedWorks(plannedResult.result || []);
 
+            const workRateResult = await request.listAll({ entity: 'workrate', options: { projectId: 'KCC-2026-001' } });
+            if (workRateResult.success) setWorkRates(workRateResult.result || []);
+
+            const invoiceResult = await request.listAll({ entity: 'invoice' });
+            if (invoiceResult.success) setInvoices(invoiceResult.result || []);
+
         } catch (error) {
             console.error('Error synchronizing planning:', error);
             message.error('Critical error: ' + error.message);
@@ -611,7 +636,18 @@ export default function Planning() {
                 }
 
                 const checklistItems = selectedCategory.fields || [];
-                const currentContractorId = typeof headerDetails.contractor === 'object' ? headerDetails.contractor._id : headerDetails.contractor;
+                const currentContractorId = (headerDetails.contractor?._id || headerDetails.contractor)?.toString();
+
+                // Build a set of billed PlannedWork IDs for O(1) lookup
+                const billedPWIds = new Set();
+                invoices.forEach(inv => {
+                    if (!inv.removed && inv.billingStage !== 'cancelled' && inv.plannedWorkIds) {
+                        inv.plannedWorkIds.forEach(id => {
+                            const idStr = (id?._id || id)?.toString();
+                            if (idStr) billedPWIds.add(idStr);
+                        });
+                    }
+                });
 
                 // Fetch checklists for this project, contractor, and specific date range
                 const res = await request.listAll({
@@ -636,16 +672,24 @@ export default function Planning() {
                         dayjs(pw.endDate).isSame(headerDetails.endDate, 'day')
                     );
 
-                    const material = materials.find(m =>
-                        m.category?.toLowerCase() === selectedCategory.label.toLowerCase()
-                    );
+                    const floorNum = parseInt(unit.floor) || 0;
+                    const findWorkRate = (task) => {
+                        return workRates.find(wr =>
+                            wr.category === selectedCategory.label &&
+                            wr.subCategory === task &&
+                            wr.unitType === (unit.unitType?.replace(/\s+/g, '') || '') &&
+                            floorNum >= wr.minFloor &&
+                            floorNum <= wr.maxFloor &&
+                            (wr.buildingPattern === 'AllBuildings' || wr.buildingPattern.includes(selectedBuilding))
+                        )?.rate || 0;
+                    };
 
                     const unitData = {
                         _id: unit._id,
                         unitNumber: unit.unitNumber,
                         floor: unit.floor || unit.floorNumber || '-',
                         unitType: unit.unitType || '-',
-                        rate: plannedWork?.rate || material?.price || 0,
+                        rate: plannedWork?.rate || 0, // Rate will be task specific now
                     };
 
                     checklistItems.forEach(item => {
@@ -673,17 +717,33 @@ export default function Planning() {
                         }
 
                         // 2. Load Rate (PlannedWork entity) - CONTRACTOR SPECIFIC
-                        const foundPlanned = plannedWorks.find(pw =>
-                            (pw.projectId?._id === selectedProject._id || pw.projectId === selectedProject._id) &&
-                            pw.unitNumber === unit.unitNumber &&
-                            pw.category === selectedCategory.label &&
-                            pw.workType === item &&
-                            (pw.contractorId?._id || pw.contractorId) === currentContractorId &&
-                            dayjs(pw.startDate).isSame(headerDetails.startDate, 'day') &&
-                            dayjs(pw.endDate).isSame(headerDetails.endDate, 'day')
-                        );
+                        // Also find ANY planning for this task (independent of date) for UI markers
+                        const foundPlanned = plannedWorks.find(pw => {
+                            const pwProjectId = (pw.projectId?._id || pw.projectId)?.toString();
+                            const selProjectId = selectedProject._id?.toString();
+                            const pwContractorId = (pw.contractorId?._id || pw.contractorId)?.toString();
 
-                        unitData[`${item}_rate`] = foundPlanned?.rate || material?.price || 0;
+                            // Planning Check (Independent of Date)
+                            const matchesBasic = pwProjectId === selProjectId &&
+                                pw.unitNumber === unit.unitNumber &&
+                                pw.category === selectedCategory.label &&
+                                pw.workType === item;
+
+                            // We only consider it "Found" for checkboxes if it matches the current contractor
+                            // or if we just want to know if it's planned AT ALL. 
+                            // Requirements: locked if planned Irrespective of date.
+                            return matchesBasic && pwContractorId === currentContractorId;
+                        });
+
+                        unitData[`${item}_rate`] = foundPlanned?.rate || findWorkRate(item) || 0;
+
+                        // 3. Flags for coloring & locking (Independent of Date)
+                        if (foundPlanned) {
+                            unitData[`${item}_isPlanned`] = true;
+                            if (billedPWIds.has(foundPlanned._id?.toString())) {
+                                unitData[`${item}_isBilled`] = true;
+                            }
+                        }
                     });
 
                     return unitData;
@@ -1072,12 +1132,12 @@ function PlanningChart({ data, vendors, staff, groupOption, headerDetails, onDel
                                     render: (val) => `₹${val || 0}`,
                                     sorter: (a, b) => (a.rate || 0) - (b.rate || 0)
                                 },
-                                {
+                                ...(categoryName === 'Extra Work' ? [{
                                     title: 'Description',
                                     dataIndex: 'description',
                                     key: 'description',
                                     render: (val) => val || '-'
-                                },
+                                }] : []),
                                 {
                                     title: 'Action',
                                     key: 'action',
@@ -1188,12 +1248,12 @@ function PlanningChart({ data, vendors, staff, groupOption, headerDetails, onDel
                             render: (val) => `₹${val || 0}`,
                             sorter: (a, b) => (a.rate || 0) - (b.rate || 0)
                         },
-                        {
+                        ...(groupName === 'Extra Work' ? [{
                             title: 'Description',
                             dataIndex: 'description',
                             key: 'description',
                             render: (val) => val || '-'
-                        },
+                        }] : []),
                         {
                             title: 'Action',
                             key: 'action',
@@ -1279,13 +1339,25 @@ function PlanningTable({ data, category, onCheckChange, onRateChange, disabled }
                 key: `item-${index}`,
                 width: 100,
                 align: 'center',
-                render: (checked, record) => (
-                    <Checkbox
-                        checked={checked || false}
-                        onChange={(e) => onCheckChange(record, taskName, e.target.checked)}
-                        disabled={disabled}
-                    />
-                ),
+                render: (checked, record) => {
+                    const isBilled = record[`${taskName}_isBilled`];
+                    const isPlanned = record[`${taskName}_isPlanned`];
+
+                    if (isBilled) {
+                        return <Checkbox checked={true} disabled style={{ color: '#FF0000' }} className="billed-checkbox" />;
+                    }
+                    if (isPlanned) {
+                        return <Checkbox checked={true} disabled style={{ color: '#008000' }} className="planned-checkbox" />;
+                    }
+
+                    return (
+                        <Checkbox
+                            checked={checked || false}
+                            onChange={(e) => onCheckChange(record, taskName, e.target.checked)}
+                            disabled={disabled}
+                        />
+                    );
+                },
             },
             {
                 title: 'Rate',

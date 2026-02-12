@@ -5,7 +5,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { crud } from '@/redux/crud/actions';
 import { useCrudContext } from '@/context/crud';
 // FIX: Import selectCurrentItem to get the data loaded by DataTable
-import { selectUpdatedItem, selectCurrentItem } from '@/redux/crud/selectors'; 
+import { selectUpdatedItem, selectCurrentItem } from '@/redux/crud/selectors';
 
 import useLanguage from '@/locale/useLanguage';
 
@@ -16,7 +16,7 @@ export default function UpdateForm({ config, formElements, withUpload = false })
   let { entity } = config;
   const translate = useLanguage();
   const dispatch = useDispatch();
-  
+
   // FIX: Get the item loaded by DataTable (result) AND the update status (current/isLoading)
   const { result: currentItem } = useSelector(selectCurrentItem);
   const { isLoading, isSuccess } = useSelector(selectUpdatedItem);
@@ -51,7 +51,7 @@ export default function UpdateForm({ config, formElements, withUpload = false })
         : [];
       delete fieldsValue.assignedProjectId;
     }
-    
+
     dispatch(crud.update({ entity, id, jsonData: fieldsValue, withUpload }));
   };
 
@@ -77,10 +77,10 @@ export default function UpdateForm({ config, formElements, withUpload = false })
           newValues[key] = dayjs(newValues[key]);
         }
       });
-      
+
       // Special handling for Project if it's an object
       if (newValues.projectId && typeof newValues.projectId === 'object') {
-          newValues.projectId = newValues.projectId._id;
+        newValues.projectId = newValues.projectId._id;
       }
       // Site transfer: From/To site are populated objects -> use _id for form dropdowns
       if (newValues.fromProjectId && typeof newValues.fromProjectId === 'object') {
@@ -134,6 +134,8 @@ export default function UpdateForm({ config, formElements, withUpload = false })
     }
   }, [currentItem]); // Dependency is now currentItem
 
+  const { result: listResult } = useSelector(selectListItems);
+
   useEffect(() => {
     if (isSuccess) {
       readBox.open();
@@ -141,14 +143,16 @@ export default function UpdateForm({ config, formElements, withUpload = false })
       panel.open();
       form.resetFields();
       dispatch(crud.resetAction({ actionType: 'update' }));
-      dispatch(crud.list({ entity }));
+      const { pagination } = listResult;
+      const options = { page: pagination.current || 1, items: pagination.pageSize || 10 };
+      dispatch(crud.list({ entity, options }));
     }
   }, [isSuccess]);
 
   const { isEditBoxOpen } = state;
 
   const show = isEditBoxOpen ? { display: 'block', opacity: 1 } : { display: 'none', opacity: 0 };
-  
+
   return (
     <div style={show}>
       <Loading isLoading={isLoading}>

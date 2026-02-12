@@ -15,14 +15,32 @@ const LabourMasterSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
+    type: {
+      type: String,
+      enum: ['Skilled', 'Unskilled'],
+      default: 'Unskilled',
+    },
+    gender: {
+      type: String,
+      enum: ['Male', 'Female'],
+      default: 'Male',
+    },
+    wages: {
+      type: Number,
+      default: 0,
+    },
+    phone: {
+      type: String,
+      trim: true,
+    },
     trade: {
       type: String,
-      required: true,
+      required: false,
       trim: true,
     },
     labourType: {
       type: String,
-      required: true,
+      required: false,
       trim: true,
     },
     projectId: {

@@ -3,6 +3,8 @@ import { Form, InputNumber, Button, Table, Tag, message, Select, Input, DatePick
 import { PlusOutlined, DeleteOutlined, CheckCircleOutlined, WarningOutlined, ExclamationCircleOutlined, FilePdfOutlined } from '@ant-design/icons';
 import { useSelector } from 'react-redux';
 import { selectCurrentItem } from '@/redux/crud/selectors';
+import { selectCurrentProject, selectShouldLockProject } from '@/redux/erp/selectors';
+import LockedProjectInput from '@/components/LockedProjectInput';
 import CrudModule from '@/modules/CrudModule/CrudModule';
 import AutoCompleteAsync from '@/components/AutoCompleteAsync';
 import SelectAsync from '@/components/SelectAsync';
@@ -12,6 +14,8 @@ import dayjs from 'dayjs';
 
 function PurchaseOrderForm({ isUpdateForm = false }) {
   const form = Form.useFormInstance();
+  const currentProject = useSelector(selectCurrentProject);
+  const shouldLockProject = useSelector(selectShouldLockProject);
   const [items, setItems] = useState([]);
   const [subTotal, setSubTotal] = useState(0);
   const [taxRate, setTaxRate] = useState(0);
@@ -23,6 +27,12 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
   const { result: currentItem } = useSelector(selectCurrentItem);
   const safeCurrentItem = currentItem || {};
   const hasSavedPO = safeCurrentItem?._id ? true : false;
+
+  useEffect(() => {
+    if (!isUpdateForm && shouldLockProject && currentProject) {
+      form.setFieldsValue({ projectId: currentProject._id });
+    }
+  }, [isUpdateForm, shouldLockProject, currentProject, form]);
 
   useEffect(() => {
     (async () => {
@@ -75,6 +85,9 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
         if (formData.supplier && typeof formData.supplier === 'object') {
           formData.supplier = formData.supplier._id || formData.supplier;
         }
+        if (formData.projectId && typeof formData.projectId === 'object') {
+          formData.projectId = formData.projectId._id || formData.projectId;
+        }
 
         if (formData.date) formData.date = dayjs(formData.date);
         else formData.date = dayjs();
@@ -106,11 +119,14 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
         form.setFieldValue('date', dayjs());
         form.setFieldValue('taxRate', 0);
         form.setFieldValue('leadTimeDays', 0);
+        if (shouldLockProject && currentProject) {
+          form.setFieldValue('projectId', currentProject._id);
+        }
       }
     } catch (err) {
       console.error('Error in form population useEffect:', err);
     }
-  }, [isUpdateForm, safeCurrentItem, form, recalculateTotals]);
+  }, [isUpdateForm, safeCurrentItem, form, recalculateTotals, shouldLockProject, currentProject]);
 
   const handleDateOrLeadTimeChange = useCallback(() => {
     try {
@@ -182,12 +198,14 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
         });
 
         const poItems = Object.values(groupedItems);
+        const reqProjectId = requirement?.projectId?._id || requirement?.projectId;
 
         setItems(poItems);
         form.setFieldsValue({
-          items: poItems, 
+          items: poItems,
           referenceRequirement: requirementId,
-          supplier: null, 
+          supplier: null,
+          projectId: reqProjectId || (shouldLockProject && currentProject ? currentProject._id : null),
         });
 
         recalculateTotals(poItems, taxRate);
@@ -400,6 +418,24 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
         </div>
       )}
 
+      <Form.Item
+        label="Project"
+        name="projectId"
+        rules={[{ required: true, message: 'Please select a project' }]}
+        initialValue={shouldLockProject && currentProject ? currentProject._id : undefined}
+      >
+        {shouldLockProject && currentProject ? (
+          <LockedProjectInput />
+        ) : (
+          <SelectAsync
+            entity="project"
+            displayLabels={['name', 'projectCode']}
+            outputValue="_id"
+            placeholder="Select Project"
+          />
+        )}
+      </Form.Item>
+
       {!isUpdateForm && pendingRequirements.length > 0 && (
         <Form.Item label="Convert from Requirement">
           <Select placeholder="Select a pending requirement to convert" onChange={convertFromRequirement} allowClear style={{ width: '100%' }}>
@@ -522,6 +558,7 @@ export default function PurchaseOrder() {
     tableActions: { showEdit: true, showDelete: true },
     dataTableColumns: [
         { title: 'PO Number', key: 'number', render: (_, record) => `PO-${record?.year || ''}-${String(record?.number || '').padStart(4, '0')}` },
+        { title: 'Project', key: 'project', render: (_, r) => (r?.projectId && typeof r.projectId === 'object') ? (r.projectId.projectCode ? `${r.projectId.name} (${r.projectId.projectCode})` : r.projectId.name) : (r?.referenceRequirement?.projectId && typeof r.referenceRequirement?.projectId === 'object') ? r.referenceRequirement.projectId.name : '-' },
         { title: 'Supplier', key: 'supplier', render: (_, r) => (r?.supplier && typeof r.supplier === 'object') ? r.supplier?.name || '-' : r?.supplier || '-' },
         { title: 'Date', dataIndex: 'date', render: (date) => (date ? dayjs(date).format('DD/MM/YYYY') : '-') },
         { title: 'Status', dataIndex: 'status', render: (status) => <Tag>{status || '-'}</Tag> },

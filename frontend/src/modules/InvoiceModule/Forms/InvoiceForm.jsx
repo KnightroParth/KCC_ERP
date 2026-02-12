@@ -12,12 +12,27 @@ import ItemRow from '@/modules/ErpPanelModule/ItemRow';
 
 import MoneyInputFormItem from '@/components/MoneyInputFormItem';
 import { selectFinanceSettings } from '@/redux/settings/selectors';
+import { selectCurrentProject, selectShouldLockProject } from '@/redux/erp/selectors';
 import { useDate } from '@/settings';
 import useLanguage from '@/locale/useLanguage';
 
 import calculate from '@/utils/calculate';
 import { useSelector } from 'react-redux';
 import SelectAsync from '@/components/SelectAsync';
+
+function LockedProjectDisplay({ currentProject }) {
+  const display = currentProject
+    ? (currentProject.projectCode ? `${currentProject.name} (${currentProject.projectCode})` : currentProject.name)
+    : '';
+  return (
+    <Select
+      disabled
+      value={currentProject?._id}
+      options={currentProject ? [{ label: display, value: currentProject._id }] : []}
+      style={{ color: 'rgba(0,0,0,0.88)', cursor: 'not-allowed' }}
+    />
+  );
+}
 
 export default function InvoiceForm({ subTotal = 0, current = null }) {
   const { last_invoice_number } = useSelector(selectFinanceSettings);
@@ -33,6 +48,8 @@ function LoadInvoiceForm({ subTotal = 0, current = null }) {
   const translate = useLanguage();
   const { dateFormat } = useDate();
   const { last_invoice_number } = useSelector(selectFinanceSettings);
+  const currentProject = useSelector(selectCurrentProject);
+  const shouldLockProject = useSelector(selectShouldLockProject);
   const [total, setTotal] = useState(0);
   const [taxRate, setTaxRate] = useState(0);
   const [taxTotal, setTaxTotal] = useState(0);
@@ -64,8 +81,15 @@ function LoadInvoiceForm({ subTotal = 0, current = null }) {
   }, []);
 
   return (
-    <>
+    <div className="invoice-form-content" style={{ color: '#333' }}>
       <Row gutter={[12, 0]}>
+        {(shouldLockProject && currentProject) && (
+          <Col className="gutter-row" span={8}>
+            <Form.Item name="sourceProjectId" label={translate('Project')} initialValue={currentProject._id}>
+              <LockedProjectDisplay currentProject={currentProject} />
+            </Form.Item>
+          </Col>
+        )}
         <Col className="gutter-row" span={8}>
           <Form.Item
             name="sourceContractorId"
@@ -281,6 +305,13 @@ function LoadInvoiceForm({ subTotal = 0, current = null }) {
           </Col>
         </Row>
       </div>
-    </>
+      <style>{`
+        .invoice-form-content .ant-form-item-label > label,
+        .invoice-form-content .ant-input,
+        .invoice-form-content .ant-input-number-input,
+        .invoice-form-content p { color: #333 !important; }
+        .invoice-form-content .ant-select-selector { color: #000; background: #fff; }
+      `}</style>
+    </div>
   );
 }

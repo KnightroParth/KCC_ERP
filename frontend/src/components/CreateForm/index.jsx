@@ -3,7 +3,7 @@ import { useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { crud } from '@/redux/crud/actions';
 import { useCrudContext } from '@/context/crud';
-import { selectCreatedItem } from '@/redux/crud/selectors';
+import { selectCreatedItem, selectListItems } from '@/redux/crud/selectors';
 
 import useLanguage from '@/locale/useLanguage';
 
@@ -56,7 +56,7 @@ export default function CreateForm({ config, formElements, withUpload = false })
         // Only include items with valid quantity >= 0.01
         return qty !== null && qty !== undefined && !isNaN(qty) && qty >= 0.01;
       });
-      
+
       // If no valid items remain, show error and prevent submission
       if (validItems.length === 0) {
         message.error('Please enter quantity (>= 0.01) for at least one item to receive.');
@@ -86,6 +86,8 @@ export default function CreateForm({ config, formElements, withUpload = false })
     dispatch(crud.create({ entity, jsonData: fieldsValue, withUpload }));
   };
 
+  const { result: listResult } = useSelector(selectListItems);
+
   useEffect(() => {
     if (isSuccess) {
       readBox.open();
@@ -93,7 +95,9 @@ export default function CreateForm({ config, formElements, withUpload = false })
       panel.open();
       form.resetFields();
       dispatch(crud.resetAction({ actionType: 'create' }));
-      dispatch(crud.list({ entity }));
+      const { pagination } = listResult;
+      const options = { page: pagination.current || 1, items: pagination.pageSize || 10 };
+      dispatch(crud.list({ entity, options }));
     }
   }, [isSuccess]);
 

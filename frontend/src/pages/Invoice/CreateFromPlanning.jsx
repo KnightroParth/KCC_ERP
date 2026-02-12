@@ -131,7 +131,6 @@ export default function CreateFromPlanning() {
     });
 
     const payload = {
-      sourceContractorId: contractorId,
       number: (last_invoice_number || 0) + 1,
       year: new Date().getFullYear(),
       status: 'draft',
@@ -254,19 +253,6 @@ export default function CreateFromPlanning() {
                   options={projects.map((p) => ({ label: p.name || p.projectCode, value: p._id }))}
                 />
               )}
-            </Col>
-            <Col>
-              <span style={{ marginRight: 8, fontWeight: 500 }}>Contractor</span>
-              <Select
-                placeholder="All contractors"
-                allowClear
-                style={{ width: 220 }}
-                value={contractorId}
-                onChange={setContractorId}
-                showSearch
-                optionFilterProp="label"
-                options={vendors.map((v) => ({ label: v.name, value: v._id }))}
-              />
             </Col>
             <Col>
               <span style={{ marginRight: 8, fontWeight: 500 }}>Contractor (required)</span>

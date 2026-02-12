@@ -4,14 +4,25 @@ import { useAppContext } from '@/context/appContext';
 import { Grid, Layout, Drawer } from 'antd';
 import { MenuOutlined } from '@ant-design/icons';
 import CollapseBox from '../CollapseBox';
+import usePermission from '@/hooks/usePermission';
+import { ENTITY_TO_MODULE, ALLOW_ALL_MODULE } from '@/config/roles';
 
 const { useBreakpoint } = Grid;
 const { Sider } = Layout;
+
+function getPermissionModule(config) {
+  if (config.permissionModule) return config.permissionModule;
+  const entity = (config.entity || '').toLowerCase();
+  return ENTITY_TO_MODULE[entity] || ALLOW_ALL_MODULE;
+}
 
 export default function SidePanel({ config, topContent, bottomContent, fixHeaderPanel }) {
   const screens = useBreakpoint();
 
   const { ADD_NEW_ENTITY } = config;
+  const permissionModule = getPermissionModule(config);
+  const canCreate = usePermission(permissionModule, 'create');
+
   const { state, crudContextAction } = useCrudContext();
   const { isPanelClose, isBoxCollapsed, isEditBoxOpen } = state;
   const { panel, collapsedBox } = crudContextAction;
@@ -71,7 +82,7 @@ export default function SidePanel({ config, topContent, bottomContent, fixHeader
       >
         {fixHeaderPanel}
         <CollapseBox
-          buttonTitle={isEditBoxOpen ? null : ADD_NEW_ENTITY}
+          buttonTitle={isEditBoxOpen || !canCreate ? null : ADD_NEW_ENTITY}
           isCollapsed={isBoxCollapsed}
           onCollapse={collapsePanelBox}
           topContent={topContent}

@@ -60,55 +60,71 @@ async function importData() {
     await mongoose.connect(DATABASE);
     console.log('Connected to database.');
 
-    console.log('Reading Excel:', filePath);
     const workbook = xlsx.readFile(filePath);
     const sheetName = workbook.SheetNames[0];
     const sheet = workbook.Sheets[sheetName];
-    const rawData = xlsx.utils.sheet_to_json(sheet, { defval: '' });
 
-    if (!rawData.length) {
-      console.log('No rows in sheet.');
-      process.exit(0);
+    // Get all rows as arrays to find the header row
+    const allRows = xlsx.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+
+    let headerRowIndex = -1;
+    for (let i = 0; i < allRows.length; i++) {
+      const row = allRows[i];
+      const hasName = row.some(cell => {
+        const c = String(cell).toLowerCase().trim();
+        return c === 'contractor name' || c === 'name' || c === 'party name';
+      });
+      if (hasName) {
+        headerRowIndex = i;
+        break;
+      }
     }
 
-    const firstRowKeys = Object.keys(rawData[0]).filter((k) => k && String(k).trim());
-    console.log('Columns found:', firstRowKeys);
-
-    const nameColumn = findColumn(
-      firstRowKeys,
-      'contractor name',
-      'contractor',
-      'name',
-      'party name',
-      'vendor'
-    );
-    if (!nameColumn) {
-      console.error('Could not find a name column. Expected: Contractor Name, Name, Contractor, etc.');
+    if (headerRowIndex === -1) {
+      console.error('Could not find header row with "Contractor Name", "Name", or "Party Name"');
       process.exit(1);
     }
 
-    const workTypeColumn = findColumn(
-      firstRowKeys,
-      'work type',
-      'worktype',
-      'type',
-      'work'
-    );
+    console.log('Found header row at index:', headerRowIndex);
+    const headerRow = allRows[headerRowIndex];
+    const dataRows = allRows.slice(headerRowIndex + 1);
+
+    const findColIndex = (...candidates) => {
+      const lower = (s) => String(s || '').toLowerCase().trim();
+      for (const c of candidates) {
+        const index = headerRow.findIndex(h => lower(h) === lower(c));
+        if (index !== -1) return index;
+      }
+      for (const c of candidates) {
+        const index = headerRow.findIndex(h => lower(h).includes(lower(c)));
+        if (index !== -1) return index;
+      }
+      return -1;
+    };
+
+    const nameColIdx = findColIndex('contractor name', 'name', 'party name', 'contractor', 'vendor');
+    const phoneColIdx = findColIndex('contact number', 'phone', 'contact', 'mobile');
+    const workTypeColIdx = findColIndex('category of work', 'work type', 'worktype', 'type', 'work');
+
+    if (nameColIdx === -1) {
+      console.error('Could not find a name column in the header row:', headerRow);
+      process.exit(1);
+    }
 
     const vendors = [];
 
-    for (const row of rawData) {
-      const rawName = row[nameColumn];
-      if (rawName == null || String(rawName).trim() === '') continue;
+    for (const rowArr of dataRows) {
+      const rawName = rowArr[nameColIdx];
+      if (rawName == null || String(rawName).trim() === '' || String(rawName).toLowerCase() === 'null') continue;
+      if (String(rawName).trim().toLowerCase() === 'contractor name') continue; // Skip header duplicate if any
 
       const name = String(rawName).trim();
-      const workType = workTypeColumn && row[workTypeColumn] != null
-        ? String(row[workTypeColumn]).trim()
-        : '';
+      const phone = phoneColIdx !== -1 && rowArr[phoneColIdx] ? String(rowArr[phoneColIdx]).trim() : DEFAULT_PHONE;
+      const workType = workTypeColIdx !== -1 && rowArr[workTypeColIdx] ? String(rowArr[workTypeColIdx]).trim() : '';
 
       vendors.push({
         name,
-        phone: DEFAULT_PHONE,
+        phone: phone && phone !== 'null' ? phone : DEFAULT_PHONE,
         email: DEFAULT_EMAIL,
         address: DEFAULT_ADDRESS,
         workType: workType || undefined,

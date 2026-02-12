@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import {
   EyeOutlined,
   EditOutlined,
@@ -10,7 +10,7 @@ import {
   ArrowRightOutlined,
   ArrowLeftOutlined,
 } from '@ant-design/icons';
-import { Dropdown, Table, Button } from 'antd';
+import { Dropdown, Table, Button, message } from 'antd';
 import { PageHeader } from '@ant-design/pro-layout';
 
 import AutoCompleteAsync from '@/components/AutoCompleteAsync';
@@ -21,8 +21,12 @@ import { selectListItems } from '@/redux/erp/selectors';
 import { useErpContext } from '@/context/erp';
 import { generate as uniqueId } from 'shortid';
 import { useNavigate } from 'react-router-dom';
+import { hasPermission, ENTITY_TO_MODULE } from '@/config/roles';
 
 import { DOWNLOAD_BASE_URL } from '@/config/serverApiConfig';
+import request from '@/request/request';
+import { downloadBillPDF } from '@/pages/Billing/utils/pdfGenerator';
+import logoUrl from '@/style/images/logo-text.png';
 
 function AddNewItem({ config }) {
   const navigate = useNavigate();
@@ -41,16 +45,24 @@ function AddNewItem({ config }) {
 
 export default function DataTable({ config, extra = [] }) {
   const translate = useLanguage();
+  const dispatch = useDispatch();
   let { entity, dataTableColumns, disableAdd = false, searchConfig, headerExtra } = config;
 
   const { DATATABLE_TITLE } = config;
 
   const { result: listResult, isLoading: listIsLoading } = useSelector(selectListItems);
+  const role = useSelector((state) => state?.auth?.current?.role);
 
   const { pagination, items: dataSource } = listResult;
 
   const { erpContextAction } = useErpContext();
   const { modal } = erpContextAction;
+
+  const [downloadingId, setDownloadingId] = useState(null);
+
+  const module = ENTITY_TO_MODULE[entity] || entity;
+  const canDelete = hasPermission(role, module, 'delete');
+  const canEdit = hasPermission(role, module, 'edit');
 
   const items = [
     {
@@ -58,7 +70,7 @@ export default function DataTable({ config, extra = [] }) {
       key: 'read',
       icon: <EyeOutlined />,
     },
-    {
+    canEdit && {
       label: translate('Edit'),
       key: 'edit',
       icon: <EditOutlined />,
@@ -72,13 +84,12 @@ export default function DataTable({ config, extra = [] }) {
     {
       type: 'divider',
     },
-
-    {
+    canDelete && {
       label: translate('Delete'),
       key: 'delete',
       icon: <DeleteOutlined />,
     },
-  ];
+  ].filter(Boolean);
 
   const navigate = useNavigate();
 
@@ -91,8 +102,52 @@ export default function DataTable({ config, extra = [] }) {
     dispatch(erp.currentAction({ actionType: 'update', data }));
     navigate(`/${entity}/update/${record._id}`);
   };
-  const handleDownload = (record) => {
-    window.open(`${DOWNLOAD_BASE_URL}${entity}/${entity}-${record._id}.pdf`, '_blank');
+  const handleDownload = async (record) => {
+    if (entity === 'invoice') {
+      setDownloadingId(record._id);
+      try {
+        const res = await request.read({ entity: 'invoice', id: record._id });
+        const inv = res?.result;
+        if (!inv) {
+          message.error('Could not load invoice');
+          return;
+        }
+        const projectName = inv.sourceProjectId?.name ?? 'Project';
+        const contractorName = inv.sourceContractorId?.name ?? inv.client?.name ?? '';
+        let logoBase64 = '';
+        let logoSize = null;
+        try {
+          const r = await fetch(logoUrl);
+          const blob = await r.blob();
+          logoBase64 = await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+          });
+          logoSize = await new Promise((resolve) => {
+            const img = new Image();
+            img.onload = () => resolve({ w: img.naturalWidth, h: img.naturalHeight });
+            img.onerror = () => resolve(null);
+            img.src = logoBase64;
+          });
+        } catch (_) {}
+        downloadBillPDF(
+          inv,
+          projectName,
+          `KCC-Bill-${inv.number ?? 'draft'}.pdf`,
+          contractorName,
+          logoBase64,
+          logoSize,
+        );
+      } catch (e) {
+        message.error(e?.message || 'Failed to generate PDF');
+      } finally {
+        setDownloadingId(null);
+      }
+    } else {
+      window.open(`${DOWNLOAD_BASE_URL}${entity}/${entity}-${record._id}.pdf`, '_blank');
+    }
   };
 
   const handleDelete = (record) => {
@@ -154,8 +209,6 @@ export default function DataTable({ config, extra = [] }) {
       ),
     },
   ];
-
-  const dispatch = useDispatch();
 
   const handelDataTableLoad = (pagination) => {
     const options = { page: pagination.current || 1, items: pagination.pageSize || 10 };

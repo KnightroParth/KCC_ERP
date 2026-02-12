@@ -36,6 +36,16 @@ const stockTransactionController = () => {
         });
       }
 
+      // Validation: projectId is required for all transactions
+      if (!projectId) {
+        await session.abortTransaction();
+        return res.status(400).json({
+          success: false,
+          result: null,
+          message: 'Project is required for stock transactions',
+        });
+      }
+
       // Validation
       if (type === 'IN' && !purchaseOrder) {
         await session.abortTransaction();

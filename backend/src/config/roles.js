@@ -58,7 +58,7 @@ const ROLE_PERMISSIONS = {
     work_progress: { create: true, edit: true, update: true, delete: true, view: true },
     inventory: { create: true, edit: true, update: true, delete: true, view: true },
     attendance: { create: false, edit: false, update: false, delete: false, view: true },
-    billing: { create: true, edit: true, update: true, delete: true, view: true, approve: true },
+    billing: { create: true, edit: true, update: true, delete: false, view: true, approve: true },
   },
   planner: {
     project_data: { create: false, edit: false, update: false, delete: false, view: false },
@@ -74,7 +74,7 @@ const ROLE_PERMISSIONS = {
     work_progress: { create: true, edit: true, update: true, delete: false, view: true },
     inventory: { create: false, edit: false, update: false, delete: false, view: true },  // View Only
     attendance: { create: true, edit: true, update: true, delete: false, view: true },
-    billing: { create: false, edit: false, update: true, delete: false, view: true, approve: false }, // Update Full, View Only
+    billing: { create: false, edit: false, update: false, delete: false, view: false, approve: false }, // Zero access
   },
   store_incharge: {
     project_data: { create: false, edit: false, update: false, delete: false, view: false },
@@ -82,7 +82,7 @@ const ROLE_PERMISSIONS = {
     work_progress: { create: false, edit: false, update: false, delete: false, view: true }, // View Only
     inventory: { create: true, edit: true, update: true, delete: false, view: true },
     attendance: { create: false, edit: false, update: false, delete: false, view: false }, // No Access
-    billing: { create: false, edit: false, update: false, delete: false, view: true, approve: false }, // View Only
+    billing: { create: false, edit: false, update: false, delete: false, view: false, approve: false }, // Zero access
   },
   accounts: {
     project_data: { create: false, edit: false, update: false, delete: false, view: false },

@@ -2,12 +2,16 @@ const mongoose = require('mongoose');
 
 const PlannedWork = mongoose.model('PlannedWork');
 const Invoice = mongoose.model('Invoice');
+const Activities = mongoose.model('Activities');
+const Units = mongoose.model('Units');
+const Project = mongoose.model('Project');
 
 /**
  * GET /invoice/planning-for-billing
  * Query: weekEnd (ISO date, Saturday), projectId, contractorId
  * Returns planned work for that week (week ending Saturday) for billing chart.
- * Excludes work that is already billed (in an invoice with billingStage approved/payment).
+ * - Excludes work already billed (in an active invoice).
+ * - Only includes planned work whose linked activity has reached 100% progress (work progress complete).
  */
 const getPlanningForBilling = async (req, res) => {
   const { weekEnd, projectId, contractorId } = req.query;
@@ -35,10 +39,11 @@ const getPlanningForBilling = async (req, res) => {
   startDate.setHours(0, 0, 0, 0);
   endDate.setHours(23, 59, 59, 999);
 
-  // Exclude planned work linked to any invoice that is NOT cancelled (prevent double billing)
+  // Strict double-billing prevention: exclude work items already linked to any active invoice
   const allInvoicesWithPlannedWork = await Invoice.find({
     removed: false,
     plannedWorkIds: { $exists: true, $ne: [] },
+    status: { $nin: ['cancelled'] },
     $or: [
       { billingStage: { $exists: false } },
       { billingStage: { $nin: ['cancelled'] } },
@@ -71,16 +76,109 @@ const getPlanningForBilling = async (req, res) => {
     query._id = { $nin: alreadyBilledWorkIds };
   }
 
-  const result = await PlannedWork.find(query)
+  const rawPlanned = await PlannedWork.find(query)
     .sort({ category: 1, buildingName: 1, unitNumber: 1 })
     .populate('projectId', 'name projectCode')
     .populate('contractorId', 'name')
+    .lean()
     .exec();
+
+  if (!rawPlanned || rawPlanned.length === 0) {
+    return res.status(200).json({
+      success: true,
+      result: [],
+      message: 'Planning data for billing (only 100% completed work; excluding already billed)',
+    });
+  }
+
+  // Resolve projectId -> projectCode (Units store projectCode in projectId field)
+  const isValidObjectId = (s) => typeof s === 'string' && /^[a-fA-F0-9]{24}$/.test(s);
+  const projectIdsOrCodes = [...new Set(rawPlanned.map((pw) => (pw.projectId && (pw.projectId._id || pw.projectId)) && (pw.projectId._id || pw.projectId).toString()).filter(Boolean))];
+  const projectIdToCode = {};
+  const objectIdIds = projectIdsOrCodes.filter((id) => isValidObjectId(id));
+  if (objectIdIds.length > 0) {
+    const projects = await Project.find({ _id: { $in: objectIdIds.map((id) => new mongoose.Types.ObjectId(id)) } })
+      .select('_id projectCode')
+      .lean()
+      .exec();
+    projects.forEach((p) => {
+      if (p._id && p.projectCode) projectIdToCode[p._id.toString()] = p.projectCode;
+    });
+  }
+  projectIdsOrCodes.forEach((id) => {
+    if (!projectIdToCode[id] && !isValidObjectId(id)) projectIdToCode[id] = id; // already a projectCode
+  });
+
+  // Build (projectIdOrCode, buildingName, unitNumber) -> unitId so we match the correct unit per building
+  const unitKeys = new Set();
+  rawPlanned.forEach((pw) => {
+    const pid = (pw.projectId && (pw.projectId._id || pw.projectId)).toString();
+    const projectCode = projectIdToCode[pid];
+    if (!projectCode || !pw.unitNumber) return;
+    const building = (pw.buildingName || pw.towerOrWing || '').trim();
+    unitKeys.add(JSON.stringify({ projectCode, building, unitNumber: pw.unitNumber }));
+  });
+
+  const unitIdByKey = {};
+  for (const keyStr of unitKeys) {
+    const { projectCode, building, unitNumber } = JSON.parse(keyStr);
+    const unitQuery = { projectId: projectCode, unitNumber, removed: { $ne: true } };
+    if (building) unitQuery.$or = [{ buildingName: building }, { towerOrWing: building }];
+    const unit = await Units.findOne(unitQuery).select('_id').lean().exec();
+    if (unit) unitIdByKey[keyStr] = unit._id.toString();
+  }
+
+  const workTypes = [...new Set(rawPlanned.map((pw) => (pw.workType || pw.category || '').trim()).filter(Boolean))];
+  const unitIds = [...new Set(Object.values(unitIdByKey))];
+  if (unitIds.length === 0) {
+    return res.status(200).json({
+      success: true,
+      result: [],
+      message: 'Planning data for billing (only 100% completed work; excluding already billed)',
+    });
+  }
+
+  const activityQuery = {
+    removed: { $ne: true },
+    progress: '100%',
+    unitId: { $in: unitIds.map((id) => new mongoose.Types.ObjectId(id)) },
+    activityName: { $in: workTypes },
+  };
+  if (projectId && isValidObjectId(projectId)) activityQuery.projectId = new mongoose.Types.ObjectId(projectId);
+  if (contractorId && isValidObjectId(contractorId)) activityQuery.contractorId = new mongoose.Types.ObjectId(contractorId);
+
+  const completedActivities = await Activities.find(activityQuery)
+    .select('unitId activityName')
+    .lean()
+    .exec();
+
+  const completedKeys = new Set(
+    completedActivities.map((a) => {
+      const uid = (a.unitId && (a.unitId._id || a.unitId)).toString();
+      const name = (a.activityName || '').trim().toLowerCase();
+      return `${uid}|${name}`;
+    })
+  );
+
+  const result = rawPlanned.filter((pw) => {
+    const pid = (pw.projectId && (pw.projectId._id || pw.projectId)).toString();
+    const projectCode = projectIdToCode[pid];
+    if (!projectCode) return false;
+    const building = (pw.buildingName || pw.towerOrWing || '').trim();
+    const unitNumber = pw.unitNumber;
+    const workType = (pw.workType || pw.category || '').trim();
+    if (!workType) return false;
+    const keyStr = JSON.stringify({ projectCode, building, unitNumber });
+    const uid = unitIdByKey[keyStr];
+    if (!uid) return false;
+    const activityKey = `${uid}|${workType.toLowerCase()}`;
+    return completedKeys.has(activityKey);
+  });
 
   return res.status(200).json({
     success: true,
     result,
-    message: 'Planning data for billing (excluding already billed)',
+    message: 'Planning data for billing (only 100% completed work; excluding already billed)',
   });
 };
 

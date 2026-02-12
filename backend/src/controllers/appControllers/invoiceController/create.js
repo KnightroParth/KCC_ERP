@@ -70,7 +70,16 @@ const create = async (req, res) => {
   if (value.adjustments) body.adjustments = value.adjustments;
 
   // Creating a new document in the collection
-  const result = await new Model(body).save();
+  let result;
+  try {
+    result = await new Model(body).save();
+  } catch (err) {
+    return res.status(400).json({
+      success: false,
+      result: null,
+      message: err.message || 'Failed to create invoice',
+    });
+  }
   const fileId = 'invoice-' + result._id + '.pdf';
   const updateResult = await Model.findOneAndUpdate(
     { _id: result._id },
