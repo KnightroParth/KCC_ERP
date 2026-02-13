@@ -170,7 +170,7 @@ const invoiceSchema = new mongoose.Schema({
   billingWeekStart: { type: Date },
   sourceProjectId: { type: mongoose.Schema.ObjectId, ref: 'Project' },
   sourceContractorId: { type: mongoose.Schema.ObjectId, ref: 'Vendor' },
-  plannedWorkIds: [{ type: mongoose.Schema.ObjectId, ref: 'PlannedWork' }],
+  plannedWorkIds: [{ type: mongoose.Schema.ObjectId, ref: 'PlannedWork', autopopulate: true }],
   // Audit stage: which rows are audited (workAssignId = PlannedWork._id or Activity._id)
   auditChecklist: [
     {

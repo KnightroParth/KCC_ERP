@@ -121,9 +121,13 @@ export default function CreateFromPlanning() {
     const items = selectedRows.map((row) => {
       const rate = row.rate || 0;
       const itemName = [row.workType || row.category, row.buildingName, row.unitNumber].filter(Boolean).join(' - ');
+      const descParts = [];
+      if (row.unitType) descParts.push(`Unit type: ${row.unitType}`);
+      if (row.rateSourceNote) descParts.push(row.rateSourceNote);
+      const description = descParts.join('; ');
       return {
         itemName,
-        description: row.unitType ? `Unit type: ${row.unitType}` : '',
+        description,
         quantity: 1,
         price: rate,
         total: rate,

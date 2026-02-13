@@ -53,6 +53,11 @@ const PlannedWorkSchema = new mongoose.Schema(
             type: Number,
             default: 0
         },
+        /** When rate came from a consolidated WorkRate bundle, human-readable note for Billing */
+        rateSourceNote: {
+            type: String,
+            trim: true,
+        },
         description: {
             type: String,
             trim: true

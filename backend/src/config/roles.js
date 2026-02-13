@@ -129,6 +129,7 @@ const ENTITY_TO_MODULE = {
   flat: 'project_data',
   contractor: 'project_data',
   labourmaster: 'project_data',
+  workrate: 'project_data',
   plannedwork: 'planning',
   activities: 'work_progress',
   workassign: 'work_progress',

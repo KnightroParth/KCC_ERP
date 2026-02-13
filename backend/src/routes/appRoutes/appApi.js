@@ -26,6 +26,9 @@ const routerApp = (entity, controller) => {
     router.route(`/${entity}/planning-for-billing`).get(can('view'), catchErrors(controller['getPlanningForBilling']));
     router.route(`/${entity}/mark-paid/:id`).patch(can('approve'), catchErrors(controller['markPaid']));
   }
+  if (entity === 'workrate') {
+    router.route(`/${entity}/rate-for-activity`).get(can('view'), catchErrors(controller['getRateForActivity']));
+  }
 };
 
 routesList.forEach(({ entity, controllerName }) => {

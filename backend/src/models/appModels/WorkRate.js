@@ -34,8 +34,17 @@ const WorkRateSchema = new mongoose.Schema(
         },
         buildingPattern: {
             type: String,
-            required: true,
             trim: true,
+        },
+        buildingName: {
+            type: String,
+            trim: true,
+            index: true,
+        },
+        unitNumber: {
+            type: String,
+            trim: true,
+            index: true,
         },
         minFloor: {
             type: Number,
@@ -48,6 +57,21 @@ const WorkRateSchema = new mongoose.Schema(
         rate: {
             type: Number,
             default: 0,
+        },
+        /** When true, this rate covers multiple activities as a bundle (e.g. "Zari Cutting + Chipping") */
+        isConsolidated: {
+            type: Boolean,
+            default: false,
+        },
+        /** Component activity names when isConsolidated is true (e.g. ["Zari Cutting", "Chipping"]) */
+        componentActivities: [{
+            type: String,
+            trim: true,
+        }],
+        /** Human-readable note when rate is from a bundle, e.g. "Includes Chipping" */
+        activityNote: {
+            type: String,
+            trim: true,
         },
         created: {
             type: Date,

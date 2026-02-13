@@ -108,6 +108,7 @@ function Sidebar({ collapsible, isMobile = false }) {
       children: [
         { key: 'work/planning', label: <Link to="/work/planning" style={{ ...subLinkStyle, color: currentPath === 'work/planning' ? '#ffffff' : '#1677ff' }}>Planning</Link> },
         { key: 'work/wip', label: <Link to="/work/wip" style={{ ...subLinkStyle, color: currentPath === 'work/wip' ? '#ffffff' : '#1677ff' }}>Work in Progress</Link> },
+        { key: 'work/set-rate', label: <Link to="/work/set-rate" style={{ ...subLinkStyle, color: currentPath === 'work/set-rate' ? '#ffffff' : '#1677ff' }}>Set Rate</Link> },
       ],
     },
 

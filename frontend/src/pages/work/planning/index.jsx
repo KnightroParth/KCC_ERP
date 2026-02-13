@@ -5,7 +5,7 @@ import { EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import { useSelector } from 'react-redux';
 import dayjs from 'dayjs';
 
-import { WORK_CATEGORIES, COMPLEX_TASK_COMPONENTS } from '@/config/workConfig';
+import { WORK_CATEGORIES, COMPLEX_TASK_COMPONENTS, SUB_CATEGORY_ALIASES } from '@/config/workConfig';
 import { assignWork } from '@/request/assignWork';
 import request from '@/request/request';
 import { selectCurrentProject, selectShouldLockProject } from '@/redux/erp/selectors';
@@ -343,7 +343,8 @@ export default function Planning() {
                 const plannedResult = await request.listAll({ entity: 'plannedwork' });
                 if (plannedResult.success) setPlannedWorks(plannedResult.result || []);
 
-                const workRateResult = await request.listAll({ entity: 'workrate', options: { projectId: 'KCC-2026-001' } });
+                const workRateOptions = selectedProject ? { projectId: selectedProject._id } : {};
+                const workRateResult = await request.listAll({ entity: 'workrate', options: workRateOptions });
                 if (workRateResult.success) setWorkRates(workRateResult.result || []);
 
                 const invoiceResult = await request.listAll({ entity: 'invoice' });
@@ -376,6 +377,16 @@ export default function Planning() {
         setSelectedBuilding(null);
     }, [selectedProject, unitsList]);
 
+    // Re-fetch work rates when project changes
+    useEffect(() => {
+        const fetchWorkRates = async () => {
+            if (selectedProject) {
+                const workRateResult = await request.listAll({ entity: 'workrate', options: { projectId: selectedProject._id } });
+                if (workRateResult.success) setWorkRates(workRateResult.result || []);
+            }
+        };
+        fetchWorkRates();
+    }, [selectedProject]);
 
     // Handle Checkbox Change (Strict Contractor Check)
     const handleCheckboxChange = async (record, taskName, checked) => {
@@ -534,7 +545,8 @@ export default function Planning() {
                                 incharge: headerDetails.incharge,
                                 floor: unit.floor,
                                 unitType: unit.unitType,
-                                description: isExtraWork ? extraWorkDescription : undefined
+                                description: isExtraWork ? extraWorkDescription : undefined,
+                                rateSourceNote: unit[`${taskName}_rateNote`] || undefined
                             };
                             promises.push(request.update({ entity: 'plannedwork', id: existing._id, jsonData: updateData }));
                         } else {
@@ -554,7 +566,8 @@ export default function Planning() {
                                 floor: unit.floor,
                                 unitType: unit.unitType,
                                 rate: finalRate,
-                                description: isExtraWork ? extraWorkDescription : undefined
+                                description: isExtraWork ? extraWorkDescription : undefined,
+                                rateSourceNote: unit[`${taskName}_rateNote`] || undefined
                             };
                             promises.push(request.create({ entity: 'plannedwork', jsonData: payload }));
 
@@ -596,7 +609,8 @@ export default function Planning() {
             const plannedResult = await request.listAll({ entity: 'plannedwork' });
             if (plannedResult.success) setPlannedWorks(plannedResult.result || []);
 
-            const workRateResult = await request.listAll({ entity: 'workrate', options: { projectId: 'KCC-2026-001' } });
+            const workRateOptions = selectedProject ? { projectId: selectedProject._id } : {};
+            const workRateResult = await request.listAll({ entity: 'workrate', options: workRateOptions });
             if (workRateResult.success) setWorkRates(workRateResult.result || []);
 
             const invoiceResult = await request.listAll({ entity: 'invoice' });
@@ -638,13 +652,22 @@ export default function Planning() {
                 const checklistItems = selectedCategory.fields || [];
                 const currentContractorId = (headerDetails.contractor?._id || headerDetails.contractor)?.toString();
 
-                // Build a set of billed PlannedWork IDs for O(1) lookup
+                // Build a set of billed keys for O(1) lookup
+                // Key format: unitNumber|taskName|contractorId
+                const billedKeys = new Set();
                 const billedPWIds = new Set();
                 invoices.forEach(inv => {
                     if (!inv.removed && inv.billingStage !== 'cancelled' && inv.plannedWorkIds) {
-                        inv.plannedWorkIds.forEach(id => {
-                            const idStr = (id?._id || id)?.toString();
+                        inv.plannedWorkIds.forEach(pw => {
+                            const idStr = (pw?._id || pw)?.toString();
                             if (idStr) billedPWIds.add(idStr);
+
+                            // If pw is an object (populated), add details to billedKeys
+                            if (pw && typeof pw === 'object' && pw.unitNumber) {
+                                const contractorId = (pw.contractorId?._id || pw.contractorId)?.toString();
+                                const key = `${pw.unitNumber}|${pw.workType}|${contractorId}`;
+                                billedKeys.add(key);
+                            }
                         });
                     }
                 });
@@ -673,15 +696,47 @@ export default function Planning() {
                     );
 
                     const floorNum = parseInt(unit.floor) || 0;
+                    const subCategoryMatches = (wrSub, t) => {
+                        if (wrSub === t) return true;
+                        const aliases = SUB_CATEGORY_ALIASES[t];
+                        return aliases && aliases.some((a) => a === wrSub);
+                    };
+                    const unitTypeNorm = (ut) => (ut ? String(ut).replace(/\s+/g, '') : '');
                     const findWorkRate = (task) => {
-                        return workRates.find(wr =>
-                            wr.category === selectedCategory.label &&
-                            wr.subCategory === task &&
-                            wr.unitType === (unit.unitType?.replace(/\s+/g, '') || '') &&
-                            floorNum >= wr.minFloor &&
-                            floorNum <= wr.maxFloor &&
-                            (wr.buildingPattern === 'AllBuildings' || wr.buildingPattern.includes(selectedBuilding))
-                        )?.rate || 0;
+                        // 1. Unit-specific match
+                        const unitSpecific = workRates.find(wr =>
+                            subCategoryMatches(wr.subCategory, task) &&
+                            wr.unitNumber === unit.unitNumber
+                        );
+                        if (unitSpecific) return { rate: unitSpecific.rate, note: unitSpecific.isConsolidated ? unitSpecific.activityNote : null };
+
+                        // 2. Floor/building/unitType match (incl. Other category)
+                        const floorMatch = workRates.find(wr =>
+                            (wr.category === selectedCategory.label || wr.category === 'Other') &&
+                            subCategoryMatches(wr.subCategory, task) &&
+                            (!unitTypeNorm(unit.unitType) || unitTypeNorm(wr.unitType) === unitTypeNorm(unit.unitType)) &&
+                            floorNum >= (wr.minFloor ?? 0) &&
+                            floorNum <= (wr.maxFloor ?? 100) &&
+                            (wr.buildingPattern === 'AllBuildings' || !selectedBuilding || (wr.buildingPattern && wr.buildingPattern.includes(selectedBuilding)) || wr.buildingName === selectedBuilding)
+                        );
+                        if (floorMatch) return { rate: floorMatch.rate, note: floorMatch.isConsolidated ? floorMatch.activityNote : null };
+
+                        // 3. Fallback: consolidated bundle (componentActivities)
+                        const bundleMatch = workRates.find(wr =>
+                            (wr.category === selectedCategory.label || wr.category === 'Other') &&
+                            wr.isConsolidated &&
+                            Array.isArray(wr.componentActivities) &&
+                            wr.componentActivities.some((c) => String(c).trim().toLowerCase() === task.toLowerCase())
+                        );
+                        if (bundleMatch) {
+                            const other = (bundleMatch.componentActivities || []).filter((c) => String(c).trim().toLowerCase() !== task.toLowerCase());
+                            return {
+                                rate: bundleMatch.rate,
+                                note: other.length ? `Includes: ${other.join(', ')}` : `Part of bundle: ${bundleMatch.subCategory}`,
+                            };
+                        }
+
+                        return { rate: 0, note: null };
                     };
 
                     const unitData = {
@@ -735,14 +790,19 @@ export default function Planning() {
                             return matchesBasic && pwContractorId === currentContractorId;
                         });
 
-                        unitData[`${item}_rate`] = foundPlanned?.rate || findWorkRate(item) || 0;
+                        const rateResult = foundPlanned?.rate != null ? { rate: foundPlanned.rate, note: foundPlanned.rateSourceNote } : findWorkRate(item);
+                        unitData[`${item}_rate`] = rateResult?.rate ?? 0;
+                        unitData[`${item}_rateNote`] = rateResult?.note ?? null;
 
                         // 3. Flags for coloring & locking (Independent of Date)
                         if (foundPlanned) {
                             unitData[`${item}_isPlanned`] = true;
-                            if (billedPWIds.has(foundPlanned._id?.toString())) {
-                                unitData[`${item}_isBilled`] = true;
-                            }
+                        }
+
+                        // Check billed status from ID if we have a record, OR from keys if we don't
+                        const billedKey = `${unit.unitNumber}|${item}|${currentContractorId}`;
+                        if ((foundPlanned && billedPWIds.has(foundPlanned._id?.toString())) || billedKeys.has(billedKey)) {
+                            unitData[`${item}_isBilled`] = true;
                         }
                     });
 
@@ -754,7 +814,7 @@ export default function Planning() {
             }
         };
         fetchChecklistStates();
-    }, [selectedProject, selectedBuilding, selectedCategory, headerDetails.contractor, headerDetails.startDate, headerDetails.endDate, plannedWorks, selectedFloor]);
+    }, [selectedProject, selectedBuilding, selectedCategory, headerDetails.contractor, headerDetails.startDate, headerDetails.endDate, plannedWorks, selectedFloor, workRates, invoices]);
 
     const getBuildingUnits = () => {
         if (!selectedProject || !selectedBuilding) return [];

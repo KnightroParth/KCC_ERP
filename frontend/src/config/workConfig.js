@@ -33,6 +33,38 @@ export const COMPLEX_TASK_COMPONENTS = {
     "Toilet-1 Wall": "TilesForm",
 };
 
+/**
+ * Maps workConfig task names to possible DB subCategory values (Excel/import naming).
+ * Set Rate and Planning use this for fuzzy rate lookup when exact match fails.
+ */
+export const SUB_CATEGORY_ALIASES = {
+    // Electrical
+    "Testing Repair & Finish": ["Testing Repair & Finish", "Testing Final Repair & Finish"],
+    "Block to parking meter panel pipe fitting": ["Block to parking meter panel pipe fitting", "Meter drop to isolator"],
+    "Block to parking meter panel wiring": ["Block to parking meter panel wiring"],
+    "Block Panel Fitting": ["Block Panel Fitting"],
+    "Testing": ["Testing", "Final Testing"],
+    // Plumbing
+    "Slab Pipeing": ["Slab Pipeing", "Slab Piping"],
+    "Zari Cutting + Holes": ["Zari Cutting + Holes", "Ziri Cutting + Pipe fitting"],
+    "Nani trap fitting": ["Nani trap fitting", "Nani trap fitting ", "Sluice"],
+    "Show Fitting": ["Show Fitting", "Show fitting (commode, basin, cistern) + Water meter"],
+    // Tiles
+    "Floor": ["Floor", "Floor,Wall Tiles ", "Floor,Wall Tiles"],
+    "Floor Scurting": ["Floor Scurting", "Floor  scurting"],
+    "Balcony Wall": ["Balcony Wall", "Wash- wall"],
+    // Water Proofing
+    "First Coat": ["First Coat", "Chipping & Leakage Pipe"],
+    "Wash up pipe & Concrete Finish": ["Wash up pipe & Concrete Finish"],
+    // Painting
+    "Grinding": ["Grinding", "Granding (1.0/sft)"],
+    "Texture": ["Texture", "Texture (1.0/ sft)"],
+    // POP
+    "Electric Hole Cutting": ["Electric Hole Cutting", "Electric Hole Cutting "],
+    // Civil
+    "Hall": ["Hall", "Door Frame Fitting", "Door Panels"],
+};
+
 export const WORK_CATEGORIES = [
     { id: "0", label: "Mivan", fields: WORK_TASK_CONFIG["Mivan"] },
     { id: "1", label: "Electrical Work-I", fields: WORK_TASK_CONFIG["Electrical Work-I"] },
