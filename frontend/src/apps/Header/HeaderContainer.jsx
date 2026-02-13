@@ -1,16 +1,25 @@
 import { useSelector } from 'react-redux';
 import { Link, useNavigate } from 'react-router-dom';
-import { Avatar, Dropdown, Layout } from 'antd';
-import { LogoutOutlined, UserOutlined } from '@ant-design/icons';
+import { Avatar, Dropdown, Layout, Tag, Typography } from 'antd';
+import { LogoutOutlined, UserOutlined, ProjectOutlined } from '@ant-design/icons';
 
 import { selectCurrentAdmin } from '@/redux/auth/selectors';
+import { selectCurrentProject } from '@/redux/erp/selectors';
 import { FILE_BASE_URL } from '@/config/serverApiConfig';
 import useLanguage from '@/locale/useLanguage';
 
+const { Text } = Typography;
+
 export default function HeaderContent() {
   const currentAdmin = useSelector(selectCurrentAdmin);
+  const currentProject = useSelector(selectCurrentProject);
   const { Header } = Layout;
   const translate = useLanguage();
+
+  const displayName = [currentAdmin?.name, currentAdmin?.surname].filter(Boolean).join(' ') || 'User';
+  const projectLabel = currentProject
+    ? (currentProject.projectCode ? `${currentProject.name} (${currentProject.projectCode})` : currentProject.name)
+    : null;
 
   const ProfileDropdown = () => {
     const navigate = useNavigate();
@@ -66,29 +75,37 @@ export default function HeaderContent() {
   ];
 
   return (
-    <Header
-      style={{
-        padding: '20px',
-        background: '#ffffff',
-        display: 'flex',
-        flexDirection: 'row-reverse',
-        justifyContent: 'flex-start',
-        gap: '15px',
-      }}
-    >
-      <Dropdown
-        menu={{ items }}
-        trigger={['click']}
-        placement="bottomRight"
-      >
+    <Header className="erp-header-bar">
+      <div className="erp-header-context">
+        <div className="erp-header-user">
+          <UserOutlined className="erp-header-user-icon" />
+          <Text strong className="erp-header-user-name">
+            {displayName}
+          </Text>
+          {currentAdmin?.role && (
+            <Tag color="blue" className="erp-header-role-tag">
+              {String(currentAdmin.role).toUpperCase()}
+            </Tag>
+          )}
+        </div>
+        {projectLabel && (
+          <div className="erp-header-project">
+            <ProjectOutlined className="erp-header-project-icon" />
+            <Text type="secondary" className="erp-header-project-label">
+              Project:
+            </Text>
+            <Text className="erp-header-project-name">{projectLabel}</Text>
+          </div>
+        )}
+      </div>
+      <Dropdown menu={{ items }} trigger={['click']} placement="bottomRight">
         <Avatar
-          className="last"
+          className="last erp-header-avatar"
           src={currentAdmin?.photo ? FILE_BASE_URL + currentAdmin?.photo : undefined}
           style={{
             color: '#f56a00',
             backgroundColor: currentAdmin?.photo ? 'none' : '#fde3cf',
             boxShadow: 'rgba(150, 190, 238, 0.35) 0px 0px 10px 2px',
-            float: 'right',
             cursor: 'pointer',
           }}
           size="large"
