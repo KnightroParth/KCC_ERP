@@ -30,9 +30,9 @@ import PrintBill from './components/PrintBill';
 const { Content } = Layout;
 
 const STEPS = [
-  { title: '1. Draft & Audit Check', key: 'audit' },
+  { title: '1. Draft & Audit (bill to contractor)', key: 'audit' },
   { title: '2. Final Check & Approve', key: 'final' },
-  { title: '3. Download PDF & Payment', key: 'payment' },
+  { title: '3. Download PDF & Record Payment', key: 'payment' },
 ];
 
 function getLastSaturday() {
@@ -99,7 +99,7 @@ export default function BillingFromPlanning() {
         <div className="page-content-inner">
           <h1 className="page-title">Create Bill from Planning</h1>
           <p style={{ color: '#8c8c8c', marginBottom: 24 }}>
-            Complete flow in one place: Draft & Audit → Final Check & Approve → Download PDF & Record Payment
+            Bill a contractor against their completed work. Draft & Audit → Final Check & Approve → Download PDF & Record Payment (when you pay the contractor).
           </p>
 
           {/* Filters - always visible */}
@@ -199,7 +199,7 @@ export default function BillingFromPlanning() {
               <Card size="small" style={{ marginTop: 24, color: '#333' }} className="billing-step-card">
                 <p style={{ marginBottom: 8, fontWeight: 500 }}>More actions</p>
                 <p style={{ marginBottom: 16, fontSize: 12, color: '#666' }}>
-                  Use <strong>Record Payment</strong> when payment is received so the bill shows as Paid and the paid amount is updated.
+                  Use <strong>Record Payment</strong> when you pay the contractor so the bill shows as Paid and the amount paid is updated.
                 </p>
                 <Space wrap size="middle">
                   <Button

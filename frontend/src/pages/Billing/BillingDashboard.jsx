@@ -21,7 +21,7 @@ const CARD_CONFIG = [
     iconBg: '#e6f4ff',
     iconColor: '#1677ff',
     title: 'Create Bill from Planning',
-    description: 'Generate RA bills from approved planning and 100% completed work. Draft → Audit → Final Check → Download PDF & Record Payment.',
+    description: 'Bill contractors against their completed work. Draft → Audit → Final Check → Download PDF & Record Payment (when you pay the contractor).',
     label: 'From Planning',
   },
   {
@@ -31,7 +31,7 @@ const CARD_CONFIG = [
     iconBg: '#f6ffed',
     iconColor: '#52c41a',
     title: 'Direct Bill',
-    description: 'Create a standalone invoice without linking to planning. Use for ad-hoc or one-off bills.',
+    description: 'Create a bill to a contractor without linking to planning (ad-hoc or one-off).',
     label: 'Ad-hoc',
   },
   {
@@ -41,7 +41,7 @@ const CARD_CONFIG = [
     iconBg: '#f9f0ff',
     iconColor: '#722ed1',
     title: 'All Bills',
-    description: 'View all bills, record payments, download PDFs, or open any invoice.',
+    description: 'View all bills to contractors, record payments to contractors, download PDFs, or open any bill.',
     label: 'List',
   },
 ];
@@ -58,7 +58,7 @@ export default function BillingDashboard() {
             <Title level={3} style={{ margin: 0 }}>Billing</Title>
           </Space>
           <Text type="secondary" style={{ display: 'block' }}>
-            Create RA bills from planning, issue direct bills, or manage all bills and payments in one place.
+            Bill contractors against their work (from planning or direct), then record payments when you pay them.
           </Text>
         </div>
 

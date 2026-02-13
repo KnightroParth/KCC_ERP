@@ -173,7 +173,7 @@ export default function AuditCheck({
   };
 
   return (
-    <Card title="Audit Check (Draft Bill)" size="small" style={{ color: '#333' }} className="billing-audit-check-card">
+    <Card title="Audit Check (Draft bill to contractor)" size="small" style={{ color: '#333' }} className="billing-audit-check-card">
       <Space style={{ marginBottom: 16 }}>
         <Button icon={<ExportOutlined />} onClick={handleExport} disabled={!data.length}>
           Export to Excel (CSV)

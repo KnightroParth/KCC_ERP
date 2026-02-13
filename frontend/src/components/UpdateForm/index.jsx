@@ -4,8 +4,8 @@ import dayjs from 'dayjs';
 import { useDispatch, useSelector } from 'react-redux';
 import { crud } from '@/redux/crud/actions';
 import { useCrudContext } from '@/context/crud';
-// FIX: Import selectCurrentItem to get the data loaded by DataTable
-import { selectUpdatedItem, selectCurrentItem } from '@/redux/crud/selectors';
+// FIX: Import selectCurrentItem + selectListItems for edit pane and post-update refresh
+import { selectUpdatedItem, selectCurrentItem, selectListItems } from '@/redux/crud/selectors';
 
 import useLanguage from '@/locale/useLanguage';
 
@@ -143,9 +143,11 @@ export default function UpdateForm({ config, formElements, withUpload = false })
       panel.open();
       form.resetFields();
       dispatch(crud.resetAction({ actionType: 'update' }));
-      const { pagination } = listResult;
-      const options = { page: pagination.current || 1, items: pagination.pageSize || 10 };
-      dispatch(crud.list({ entity, options }));
+      const pagination = listResult?.pagination;
+      if (pagination) {
+        const options = { page: pagination.current || 1, items: pagination.pageSize || 10 };
+        dispatch(crud.list({ entity, options }));
+      }
     }
   }, [isSuccess]);
 

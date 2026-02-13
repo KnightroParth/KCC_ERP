@@ -9,6 +9,7 @@ const coreDownloadRouter = require('./routes/coreRoutes/coreDownloadRouter');
 const corePublicRouter = require('./routes/coreRoutes/corePublicRouter');
 const adminAuth = require('./controllers/coreControllers/adminAuth');
 const erpApiRouter = require('./routes/appRoutes/appApi');
+const dashboardRouter = require('./routes/appRoutes/dashboardRoutes');
 const unitsRouter = require('./routes/appRoutes/unitsRoutes');
 const attendanceRouter = require('./routes/appRoutes/attendanceRoutes');
 
@@ -53,6 +54,8 @@ app.use('/api', adminAuth.isValidAuthToken, coreApiRouter);
 
 // ✅ Protected app modules
 app.use('/api', adminAuth.isValidAuthToken, erpApiRouter);
+// ✅ Master Dashboard (unified summary for MD)
+app.use('/api/dashboard', adminAuth.isValidAuthToken, dashboardRouter);
 
 // ✅ Units custom routes
 app.use('/api/units', adminAuth.isValidAuthToken, unitsRouter);

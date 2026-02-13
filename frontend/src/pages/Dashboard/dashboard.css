@@ -1,0 +1,189 @@
+/* Master Dashboard – Premium Command Center (Navy / Gold / White) */
+.dashboard-page {
+  min-height: 100vh;
+  background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+}
+
+.dashboard-page .page-content-inner {
+  padding: 24px 20px 48px;
+  max-width: 1600px;
+  margin: 0 auto;
+}
+
+.dashboard-header {
+  margin-bottom: 28px;
+}
+
+.dashboard-hero-title {
+  color: #002060;
+  font-weight: 700;
+  font-size: 26px;
+  margin-bottom: 4px;
+  letter-spacing: -0.02em;
+}
+
+.dashboard-hero-subtitle {
+  color: #64748b;
+  font-size: 14px;
+  margin-bottom: 0;
+}
+
+.dashboard-hero-hint {
+  margin-top: 10px;
+  padding: 10px 14px;
+  font-size: 13px;
+  color: #475569;
+  background: rgba(0, 32, 96, 0.04);
+  border: 1px solid rgba(0, 32, 96, 0.08);
+  border-radius: 8px;
+  line-height: 1.5;
+  max-width: 560px;
+}
+
+.dashboard-section-title {
+  color: #002060;
+  font-weight: 600;
+  font-size: 16px;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dashboard-hero-row {
+  margin-bottom: 0;
+}
+
+.dashboard-card-fade-in {
+  animation: dashboardCardFadeIn 0.4s ease-out forwards;
+}
+
+.dashboard-card-fade-in:nth-child(1) { animation-delay: 0.03s; }
+.dashboard-card-fade-in:nth-child(2) { animation-delay: 0.06s; }
+.dashboard-card-fade-in:nth-child(3) { animation-delay: 0.09s; }
+.dashboard-card-fade-in:nth-child(4) { animation-delay: 0.12s; }
+.dashboard-card-fade-in:nth-child(5) { animation-delay: 0.15s; }
+
+@keyframes dashboardCardFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.dashboard-skeleton-card {
+  background: linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(248,250,252,0.95) 100%);
+  border-radius: 12px;
+  border: 1px solid rgba(0, 32, 96, 0.08);
+  padding: 20px;
+  min-height: 140px;
+  box-shadow: 0 1px 3px rgba(0,32,96,0.04);
+}
+
+.dashboard-content-card {
+  border-radius: 12px;
+  border: 1px solid rgba(0, 32, 96, 0.08);
+  box-shadow: 0 1px 4px rgba(0, 32, 96, 0.06);
+}
+
+.dashboard-section-desc {
+  color: #64748b;
+  font-size: 13px;
+  margin-bottom: 16px;
+  line-height: 1.5;
+}
+
+/* Rich empty states: informative, not flat */
+.dashboard-empty-state {
+  text-align: center;
+  padding: 32px 24px;
+}
+
+.dashboard-empty-state-icon {
+  width: 56px;
+  height: 56px;
+  margin: 0 auto 16px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(0, 32, 96, 0.06) 0%, rgba(201, 162, 39, 0.08) 100%);
+  border: 1px solid rgba(0, 32, 96, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  color: #002060;
+}
+
+.dashboard-empty-state-title {
+  font-weight: 600;
+  color: #002060;
+  font-size: 15px;
+  margin-bottom: 8px;
+}
+
+.dashboard-empty-state-desc {
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.55;
+  max-width: 360px;
+  margin: 0 auto 16px;
+}
+
+.dashboard-empty-state-list {
+  text-align: left;
+  max-width: 320px;
+  margin: 0 auto;
+  padding: 0;
+  list-style: none;
+}
+
+.dashboard-empty-state-list li {
+  padding: 6px 0 6px 24px;
+  position: relative;
+  color: #475569;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.dashboard-empty-state-list li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 12px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #c9a227;
+}
+
+.dashboard-empty-cta {
+  display: inline-block;
+  margin-top: 8px;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #002060;
+  background: rgba(0, 32, 96, 0.06);
+  border: 1px solid rgba(0, 32, 96, 0.2);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.dashboard-empty-cta:hover {
+  background: rgba(0, 32, 96, 0.1);
+  border-color: rgba(201, 162, 39, 0.5);
+}
+
+/* Tablet-friendly: touch targets and spacing */
+@media (min-width: 768px) and (max-width: 1024px) {
+  .dashboard-page .page-content-inner {
+    padding: 20px 16px 40px;
+  }
+  .dashboard-hero-title {
+    font-size: 24px;
+  }
+}

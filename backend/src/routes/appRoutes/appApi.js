@@ -41,5 +41,9 @@ routesList.forEach(({ entity, controllerName }) => {
 const staffController = require('@/controllers/appControllers/staffController');
 routerApp('staff', staffController);
 
+// Dashboard summary – no model; unified MD command-center API (any authenticated user)
+const dashboardController = require('@/controllers/appControllers/dashboardController');
+router.route('/dashboard/summary').get(catchErrors(dashboardController.summary));
+
 module.exports = router;
 

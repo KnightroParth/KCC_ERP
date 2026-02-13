@@ -373,7 +373,7 @@ export default function ReadItem({ config, selectedItem }) {
               </Row>
               {entity === 'invoice' && (currentErp.paymentStatus === 'unpaid' || currentErp.paymentStatus === 'partially') && (
                 <div style={{ marginTop: 12, fontSize: 12, color: '#666' }}>
-                  Paid = amount received so far. Use &quot;Record Payment&quot; to enter payments.
+                  Paid = amount paid (to contractor) so far. Use &quot;Record Payment&quot; to enter payments made to the contractor.
                 </div>
               )}
             </Card>
