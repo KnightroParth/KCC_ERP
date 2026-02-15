@@ -652,25 +652,48 @@ export default function Planning() {
                 const checklistItems = selectedCategory.fields || [];
                 const currentContractorId = (headerDetails.contractor?._id || headerDetails.contractor)?.toString();
 
-                // Build a set of billed keys for O(1) lookup
-                // Key format: unitNumber|taskName|contractorId
-                const billedKeys = new Set();
+                // Billed = work finished & invoiced. Red tick should show for ALL contractors if work is billed (anyone did it).
                 const billedPWIds = new Set();
+                const billedUnitTaskKeys = new Set(); // unitNumber|workType – work is billed by someone (any contractor)
                 invoices.forEach(inv => {
                     if (!inv.removed && inv.billingStage !== 'cancelled' && inv.plannedWorkIds) {
                         inv.plannedWorkIds.forEach(pw => {
                             const idStr = (pw?._id || pw)?.toString();
                             if (idStr) billedPWIds.add(idStr);
-
-                            // If pw is an object (populated), add details to billedKeys
-                            if (pw && typeof pw === 'object' && pw.unitNumber) {
-                                const contractorId = (pw.contractorId?._id || pw.contractorId)?.toString();
-                                const key = `${pw.unitNumber}|${pw.workType}|${contractorId}`;
-                                billedKeys.add(key);
+                            if (pw && typeof pw === 'object' && pw.unitNumber && pw.workType) {
+                                billedUnitTaskKeys.add(`${pw.unitNumber}|${pw.workType}`);
                             }
                         });
                     }
                 });
+                // Derive unit+task keys from plannedWorks for each billed ID (covers case when invoice doesn't populate plannedWorkIds)
+                plannedWorks.forEach(pw => {
+                    if (billedPWIds.has((pw._id || pw).toString()) && pw.unitNumber && pw.workType) {
+                        billedUnitTaskKeys.add(`${pw.unitNumber}|${pw.workType}`);
+                    }
+                });
+
+                // Work progress 100% (e.g. from old system / Lotus Park at-glance): show tick even if not billed
+                const completedUnitTaskKeys = new Set();
+                try {
+                    const activitiesRes = await request.listAll({
+                        entity: 'activities',
+                        options: { projectId: selectedProject._id, progress: '100%' }
+                    });
+                    const completedActivities = activitiesRes?.result || [];
+                    completedActivities.forEach((act) => {
+                        let unitNumber = act.unitId?.unitNumber;
+                        if (unitNumber == null && act.unitId) {
+                            const uid = (act.unitId?._id || act.unitId).toString();
+                            const u = unitsList.find((x) => (x._id || x).toString() === uid);
+                            if (u) unitNumber = u.unitNumber;
+                        }
+                        const taskName = act.activityName || act.workType;
+                        if (unitNumber != null && taskName) {
+                            completedUnitTaskKeys.add(`${String(unitNumber)}|${taskName}`);
+                        }
+                    });
+                } catch (_) { /* ignore */ }
 
                 // Fetch checklists for this project, contractor, and specific date range
                 const res = await request.listAll({
@@ -799,9 +822,9 @@ export default function Planning() {
                             unitData[`${item}_isPlanned`] = true;
                         }
 
-                        // Check billed status from ID if we have a record, OR from keys if we don't
-                        const billedKey = `${unit.unitNumber}|${item}|${currentContractorId}`;
-                        if ((foundPlanned && billedPWIds.has(foundPlanned._id?.toString())) || billedKeys.has(billedKey)) {
+                        // Red tick = work finished: either billed OR 100% progress (e.g. Lotus Park at-glance). Show for all contractors.
+                        const unitTaskKey = `${unit.unitNumber}|${item}`;
+                        if (billedUnitTaskKeys.has(unitTaskKey) || completedUnitTaskKeys.has(unitTaskKey) || (foundPlanned && billedPWIds.has(foundPlanned._id?.toString()))) {
                             unitData[`${item}_isBilled`] = true;
                         }
                     });
@@ -814,7 +837,7 @@ export default function Planning() {
             }
         };
         fetchChecklistStates();
-    }, [selectedProject, selectedBuilding, selectedCategory, headerDetails.contractor, headerDetails.startDate, headerDetails.endDate, plannedWorks, selectedFloor, workRates, invoices]);
+    }, [selectedProject, selectedBuilding, selectedCategory, headerDetails.contractor, headerDetails.startDate, headerDetails.endDate, plannedWorks, selectedFloor, workRates, invoices, unitsList]);
 
     const getBuildingUnits = () => {
         if (!selectedProject || !selectedBuilding) return [];

@@ -1,3 +1,10 @@
+/**
+ * Import WorkRates from "At Glance Activity wise cost.xlsx"
+ * Usage: node backend/scripts/importRates.js [projectId|all]
+ *   - all (default): Import for ALL projects (Lotus Park, Lotus Green, Lotus Height)
+ *   - KCC-2026-001: Import only for Lotus Park
+ *   - KCC-2026-002: Import only for Lotus Green, etc.
+ */
 require('dotenv').config({ path: __dirname + '/../.env' });
 const mongoose = require('mongoose');
 const xlsx = require('xlsx');
@@ -15,6 +22,7 @@ const TASK_MAPPING = {
     'Conceiled box fitting': 'Conselled box fitting',
     'Block wiring': 'Block Wiring',
     'switch plate fitting': 'Switch Plate fitting',
+    'Testing Final Repair & Finish': 'Testing Repair & Finish',
     '   Testing Final Repair & Finish': 'Testing Repair & Finish',
     'Testing': 'Final Testing',
 
@@ -25,6 +33,7 @@ const TASK_MAPPING = {
     // Plumbing-I
     'Bath + Wash + Toilet & Kitchen internal pipe line fitting': 'Internal Pipe Line Fitting',
     'Bath + Wash + Toilet & Kitchen internal pipe line testing': 'Zari Repairing & Testing',
+    'Internal drainage line bath+wash+Toilet & kitchen nani trap fitting': 'Nani trap fitting',
     'Internal drainage line bath+wash+Toilet & kitchen nani trap fitting ': 'Nani trap fitting',
     'Show fitting (commode, basin, cistern) + Water meter': 'Show Fitting',
 
@@ -35,6 +44,7 @@ const TASK_MAPPING = {
     'Water tank to block water supply pipe-2 nos-': 'Water Supply Line',
 
     // Tiles
+    'Floor,Wall Tiles': 'Floor',
     'Floor,Wall Tiles ': 'Floor',
     'Floor  scurting': 'Floor Scurting',
     'Kitchen- Wall': 'Kitchen- Wall',
@@ -62,6 +72,7 @@ const TASK_MAPPING = {
     'Loft': 'Kitchen', // Rough mapping if needed
 
     // Painting
+    'Granding (1.0/sft)': 'Grinding',
     'Granding (1.0/sft)     ': 'Grinding',
     'Putti-1 (1.25/ sft)': 'Putti-1',
     'Putti-2 with Final Base (1.25/ sft)': 'Putti-2 (Final Base)',
@@ -75,26 +86,50 @@ const TASK_MAPPING = {
 
 const CATEGORY_MAPPING = {
     'Electrical-I': 'Electrical Work-I',
-    'Electrical Work-E': 'Electrical Work-E', // If any
+    'Electrical Line-E': 'Electrical Work-E',
+    'Electrical Work-E': 'Electrical Work-E',
     'Water Proofing': 'Water Proofing',
     'Plumbing-I': 'Plumbing-I',
     'Plumbing-E': 'Plumbing-E',
+    'Tiles': 'Tiles',
     'Tiles ': 'Tiles',
+    'Tiles -F': 'Tiles',
+    'Tiles -W': 'Tiles',
+    'Tiles -Otta': 'Tiles',
+    'Tiles- W': 'Tiles',
+    'Tiles-W': 'Tiles',
+    'Gypsum/pop-w': 'POP',
+    'Gypsum/pop-c': 'POP',
     'pop-w ': 'POP',
     'pop-c ': 'POP',
-    'Painting': 'Painting'
+    'Painting': 'Painting',
+    'Civil Work': 'Civil Work',
+    'Finishing': 'Finishing-W',
+    'Fabrication work': 'Fabrication Work',
 };
+
+require('../src/models/appModels/Project');
+const Project = mongoose.model('Project');
 
 async function importRates() {
     await mongoose.connect(process.env.DATABASE || process.env.MONGODB_URI);
     console.log('Connected to database.');
 
+    const projectArg = process.argv[2] || 'all';
+    let projectIds = [];
+    if (projectArg === 'all' || projectArg === 'ALL') {
+        const projects = await Project.find({ removed: { $ne: true } }).select('_id projectCode').lean();
+        projectIds = projects.map((p) => p.projectCode || p._id.toString());
+        console.log('Importing for ALL projects:', projectIds.map((id, i) => (projects[i]?.projectCode || id)));
+    } else {
+        projectIds = [projectArg];
+        console.log('Importing for project:', projectArg);
+    }
+
     const filePath = path.join(__dirname, '..', '..', 'At Glance Activity wise cost.xlsx');
     const workbook = xlsx.readFile(filePath);
     const sheet = workbook.Sheets[workbook.SheetNames[0]];
     const rawData = xlsx.utils.sheet_to_json(sheet, { header: 1 });
-
-    const projectId = 'KCC-2026-001'; // Lotus Park
 
     // Define the columns mapping from Row 3/4
     // Row 3: [null,null,"Building -",null," A3","A1,A2"," A3","A1, A2"]
@@ -110,7 +145,11 @@ async function importRates() {
     let floorRange = { min: 0, max: 100 };
     let currentCategory = '';
 
-    await WorkRate.deleteMany({ projectId });
+    for (const projectId of projectIds) {
+        console.log('\n--- Project:', projectId, '---');
+        await WorkRate.deleteMany({ projectId });
+        floorRange = { min: 0, max: 100 };
+        currentCategory = '';
 
     for (let i = 0; i < rawData.length; i++) {
         const row = rawData[i];
@@ -132,20 +171,23 @@ async function importRates() {
             continue;
         }
 
-        // Detect Main Category (Row starting with Letter like A, B, C)
+        // Category: Excel col 1 - update when it looks like a category
+        if (cellB && !/^\d+$/.test(cellB) && (CATEGORY_MAPPING[cellB] || CATEGORY_MAPPING[cellB.trim()])) {
+            currentCategory = cellB.trim();
+        }
         if (/^[A-Z]$/.test(cellA)) {
-            currentCategory = cellB;
+            if (cellB) currentCategory = cellB.trim();
             continue;
         }
 
-        // Process Subwork
-        const subWorkRaw = cellC || cellB; // Sometimes subwork is in col B if Sn is present
-        if (!subWorkRaw) continue;
+        // Process Subwork (skip header rows)
+        const subWorkRaw = cellC || cellB;
+        if (!subWorkRaw || /^(SN|Work|Sub|Remark)/i.test(String(subWorkRaw).trim())) continue;
 
-        const appTaskName = TASK_MAPPING[subWorkRaw.trim()] || TASK_MAPPING[cellC.trim()] || TASK_MAPPING[cellB.trim()];
-        const appCategoryName = CATEGORY_MAPPING[currentCategory] || CATEGORY_MAPPING[cellB] || 'Other';
+        const appTaskName = TASK_MAPPING[subWorkRaw.trim()] || TASK_MAPPING[cellC?.trim()] || TASK_MAPPING[cellB?.trim()] || subWorkRaw.trim();
+        const appCategoryName = CATEGORY_MAPPING[currentCategory] || CATEGORY_MAPPING[cellB?.trim()] || 'Other';
 
-        if (appTaskName) {
+        if (appTaskName && appCategoryName) {
             for (const col of cols) {
                 const rate = parseFloat(row[col.index]);
                 if (!isNaN(rate)) {
@@ -164,7 +206,10 @@ async function importRates() {
         }
     }
 
-    console.log('Import Finished.');
+        console.log('Created rates for', projectId);
+    }
+
+    console.log('\nImport finished for all projects.');
     process.exit();
 }
 
