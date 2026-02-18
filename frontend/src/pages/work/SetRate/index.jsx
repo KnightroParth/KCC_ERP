@@ -1,13 +1,16 @@
 // frontend/src/pages/work/SetRate/index.jsx
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { Layout, Select, Card, Table, InputNumber, Row, Col, message, Typography, Button, Space } from 'antd';
+import { Layout, Select, Card, Table, InputNumber, Row, Col, message, Typography, Button, Space, Upload } from 'antd';
 import { useSelector } from 'react-redux';
 import { selectCurrentProject, selectShouldLockProject } from '@/redux/erp/selectors';
 import request from '@/request/request';
 import { assignWork } from '@/request/assignWork';
 import { WORK_CATEGORIES, SUB_CATEGORY_ALIASES } from '@/config/workConfig';
-import { SaveOutlined } from '@ant-design/icons';
+import { SaveOutlined, UploadOutlined } from '@ant-design/icons';
+import axios from 'axios';
+import storePersist from '@/redux/storePersist';
+import { API_BASE_URL } from '@/config/serverApiConfig';
 import './setrate_styles.css';
 
 const { Content } = Layout;
@@ -38,6 +41,7 @@ export default function SetRate() {
     const [selectedFloor, setSelectedFloor] = useState(null);
 
     const [tableData, setTableData] = useState([]);
+    const [importing, setImporting] = useState(false);
 
     // Fetch Initial Data
     useEffect(() => {
@@ -100,13 +104,19 @@ export default function SetRate() {
         if (selectedProject) {
             setLoading(true);
             try {
+                console.log('Fetching rates for project:', selectedProject.name, selectedProject._id);
                 const res = await request.listAll({
                     entity: 'workrate',
                     options: { projectId: selectedProject._id }
                 });
-                if (res.success) setWorkRates(res.result || []);
+                if (res.success) {
+                    console.log(`Successfully fetched ${res.result?.length || 0} work rates.`);
+                    setWorkRates(res.result || []);
+                } else {
+                    console.error('Failed to fetch work rates:', res.message);
+                }
             } catch (e) {
-                console.error(e);
+                console.error('Error fetching work rates:', e);
             } finally {
                 setLoading(false);
             }
@@ -145,20 +155,53 @@ export default function SetRate() {
                 };
                 const unitFloor = floorNum(unit.floor || unit.floorNumber);
                 const unitTypeNorm = normalizeUnitType(unit.unitType);
+                const normalizeBuilding = (b) => (b ? String(b).replace(/[\s-]/g, '').toUpperCase() : '');
+                const unitBuildingNorm = normalizeBuilding(unit.buildingName || unit.towerOrWing);
 
                 selectedCategory.fields.forEach(task => {
+                    const taskNorm = task.trim().toLowerCase();
                     const candidates = workRates.filter((wr) => {
-                        if (!subCategoryMatches(wr.subCategory, task)) return false;
-                        if (wr.category !== selectedCategory.label && wr.category !== 'Other') return false;
+                        // 1. Task match (lenient)
+                        const wrSub = String(wr.subCategory || '').trim().toLowerCase();
+                        let isTaskMatch = wrSub === taskNorm;
+                        if (!isTaskMatch) {
+                            const aliases = SUB_CATEGORY_ALIASES[task] || [];
+                            isTaskMatch = aliases.some(a => String(a).trim().toLowerCase() === wrSub);
+                        }
+                        if (!isTaskMatch) return false;
+
+                        // 2. Category match (lenient)
+                        const wrCat = String(wr.category || '').trim().toLowerCase();
+                        const selCat = String(selectedCategory.label || '').trim().toLowerCase();
+                        if (wrCat !== selCat && wrCat !== 'other') return false;
+
+                        // 3. Unit exact match
                         if (wr.unitNumber && wr.unitNumber === unit.unitNumber) return true;
                         if (wr.unitNumber) return false;
-                        const inFloor = unitFloor >= (wr.minFloor ?? 0) && unitFloor <= (wr.maxFloor ?? 100);
-                        return inFloor;
+
+                        // 4. Floor range match
+                        const inFloor = unitFloor >= (wr.minFloor ?? 0) && unitFloor <= (wr.maxFloor ?? 1000);
+                        if (!inFloor) return false;
+
+                        // 5. Building match
+                        if (wr.buildingName) {
+                            const wrBuildingNorm = normalizeBuilding(wr.buildingName);
+                            if (wrBuildingNorm && wrBuildingNorm !== unitBuildingNorm) return false;
+                        }
+                        return true;
                     });
+
+                    if (candidates.length === 0 && unit.unitNumber === '113') {
+                        // Debug only for one unit to avoid flooding
+                        console.log(`No candidates for Task: ${task}, Unit: 113. BuildingNorm: ${unitBuildingNorm}`);
+                    }
+
                     const wrNorm = (w) => normalizeUnitType(w?.unitType);
                     const exactUnitType = candidates.find((wr) => unitTypeNorm && wrNorm(wr) === unitTypeNorm);
-                    const rateRecord = exactUnitType || candidates[0];
-                    unitData[task] = rateRecord ? rateRecord.rate : 0;
+                    const allUnitType = candidates.find((wr) => (wrNorm(wr) || '').toLowerCase() === 'all');
+                    const rateRecord = exactUnitType || allUnitType || candidates[0];
+                    const displayRate = rateRecord ? (rateRecord.rate ?? 0) : 0;
+                    unitData[task] = typeof displayRate === 'number' && !Number.isNaN(displayRate) ? displayRate : 0;
                 });
 
                 return unitData;
@@ -169,6 +212,38 @@ export default function SetRate() {
             setTableData([]);
         }
     }, [selectedProject, selectedBuilding, selectedCategory, selectedFloor, unitsList, workRates]);
+
+    const handleImportExcel = async (file) => {
+        setImporting(true);
+        try {
+            const formData = new FormData();
+            formData.append('file', file);
+            const auth = storePersist.get('auth');
+            const token = auth?.current?.token;
+            const response = await axios.post(
+                `${API_BASE_URL}workrate/import`,
+                formData,
+                {
+                    headers: {
+                        'Content-Type': 'multipart/form-data',
+                        Authorization: `Bearer ${token}`,
+                    },
+                }
+            );
+            const result = response.data;
+            if (result.success) {
+                message.success(`Imported ${result.result?.totalImported ?? 0} rates successfully`);
+                if (selectedProject) fetchRates();
+            } else {
+                message.error(result.message || 'Import failed');
+            }
+        } catch (error) {
+            message.error('Import failed: ' + (error.response?.data?.message || error.message));
+        } finally {
+            setImporting(false);
+        }
+        return false;
+    };
 
     const handleRateChange = (unitNumber, task, value) => {
         setTableData(prev => prev.map(row => {
@@ -255,7 +330,7 @@ export default function SetRate() {
                             step={0.01}
                             value={record[task]}
                             onChange={(val) => handleRateChange(record.unitNumber, task, val)}
-                            style={{ width: '100 %' }}
+                            style={{ width: '100%' }}
                         />
                     ),
                     width: 150
@@ -269,21 +344,42 @@ export default function SetRate() {
     return (
         <Layout className="setrate-layout">
             <Content className="setrate-content">
-                <div style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
                     <div>
                         <Title level={2} style={{ margin: 0 }}>Set Rate</Title>
                         <Text type="secondary">Define base checklist rates for units</Text>
                     </div>
-                    <Button
-                        type="primary"
-                        icon={<SaveOutlined />}
-                        onClick={handleSave}
-                        loading={saving}
-                        disabled={tableData.length === 0}
-                        size="large"
-                    >
-                        Save All Rates
-                    </Button>
+                    <Space>
+                        <Upload
+                            accept=".xlsx,.xls,.csv"
+                            showUploadList={false}
+                            beforeUpload={(file) => {
+                                const isExcel = file.type === 'application/vnd.ms-excel' ||
+                                    file.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
+                                    file.type === 'text/csv';
+                                if (!isExcel) {
+                                    message.error('Please upload Excel (.xlsx, .xls) or CSV file');
+                                    return Upload.LIST_IGNORE;
+                                }
+                                handleImportExcel(file);
+                                return false;
+                            }}
+                        >
+                            <Button icon={<UploadOutlined />} loading={importing} size="large">
+                                Import from Excel
+                            </Button>
+                        </Upload>
+                        <Button
+                            type="primary"
+                            icon={<SaveOutlined />}
+                            onClick={handleSave}
+                            loading={saving}
+                            disabled={tableData.length === 0}
+                            size="large"
+                        >
+                            Save All Rates
+                        </Button>
+                    </Space>
                 </div>
 
                 <Card className="filter-card" bordered={false}>
@@ -291,7 +387,7 @@ export default function SetRate() {
                         <Col xs={24} sm={12} md={6}>
                             <Text strong>Project</Text>
                             <Select
-                                style={{ width: '100 %', marginTop: 8 }}
+                                style={{ width: '100%', marginTop: 8 }}
                                 placeholder="Select Project"
                                 value={selectedProject?._id}
                                 onChange={(val) => setSelectedProject(projects.find(p => p._id === val))}
@@ -305,7 +401,7 @@ export default function SetRate() {
                         <Col xs={24} sm={12} md={6}>
                             <Text strong>Building</Text>
                             <Select
-                                style={{ width: '100 %', marginTop: 8 }}
+                                style={{ width: '100%', marginTop: 8 }}
                                 placeholder="Select Building"
                                 value={selectedBuilding}
                                 onChange={setSelectedBuilding}
@@ -319,7 +415,7 @@ export default function SetRate() {
                         <Col xs={24} sm={12} md={6}>
                             <Text strong>Work Type</Text>
                             <Select
-                                style={{ width: '100 %', marginTop: 8 }}
+                                style={{ width: '100%', marginTop: 8 }}
                                 placeholder="Select Work Type"
                                 value={selectedCategory?.id}
                                 onChange={(val) => setSelectedCategory(WORK_CATEGORIES.find(c => c.id === val))}
@@ -332,7 +428,7 @@ export default function SetRate() {
                         <Col xs={24} sm={12} md={6}>
                             <Text strong>Floor</Text>
                             <Select
-                                style={{ width: '100 %', marginTop: 8 }}
+                                style={{ width: '100%', marginTop: 8 }}
                                 placeholder="All Floors"
                                 value={selectedFloor}
                                 onChange={setSelectedFloor}

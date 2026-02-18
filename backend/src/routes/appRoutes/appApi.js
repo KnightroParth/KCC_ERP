@@ -1,8 +1,19 @@
 const express = require('express');
+const multer = require('multer');
+const path = require('path');
 const { catchErrors } = require('@/handlers/errorHandlers');
 const checkPermission = require('@/middlewares/checkPermission');
 const { ENTITY_TO_MODULE } = require('@/config/roles');
 const router = express.Router();
+
+const uploadWorkRates = multer({
+    dest: path.join(__dirname, '../../src/public/uploads/temp'),
+    fileFilter: (req, file, cb) => {
+        const allowed = ['application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'text/csv'];
+        if (allowed.includes(file.mimetype)) cb(null, true);
+        else cb(new Error('Only Excel (.xls, .xlsx) or CSV files are allowed'));
+    },
+}).single('file');
 
 const appControllers = require('@/controllers/appControllers');
 const { routesList } = require('@/models/utils');
@@ -28,6 +39,7 @@ const routerApp = (entity, controller) => {
   }
   if (entity === 'workrate') {
     router.route(`/${entity}/rate-for-activity`).get(can('view'), catchErrors(controller['getRateForActivity']));
+    router.route(`/${entity}/import`).post(can('create'), uploadWorkRates, catchErrors(controller['importFromExcel']));
   }
 };
 

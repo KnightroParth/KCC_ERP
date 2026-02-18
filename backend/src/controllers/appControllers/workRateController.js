@@ -1,5 +1,8 @@
 const mongoose = require('mongoose');
+const path = require('path');
+const fs = require('fs');
 require('../../models/appModels/WorkRate');
+const { importWorkRatesFromFile } = require('../../../scripts/importWorkRates');
 
 const workRateController = {
     create: async (req, res) => {
@@ -30,17 +33,26 @@ const workRateController = {
             const { projectId, category } = req.query;
             let query = { removed: false };
             if (projectId) {
-                const isValidObjectId = (s) => typeof s === 'string' && /^[a-fA-F0-9]{24}$/.test(s);
-                if (isValidObjectId(projectId)) {
-                    const Project = mongoose.model('Project');
-                    const project = await Project.findOne({ _id: projectId, removed: { $ne: true } }).select('projectCode projectId').lean().exec();
-                    const codes = [projectId];
-                    if (project?.projectCode) codes.push(project.projectCode);
-                    if (project?.projectId && project.projectId !== project.projectCode) codes.push(project.projectId);
-                    query.projectId = codes.length > 1 ? { $in: codes } : projectId;
+                const Project = mongoose.model('Project');
+                let project;
+                if (mongoose.Types.ObjectId.isValid(projectId)) {
+                    project = await Project.findOne({ _id: projectId, removed: { $ne: true } }).select('projectCode projectId _id').lean().exec();
                 } else {
-                    query.projectId = projectId;
+                    project = await Project.findOne({
+                        $or: [{ projectCode: projectId }, { projectId: projectId }],
+                        removed: { $ne: true }
+                    }).select('projectCode projectId _id').lean().exec();
                 }
+
+                const codes = [];
+                if (project) {
+                    codes.push(project._id);
+                    if (project.projectCode) codes.push(project.projectCode);
+                    if (project.projectId && project.projectId !== project.projectCode) codes.push(project.projectId);
+                } else {
+                    codes.push(projectId);
+                }
+                query.projectId = { $in: [...new Set(codes)] };
             }
             if (category) query.category = category;
             const docs = await Model.find(query).sort({ category: 1, subCategory: 1 });
@@ -194,6 +206,42 @@ const workRateController = {
             });
         } catch (error) {
             return res.status(500).json({ success: false, message: error.message });
+        }
+    },
+
+    /**
+     * POST /workrate/import
+     * Import work rates from Excel file (Set Rate template format).
+     * Expects multipart/form-data with 'file' field.
+     */
+    importFromExcel: async (req, res) => {
+        try {
+            if (!req.file || !req.file.path) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'No file uploaded. Please select an Excel file.',
+                });
+            }
+            const filePath = req.file.path;
+            try {
+                const result = await importWorkRatesFromFile(filePath, {
+                    projectFilter: { name: { $in: [/Lotus Park/i, /Lotus Green/i] } },
+                });
+                if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+                return res.status(200).json({
+                    success: true,
+                    result,
+                    message: `Import complete. Imported ${result.totalImported} rates.`,
+                });
+            } catch (err) {
+                if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+                throw err;
+            }
+        } catch (error) {
+            return res.status(500).json({
+                success: false,
+                message: error.message || 'Import failed',
+            });
         }
     },
 };
