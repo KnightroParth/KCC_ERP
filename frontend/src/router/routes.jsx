@@ -50,7 +50,6 @@ const PurchaseOrder = lazy(() => import('@/pages/Inventory/PurchaseOrder'));
 const GRN = lazy(() => import('@/pages/Inventory/GRN'));
 const Consumption = lazy(() => import('@/pages/Inventory/Consumption'));
 const SiteTransfer = lazy(() => import('@/pages/Inventory/SiteTransfer'));
-const SelectProject = lazy(() => import('@/pages/SelectProject.jsx'));
 
 let routes = {
   expense: [],
@@ -58,7 +57,6 @@ let routes = {
     { path: '/login', element: <Navigate to="/" /> },
     { path: '/logout', element: <Logout /> },
     { path: '/about', element: <About /> },
-    { path: '/select-project', element: <SelectProject /> },
 
     { path: '/', element: <Dashboard /> },
     { path: '/customer', element: <Customer /> },
