@@ -31,15 +31,17 @@ const workRateController = {
         try {
             const Model = mongoose.model('WorkRate');
             const { projectId, category } = req.query;
+            const rawProjectId = typeof projectId === 'string' ? projectId.trim() : (projectId ?? '');
             let query = { removed: false };
-            if (projectId) {
+
+            if (rawProjectId) {
                 const Project = mongoose.model('Project');
                 let project;
-                if (mongoose.Types.ObjectId.isValid(projectId)) {
-                    project = await Project.findOne({ _id: projectId, removed: { $ne: true } }).select('projectCode projectId _id').lean().exec();
+                if (mongoose.Types.ObjectId.isValid(rawProjectId) && String(rawProjectId).length === 24) {
+                    project = await Project.findOne({ _id: rawProjectId, removed: { $ne: true } }).select('projectCode projectId _id').lean().exec();
                 } else {
                     project = await Project.findOne({
-                        $or: [{ projectCode: projectId }, { projectId: projectId }],
+                        $or: [{ projectCode: rawProjectId }, { projectId: rawProjectId }],
                         removed: { $ne: true }
                     }).select('projectCode projectId _id').lean().exec();
                 }
@@ -50,12 +52,16 @@ const workRateController = {
                     if (project.projectCode) codes.push(project.projectCode);
                     if (project.projectId && project.projectId !== project.projectCode) codes.push(project.projectId);
                 } else {
-                    codes.push(projectId);
+                    codes.push(rawProjectId);
+                    if (mongoose.Types.ObjectId.isValid(rawProjectId)) codes.push(new mongoose.Types.ObjectId(rawProjectId));
                 }
                 query.projectId = { $in: [...new Set(codes)] };
+            } else {
+                return res.status(200).json({ success: true, result: [], message: 'projectId is required for workrate listAll' });
             }
+
             if (category) query.category = category;
-            const docs = await Model.find(query).sort({ category: 1, subCategory: 1 });
+            const docs = await Model.find(query).sort({ category: 1, subCategory: 1 }).lean().exec();
             return res.status(200).json({ success: true, result: docs, message: 'Successfully found all documents' });
         } catch (error) {
             return res.status(500).json({ success: false, message: error.message });

@@ -196,7 +196,11 @@ const request = {
       includeToken();
       let query = '?';
       for (var key in options) {
-        query += key + '=' + options[key] + '&';
+        const val = options[key];
+        const str = val != null && typeof val === 'object' && typeof val.toString === 'function'
+          ? val.toString()
+          : String(val ?? '');
+        query += encodeURIComponent(key) + '=' + encodeURIComponent(str) + '&';
       }
       query = query.slice(0, -1);
 

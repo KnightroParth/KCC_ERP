@@ -343,7 +343,8 @@ export default function Planning() {
                 const plannedResult = await request.listAll({ entity: 'plannedwork' });
                 if (plannedResult.success) setPlannedWorks(plannedResult.result || []);
 
-                const workRateOptions = selectedProject ? { projectId: selectedProject._id } : {};
+                const projectIdParam = selectedProject ? ((selectedProject._id ?? selectedProject.id)?.toString?.() ?? selectedProject._id ?? selectedProject.projectCode ?? '') : '';
+                const workRateOptions = projectIdParam ? { projectId: projectIdParam } : {};
                 const workRateResult = await request.listAll({ entity: 'workrate', options: workRateOptions });
                 if (workRateResult.success) setWorkRates(workRateResult.result || []);
 
@@ -381,7 +382,8 @@ export default function Planning() {
     useEffect(() => {
         const fetchWorkRates = async () => {
             if (selectedProject) {
-                const workRateResult = await request.listAll({ entity: 'workrate', options: { projectId: selectedProject._id } });
+                const projectIdParam = (selectedProject._id ?? selectedProject.id)?.toString?.() ?? selectedProject._id ?? selectedProject.projectCode ?? '';
+                const workRateResult = await request.listAll({ entity: 'workrate', options: { projectId: projectIdParam } });
                 if (workRateResult.success) setWorkRates(workRateResult.result || []);
             }
         };
@@ -609,8 +611,8 @@ export default function Planning() {
             const plannedResult = await request.listAll({ entity: 'plannedwork' });
             if (plannedResult.success) setPlannedWorks(plannedResult.result || []);
 
-            const workRateOptions = selectedProject ? { projectId: selectedProject._id } : {};
-            const workRateResult = await request.listAll({ entity: 'workrate', options: workRateOptions });
+            const wrProjectId = selectedProject ? ((selectedProject._id ?? selectedProject.id)?.toString?.() ?? selectedProject.projectCode ?? '') : '';
+            const workRateResult = await request.listAll({ entity: 'workrate', options: wrProjectId ? { projectId: wrProjectId } : {} });
             if (workRateResult.success) setWorkRates(workRateResult.result || []);
 
             const invoiceResult = await request.listAll({ entity: 'invoice' });
@@ -719,12 +721,18 @@ export default function Planning() {
                     );
 
                     const floorNum = parseInt(unit.floor) || 0;
+                    const normalizeCat = (s) => (s ? String(s).replace(/\s+/g, ' ').trim().toLowerCase() : '');
                     const subCategoryMatches = (wrSub, t) => {
-                        if (wrSub === t) return true;
+                        const a = normalizeCat(wrSub);
+                        const b = normalizeCat(t);
+                        if (a === b) return true;
                         const aliases = SUB_CATEGORY_ALIASES[t];
-                        return aliases && aliases.some((a) => a === wrSub);
+                        return aliases && aliases.some((al) => normalizeCat(al) === a);
                     };
-                    const unitTypeNorm = (ut) => (ut ? String(ut).replace(/\s+/g, '') : '');
+                    const unitTypeNorm = (ut) => (ut ? String(ut).replace(/\s+/g, '').replace(/BHK/i, 'BHK') : '');
+                    const normalizeBuilding = (b) => (b ? String(b).replace(/[\s-]/g, '').toUpperCase() : '');
+                    const selCatNorm = normalizeCat(selectedCategory.label);
+                    const selectedBuildingNorm = normalizeBuilding(selectedBuilding);
                     const findWorkRate = (task) => {
                         // 1. Unit-specific match
                         const unitSpecific = workRates.find(wr =>
@@ -733,15 +741,20 @@ export default function Planning() {
                         );
                         if (unitSpecific) return { rate: unitSpecific.rate, note: unitSpecific.isConsolidated ? unitSpecific.activityNote : null };
 
-                        // 2. Floor/building/unitType match (incl. Other category)
-                        const floorMatch = workRates.find(wr =>
-                            (wr.category === selectedCategory.label || wr.category === 'Other') &&
-                            subCategoryMatches(wr.subCategory, task) &&
-                            (!unitTypeNorm(unit.unitType) || unitTypeNorm(wr.unitType) === unitTypeNorm(unit.unitType)) &&
-                            floorNum >= (wr.minFloor ?? 0) &&
-                            floorNum <= (wr.maxFloor ?? 100) &&
-                            (wr.buildingPattern === 'AllBuildings' || !selectedBuilding || (wr.buildingPattern && wr.buildingPattern.includes(selectedBuilding)) || wr.buildingName === selectedBuilding)
-                        );
+                        // 2. Floor/building/unitType match (incl. Other category) – same logic as Set Rate
+                        const unitTypeNormVal = unitTypeNorm(unit.unitType);
+                        const floorMatch = workRates.find(wr => {
+                            if (normalizeCat(wr.category) !== selCatNorm && normalizeCat(wr.category) !== 'other') return false;
+                            if (!subCategoryMatches(wr.subCategory, task)) return false;
+                            const wrUt = unitTypeNorm(wr.unitType);
+                            if (unitTypeNormVal && wrUt && wrUt !== unitTypeNormVal && (wrUt || '').toLowerCase() !== 'all') return false;
+                            if (floorNum < (wr.minFloor ?? 0) || floorNum > (wr.maxFloor ?? 100)) return false;
+                            if (wr.buildingName) {
+                                if (normalizeBuilding(wr.buildingName) !== selectedBuildingNorm) return false;
+                            }
+                            if (wr.buildingPattern && wr.buildingPattern !== 'AllBuildings' && selectedBuilding && !wr.buildingPattern.includes(selectedBuilding)) return false;
+                            return true;
+                        });
                         if (floorMatch) return { rate: floorMatch.rate, note: floorMatch.isConsolidated ? floorMatch.activityNote : null };
 
                         // 3. Fallback: consolidated bundle (componentActivities)
@@ -822,9 +835,10 @@ export default function Planning() {
                             unitData[`${item}_isPlanned`] = true;
                         }
 
-                        // Red tick = work finished: either billed OR 100% progress (e.g. Lotus Park at-glance). Show for all contractors.
+                        // Red tick = work finished: either billed OR 100% progress OR project Complete (building done, no remaining work).
                         const unitTaskKey = `${unit.unitNumber}|${item}`;
-                        if (billedUnitTaskKeys.has(unitTaskKey) || completedUnitTaskKeys.has(unitTaskKey) || (foundPlanned && billedPWIds.has(foundPlanned._id?.toString()))) {
+                        const projectComplete = selectedProject?.status === 'Complete';
+                        if (projectComplete || billedUnitTaskKeys.has(unitTaskKey) || completedUnitTaskKeys.has(unitTaskKey) || (foundPlanned && billedPWIds.has(foundPlanned._id?.toString()))) {
                             unitData[`${item}_isBilled`] = true;
                         }
                     });

@@ -72,7 +72,9 @@ export default function SetRate() {
         if (selectedProject && unitsList.length > 0) {
             const projectUnits = unitsList.filter(u => {
                 const unitProjectId = typeof u.projectId === 'object' ? u.projectId._id : u.projectId;
-                return unitProjectId === selectedProject._id || unitProjectId === selectedProject.projectCode;
+                const sid = String(selectedProject._id ?? '');
+                const scode = String(selectedProject.projectCode ?? '');
+                return String(unitProjectId ?? '') === sid || String(unitProjectId ?? '') === scode;
             });
             const uniqueBuildings = [...new Set(projectUnits.map(u => u.buildingName || u.towerOrWing).filter(Boolean))].sort();
             setBuildings(uniqueBuildings);
@@ -87,7 +89,9 @@ export default function SetRate() {
         if (selectedProject && selectedBuilding && unitsList.length > 0) {
             const buildingUnits = unitsList.filter(u => {
                 const unitProjectId = typeof u.projectId === 'object' ? u.projectId._id : u.projectId;
-                const matchesProject = unitProjectId === selectedProject._id || unitProjectId === selectedProject.projectCode;
+                const sid = String(selectedProject._id ?? '');
+                const scode = String(selectedProject.projectCode ?? '');
+                const matchesProject = String(unitProjectId ?? '') === sid || String(unitProjectId ?? '') === scode;
                 const bName = u.buildingName || u.towerOrWing;
                 return matchesProject && bName === selectedBuilding;
             });
@@ -105,9 +109,10 @@ export default function SetRate() {
             setLoading(true);
             try {
                 console.log('Fetching rates for project:', selectedProject.name, selectedProject._id);
+                const projectIdParam = (selectedProject._id ?? selectedProject.id)?.toString?.() ?? selectedProject._id ?? selectedProject.id ?? selectedProject.projectCode ?? '';
                 const res = await request.listAll({
                     entity: 'workrate',
-                    options: { projectId: selectedProject._id }
+                    options: { projectId: projectIdParam }
                 });
                 if (res.success) {
                     console.log(`Successfully fetched ${res.result?.length || 0} work rates.`);
@@ -130,9 +135,11 @@ export default function SetRate() {
     // Prepare table data
     useEffect(() => {
         if (selectedProject && selectedBuilding && selectedCategory) {
+            const sid = String(selectedProject._id ?? '');
+            const scode = String(selectedProject.projectCode ?? '');
             let filteredUnits = unitsList.filter(u => {
                 const unitProjectId = typeof u.projectId === 'object' ? u.projectId._id : u.projectId;
-                const matchesProject = unitProjectId === selectedProject._id || unitProjectId === selectedProject.projectCode;
+                const matchesProject = String(unitProjectId ?? '') === sid || String(unitProjectId ?? '') === scode;
                 const bName = u.buildingName || u.towerOrWing;
                 return matchesProject && bName === selectedBuilding;
             });
@@ -158,32 +165,29 @@ export default function SetRate() {
                 const normalizeBuilding = (b) => (b ? String(b).replace(/[\s-]/g, '').toUpperCase() : '');
                 const unitBuildingNorm = normalizeBuilding(unit.buildingName || unit.towerOrWing);
 
+                const normalizeCat = (s) => (s ? String(s).replace(/\s+/g, ' ').trim().toLowerCase() : '');
+                const selCatNorm = normalizeCat(selectedCategory.label);
+
                 selectedCategory.fields.forEach(task => {
-                    const taskNorm = task.trim().toLowerCase();
+                    const taskNorm = normalizeCat(task);
                     const candidates = workRates.filter((wr) => {
-                        // 1. Task match (lenient)
-                        const wrSub = String(wr.subCategory || '').trim().toLowerCase();
+                        const wrSub = normalizeCat(wr.subCategory);
                         let isTaskMatch = wrSub === taskNorm;
                         if (!isTaskMatch) {
                             const aliases = SUB_CATEGORY_ALIASES[task] || [];
-                            isTaskMatch = aliases.some(a => String(a).trim().toLowerCase() === wrSub);
+                            isTaskMatch = aliases.some(a => normalizeCat(a) === wrSub);
                         }
                         if (!isTaskMatch) return false;
 
-                        // 2. Category match (lenient)
-                        const wrCat = String(wr.category || '').trim().toLowerCase();
-                        const selCat = String(selectedCategory.label || '').trim().toLowerCase();
-                        if (wrCat !== selCat && wrCat !== 'other') return false;
+                        const wrCat = normalizeCat(wr.category);
+                        if (wrCat !== selCatNorm && wrCat !== 'other') return false;
 
-                        // 3. Unit exact match
-                        if (wr.unitNumber && wr.unitNumber === unit.unitNumber) return true;
-                        if (wr.unitNumber) return false;
+                        if (wr.unitNumber && wr.unitNumber !== unit.unitNumber) return false;
+                        if (wr.unitNumber) return true;
 
-                        // 4. Floor range match
                         const inFloor = unitFloor >= (wr.minFloor ?? 0) && unitFloor <= (wr.maxFloor ?? 1000);
                         if (!inFloor) return false;
 
-                        // 5. Building match
                         if (wr.buildingName) {
                             const wrBuildingNorm = normalizeBuilding(wr.buildingName);
                             if (wrBuildingNorm && wrBuildingNorm !== unitBuildingNorm) return false;
@@ -191,15 +195,16 @@ export default function SetRate() {
                         return true;
                     });
 
-                    if (candidates.length === 0 && unit.unitNumber === '113') {
-                        // Debug only for one unit to avoid flooding
-                        console.log(`No candidates for Task: ${task}, Unit: 113. BuildingNorm: ${unitBuildingNorm}`);
-                    }
-
                     const wrNorm = (w) => normalizeUnitType(w?.unitType);
+                    const hasRate = (wr) => typeof wr.rate === 'number' && !Number.isNaN(wr.rate) && wr.rate > 0;
                     const exactUnitType = candidates.find((wr) => unitTypeNorm && wrNorm(wr) === unitTypeNorm);
                     const allUnitType = candidates.find((wr) => (wrNorm(wr) || '').toLowerCase() === 'all');
-                    const rateRecord = exactUnitType || allUnitType || candidates[0];
+                    let rateRecord = null;
+                    if (exactUnitType && hasRate(exactUnitType)) rateRecord = exactUnitType;
+                    else if (exactUnitType) rateRecord = exactUnitType;
+                    else if (allUnitType && hasRate(allUnitType)) rateRecord = allUnitType;
+                    else if (allUnitType) rateRecord = allUnitType;
+                    else rateRecord = candidates.find(hasRate) || candidates[0];
                     const displayRate = rateRecord ? (rateRecord.rate ?? 0) : 0;
                     unitData[task] = typeof displayRate === 'number' && !Number.isNaN(displayRate) ? displayRate : 0;
                 });

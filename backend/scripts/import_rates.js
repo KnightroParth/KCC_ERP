@@ -68,7 +68,7 @@ async function runImport() {
             const sheet = workbook.Sheets[sheetName];
             // Use header: 1 to handle sub-headers manually in Civil Work
             const data = XLSX.utils.sheet_to_json(sheet, { header: 1 });
-            const headers = data[0];
+            const headers = data[0] || [];
 
             console.log(`📄 Processing Sheet: ${sheetName}`);
 
@@ -115,9 +115,8 @@ async function runImport() {
                 const fromFloor = parseInt(row['From Floor']) || 0;
                 const toFloor = parseInt(row['To Floor']) || 1000;
 
-                const taskKeys = Object.keys(row).filter(key =>
-                    !['Project Name', 'Building', 'Unit Type', 'From Floor', 'To Floor', '__EMPTY'].includes(key)
-                );
+                const metaCols = ['Project Name', 'Building', 'Unit Type', 'From Floor', 'To Floor', '__EMPTY'];
+                const taskKeys = (headers || []).filter(h => h && !metaCols.includes(String(h).trim()));
 
                 const buildings = rawBuilding ? String(rawBuilding).split(/,\s*/).map(b => b.trim()).filter(Boolean) : [null];
 
