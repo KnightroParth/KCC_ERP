@@ -9,24 +9,21 @@
 exports.catchErrors = (fn) => {
   return function (req, res, next) {
     return fn(req, res, next).catch((error) => {
-      if (error.name == 'ValidationError') {
+      if (error.name === 'ValidationError') {
         return res.status(400).json({
           success: false,
           result: null,
           message: 'Required fields are not supplied',
           controller: fn.name,
-          error: error,
-        });
-      } else {
-        // Server Error
-        return res.status(500).json({
-          success: false,
-          result: null,
-          message: error.message,
-          controller: fn.name,
-          error: error,
         });
       }
+      const isProd = process.env.NODE_ENV === 'production';
+      return res.status(500).json({
+        success: false,
+        result: null,
+        message: isProd ? 'An error occurred' : (error && error.message) || 'Server error',
+        ...(isProd ? {} : { controller: fn.name }),
+      });
     });
   };
 };
@@ -71,7 +68,6 @@ exports.developmentErrors = (error, req, res, next) => {
 exports.productionErrors = (error, req, res, next) => {
   return res.status(500).json({
     success: false,
-    message: error.message,
-    error: error,
+    message: (error && error.message) ? error.message : 'An error occurred',
   });
 };

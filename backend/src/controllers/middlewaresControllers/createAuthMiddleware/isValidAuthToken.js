@@ -71,9 +71,7 @@ const isValidAuthToken = async (req, res, next, { userModel, jwtSecret = 'JWT_SE
     return res.status(500).json({
       success: false,
       result: null,
-      message: error.message,
-      error: error,
-      controller: 'isValidAuthToken',
+      message: process.env.NODE_ENV === 'production' ? 'Authentication error' : (error && error.message) || 'Server error',
     });
   }
 };

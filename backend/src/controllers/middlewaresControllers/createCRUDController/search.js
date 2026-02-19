@@ -1,23 +1,24 @@
+const { escapeRegex, sanitizeFieldName } = require('@/utils/safeRegex');
+
 const search = async (Model, req, res) => {
-  // console.log(req.query.fields)
-  // if (req.query.q === undefined || req.query.q.trim() === '') {
-  //   return res
-  //     .status(202)
-  //     .json({
-  //       success: false,
-  //       result: [],
-  //       message: 'No document found by this request',
-  //     })
-  //     .end();
-  // }
-  const fieldsArray = req.query.fields ? req.query.fields.split(',') : ['name'];
-
-  const fields = { $or: [] };
-
-  for (const field of fieldsArray) {
-    fields.$or.push({ [field]: { $regex: new RegExp(req.query.q, 'i') } });
+  const q = req.query.q;
+  if (q == null || String(q).trim() === '') {
+    return res.status(202).json({
+      success: false,
+      result: [],
+      message: 'No document found by this request',
+    });
   }
-  // console.log(fields)
+
+  const rawFields = req.query.fields ? req.query.fields.split(',') : ['name'];
+  const fieldsArray = rawFields.map((f) => sanitizeFieldName(f)).filter(Boolean);
+  if (fieldsArray.length === 0) fieldsArray.push('name');
+
+  const safePattern = escapeRegex(String(q).trim());
+  const fields = { $or: [] };
+  for (const field of fieldsArray) {
+    fields.$or.push({ [field]: { $regex: new RegExp(safePattern, 'i') } });
+  }
 
   let results = await Model.find({
     ...fields,

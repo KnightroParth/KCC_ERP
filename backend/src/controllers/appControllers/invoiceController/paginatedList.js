@@ -1,29 +1,29 @@
 const mongoose = require('mongoose');
+const { escapeRegex, sanitizeFieldName } = require('@/utils/safeRegex');
 
 const Model = mongoose.model('Invoice');
 const Vendor = mongoose.model('Vendor');
 const Client = mongoose.model('Client');
 
 const paginatedList = async (req, res) => {
-  const page = req.query.page || 1;
-  const limit = parseInt(req.query.items) || 10;
-  const skip = page * limit - limit;
+  const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+  const limit = Math.min(100, Math.max(1, parseInt(req.query.items, 10) || 10));
+  const skip = (page - 1) * limit;
 
   const { sortBy = 'enabled', sortValue = -1, filter, equal } = req.query;
 
-  const fieldsArray = req.query.fields ? req.query.fields.split(',') : [];
+  const rawFields = req.query.fields ? req.query.fields.split(',') : [];
+  const fieldsArray = rawFields.map((f) => sanitizeFieldName(f)).filter(Boolean);
 
-  let fields;
-
-  fields = fieldsArray.length === 0 ? {} : { $or: [] };
-
-  for (const field of fieldsArray) {
-    fields.$or.push({ [field]: { $regex: new RegExp(req.query.q, 'i') } });
+  let fields = {};
+  if (fieldsArray.length > 0 && req.query.q != null && String(req.query.q).trim() !== '') {
+    const safePattern = escapeRegex(String(req.query.q).trim());
+    fields = { $or: fieldsArray.map((field) => ({ [field]: { $regex: new RegExp(safePattern, 'i') } })) };
   }
 
   const findQuery = {
     removed: false,
-    [filter]: equal,
+    ...(filter && equal != null ? { [sanitizeFieldName(filter)]: equal } : {}),
     ...fields,
   };
 
