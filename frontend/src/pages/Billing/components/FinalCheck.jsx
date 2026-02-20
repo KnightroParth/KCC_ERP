@@ -80,12 +80,12 @@ export default function FinalCheck({ invoice, onFinalized }) {
         return;
       }
       const auditChecklist = (invoice?.auditChecklist || []).map((a) => ({
-        workAssignId: toId(a.workAssignId),
+        workAssignId: String(toId(a.workAssignId) ?? ''),
         isAudited: a.isAudited,
         remarks: a.remarks ?? '',
       }));
       const finalChecklist = auditChecklist.map((a) => ({
-        workAssignId: a.workAssignId,
+        workAssignId: String(a.workAssignId ?? ''),
         isFinalized: true,
       }));
       const items = (invoice?.items || []).map((i) => ({
@@ -112,7 +112,9 @@ export default function FinalCheck({ invoice, onFinalized }) {
         billingWeekEnd: invoice?.billingWeekEnd,
         billingWeekStart: invoice?.billingWeekStart,
         sourceProjectId: toId(invoice?.sourceProjectId),
-        plannedWorkIds: Array.isArray(invoice?.plannedWorkIds) ? invoice.plannedWorkIds.map(toId) : undefined,
+        plannedWorkIds: Array.isArray(invoice?.plannedWorkIds)
+          ? invoice.plannedWorkIds.map((v) => String(toId(v) ?? '')).filter(Boolean)
+          : undefined,
         auditChecklist,
         finalChecklist,
         adjustments,

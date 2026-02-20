@@ -5,7 +5,7 @@ import { EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import { useSelector } from 'react-redux';
 import dayjs from 'dayjs';
 
-import { WORK_CATEGORIES, COMPLEX_TASK_COMPONENTS, SUB_CATEGORY_ALIASES } from '@/config/workConfig';
+import { WORK_CATEGORIES, COMPLEX_TASK_COMPONENTS, SUB_CATEGORY_ALIASES, WORK_TYPE_TO_CONTRACTOR_TYPES } from '@/config/workConfig';
 import { assignWork } from '@/request/assignWork';
 import request from '@/request/request';
 import { selectCurrentProject, selectShouldLockProject } from '@/redux/erp/selectors';
@@ -358,7 +358,7 @@ export default function Planning() {
             }
         };
         fetchData();
-    }, []);
+    }, [selectedProject]);
 
     // Update Buildings when Project changes
     useEffect(() => {
@@ -962,8 +962,8 @@ export default function Planning() {
                             value={selectedFloor}
                             allowClear
                         >
-                            {[...new Set(getBuildingUnits().map(u => u.floor || u.floorNumber).filter(Boolean))].sort().map(f => (
-                                <Option key={f} value={f}>{f}</Option>
+                            {[...new Set(getBuildingUnits().map(u => u.floor || u.floorNumber).filter(f => f != null && f !== ''))].sort((a, b) => parseInt(a) - parseInt(b)).map(f => (
+                                <Option key={f} value={f}>{f === 0 || f === '0' ? '0 (Ground)' : f}</Option>
                             ))}
                         </Select>
                     </div>
@@ -1043,10 +1043,21 @@ export default function Planning() {
                                         placeholder="Select"
                                         showSearch
                                         optionFilterProp="label"
-                                        options={vendors.map(v => ({
-                                            label: `${v.name} - ${v.workType || v.category || 'General'}`,
-                                            value: v._id
-                                        }))}
+                                        options={(() => {
+                                            const categoryLabel = selectedCategory?.label;
+                                            // If no work type selected, or Extra Work (null mapping) -> show all
+                                            if (!categoryLabel) return vendors.map(v => ({ label: `${v.name} - ${v.workType || 'General'}`, value: v._id }));
+                                            const allowedTypes = WORK_TYPE_TO_CONTRACTOR_TYPES[categoryLabel];
+                                            if (allowedTypes === null || allowedTypes === undefined) {
+                                                // null = Extra Work or unmapped = show all
+                                                return vendors.map(v => ({ label: `${v.name} - ${v.workType || 'General'}`, value: v._id }));
+                                            }
+                                            const normalise = s => String(s || '').replace(/\s+/g, ' ').trim().toLowerCase();
+                                            const allowedNorm = allowedTypes.map(normalise);
+                                            return vendors
+                                                .filter(v => allowedNorm.includes(normalise(v.workType)))
+                                                .map(v => ({ label: `${v.name} - ${v.workType || 'General'}`, value: v._id }));
+                                        })()}
                                         value={headerDetails.contractor}
                                         onChange={(val) => setHeaderDetails(prev => ({ ...prev, contractor: val }))}
                                         popupMatchSelectWidth={false}

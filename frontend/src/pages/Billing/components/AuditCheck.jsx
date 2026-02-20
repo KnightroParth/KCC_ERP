@@ -148,9 +148,9 @@ export default function AuditCheck({
         billingWeekEnd: weekEndDate,
         billingWeekStart: weekStartDate,
         sourceProjectId: projectId || selectedRows[0]?.projectId?._id || selectedRows[0]?.projectId,
-        plannedWorkIds: selectedRows.map((r) => r._id),
+        plannedWorkIds: selectedRows.map((r) => (r._id != null ? String(r._id) : null)).filter(Boolean),
         auditChecklist: selectedRows.map((r) => ({
-          workAssignId: r._id,
+          workAssignId: r._id != null ? String(r._id) : '',
           isAudited: true,
           remarks: '',
         })),

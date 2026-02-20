@@ -84,3 +84,26 @@ export const WORK_CATEGORIES = [
     { id: "12", label: "Finishing-D", fields: WORK_TASK_CONFIG["Finishing-D"] },
     { id: "ex", label: "Extra Work", fields: ["Extra Work"] },
 ];
+
+/**
+ * Maps WORK_CATEGORIES labels to contractor workType values that should be shown.
+ * Matching is case-insensitive / trimmed.
+ * null = show ALL contractors (used for "Extra Work").
+ */
+export const WORK_TYPE_TO_CONTRACTOR_TYPES = {
+    "Mivan": ["Mivan", "Civil"],
+    "Electrical Work-I": ["Electrical Work-I", "Electrical Work-I/E"],
+    "Electrical Work-E": ["Electrical Work-E", "Electrical Work-I/E"],
+    "Water Proofing": ["Water Proofing"],
+    "Plumbing-I": ["Plumbing-I", "Plumbing-I/E"],
+    "Plumbing-E": ["Plumbing-E", "Plumbing-I/E"],
+    "Tiles": ["Tiles", "Tile Work"],
+    "POP": ["POP"],
+    "Civil Work (Loft Centering)": ["Civil", "Civil Work"],
+    "Civil Work (Loft Casting)": ["Civil", "Civil Work"],
+    "Fabrication Work": ["Fabrication Work"],
+    "Painting": ["Painting"],
+    "Finishing-W": ["Finishing-W", "Finishing- W"],
+    "Finishing-D": ["Finishing-D"],
+    "Extra Work": null,
+};

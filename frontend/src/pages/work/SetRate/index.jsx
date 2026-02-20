@@ -95,7 +95,7 @@ export default function SetRate() {
                 const bName = u.buildingName || u.towerOrWing;
                 return matchesProject && bName === selectedBuilding;
             });
-            const uniqueFloors = [...new Set(buildingUnits.map(u => u.floor || u.floorNumber).filter(Boolean))].sort((a, b) => parseInt(a) - parseInt(b));
+            const uniqueFloors = [...new Set(buildingUnits.map(u => u.floor || u.floorNumber).filter(f => f != null && f !== ''))].sort((a, b) => parseInt(a) - parseInt(b));
             setFloors(uniqueFloors);
         } else {
             setFloors([]);

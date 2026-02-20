@@ -1,5 +1,6 @@
 /**
- * RBAC: mirrors backend config/roles.js (roles and authority.xlsx)
+ * RBAC: MUST match roles and authority.xlsx (client source of truth).
+ * Mirrors backend config/roles.js. Update ROLE_PERMISSIONS when the Excel changes.
  * Used for UI: sidebar visibility, button visibility (Create/Edit/Delete).
  */
 
@@ -56,7 +57,7 @@ export const ROLE_PERMISSIONS = {
     billing: { create: true, edit: true, update: true, delete: true, view: true, approve: true },
   },
   pm: {
-    project_data: { create: false, edit: false, update: false, delete: false, view: false },
+    project_data: { create: false, edit: false, update: false, delete: false, view: true },
     planning: { create: true, edit: true, update: true, delete: false, view: true },
     work_progress: { create: true, edit: true, update: true, delete: true, view: true },
     inventory: { create: true, edit: true, update: true, delete: true, view: true },
@@ -64,7 +65,7 @@ export const ROLE_PERMISSIONS = {
     billing: { create: true, edit: true, update: true, delete: false, view: true, approve: true },
   },
   planner: {
-    project_data: { create: false, edit: false, update: false, delete: false, view: false },
+    project_data: { create: false, edit: false, update: false, delete: false, view: true },
     planning: { create: true, edit: true, update: true, delete: false, view: true },
     work_progress: { create: false, edit: false, update: true, delete: false, view: true },
     inventory: { create: false, edit: false, update: true, delete: false, view: true },
@@ -72,7 +73,7 @@ export const ROLE_PERMISSIONS = {
     billing: { create: true, edit: true, update: true, delete: false, view: true, approve: false },
   },
   site_engineer: {
-    project_data: { create: false, edit: false, update: false, delete: false, view: false },
+    project_data: { create: false, edit: false, update: false, delete: false, view: true },
     planning: { create: false, edit: false, update: false, delete: false, view: true },
     work_progress: { create: true, edit: true, update: true, delete: false, view: true },
     inventory: { create: false, edit: false, update: false, delete: false, view: true },
@@ -80,7 +81,7 @@ export const ROLE_PERMISSIONS = {
     billing: { create: false, edit: false, update: false, delete: false, view: false, approve: false },
   },
   store_incharge: {
-    project_data: { create: false, edit: false, update: false, delete: false, view: false },
+    project_data: { create: false, edit: false, update: false, delete: false, view: true },
     planning: { create: false, edit: false, update: false, delete: false, view: true },
     work_progress: { create: false, edit: false, update: false, delete: false, view: true },
     inventory: { create: true, edit: true, update: true, delete: false, view: true },
@@ -88,7 +89,7 @@ export const ROLE_PERMISSIONS = {
     billing: { create: false, edit: false, update: false, delete: false, view: false, approve: false },
   },
   accounts: {
-    project_data: { create: false, edit: false, update: false, delete: false, view: false },
+    project_data: { create: false, edit: false, update: false, delete: false, view: true },
     planning: { create: false, edit: false, update: false, delete: false, view: true },
     work_progress: { create: false, edit: false, update: false, delete: false, view: true },
     inventory: { create: true, edit: true, update: true, delete: false, view: true },
@@ -112,6 +113,7 @@ function normalizeRole(role) {
 
 /**
  * Check if role has permission for module + action.
+ * Strict: only roles and authority.xlsx matrix (ROLE_PERMISSIONS) — no bypasses.
  * @param {string} role - User's role (e.g. from Redux auth.current.role)
  * @param {string} module - project_data | planning | work_progress | inventory | attendance | billing
  * @param {string} action - create | edit | update | delete | view | approve
@@ -135,8 +137,11 @@ export const ENTITY_TO_MODULE = {
   client: 'project_data',
   building: 'project_data',
   flat: 'project_data',
+  unit: 'project_data',
+  units: 'project_data',
   contractor: 'project_data',
   labourmaster: 'project_data',
+  workrate: 'project_data',
   plannedwork: 'planning',
   activities: 'work_progress',
   workassign: 'work_progress',
@@ -170,6 +175,7 @@ export const MENU_MODULE_MAP = {
   'work-module': 'planning',
   'work/planning': 'planning',
   'work/wip': 'work_progress',
+  'work/set-rate': 'project_data',
   'attendance-module': 'attendance',
   attendance: 'attendance',
   labour: 'attendance',
@@ -197,6 +203,7 @@ export const PATH_TO_MODULE = {
   '/customer': 'project_data',
   '/units': 'project_data',
   '/projects': 'project_data',
+  '/work/set-rate': 'project_data',
   '/work/planning': 'planning',
   '/work/wip': 'work_progress',
   '/attendance': 'attendance',

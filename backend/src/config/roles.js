@@ -31,7 +31,8 @@ const ROLE_ALIAS = {
 };
 
 /**
- * Permission matrix derived from roles and authority.xlsx
+ * Permission matrix — MUST match roles and authority.xlsx (client source of truth).
+ * Update this object whenever the Excel is updated.
  * Module keys: project_data, planning, work_progress, inventory, attendance, billing
  * Actions: create, edit, update, delete, view, approve (billing only)
  */
@@ -53,7 +54,7 @@ const ROLE_PERMISSIONS = {
     billing: { create: true, edit: true, update: true, delete: true, view: true, approve: true },
   },
   pm: {
-    project_data: { create: false, edit: false, update: false, delete: false, view: false },
+    project_data: { create: false, edit: false, update: false, delete: false, view: true }, // View projects/units/rates
     planning: { create: true, edit: true, update: true, delete: false, view: true },
     work_progress: { create: true, edit: true, update: true, delete: true, view: true },
     inventory: { create: true, edit: true, update: true, delete: true, view: true },
@@ -61,7 +62,7 @@ const ROLE_PERMISSIONS = {
     billing: { create: true, edit: true, update: true, delete: false, view: true, approve: true },
   },
   planner: {
-    project_data: { create: false, edit: false, update: false, delete: false, view: false },
+    project_data: { create: false, edit: false, update: false, delete: false, view: true }, // View projects/units/set rates
     planning: { create: true, edit: true, update: true, delete: false, view: true },
     work_progress: { create: false, edit: false, update: true, delete: false, view: true }, // View Only
     inventory: { create: false, edit: false, update: true, delete: false, view: true },   // Update Full, View Only
@@ -69,7 +70,7 @@ const ROLE_PERMISSIONS = {
     billing: { create: true, edit: true, update: true, delete: false, view: true, approve: false },
   },
   site_engineer: {
-    project_data: { create: false, edit: false, update: false, delete: false, view: false },
+    project_data: { create: false, edit: false, update: false, delete: false, view: true }, // View projects/units/set rates
     planning: { create: false, edit: false, update: false, delete: false, view: true },   // View Only
     work_progress: { create: true, edit: true, update: true, delete: false, view: true },
     inventory: { create: false, edit: false, update: false, delete: false, view: true },  // View Only
@@ -77,7 +78,7 @@ const ROLE_PERMISSIONS = {
     billing: { create: false, edit: false, update: false, delete: false, view: false, approve: false }, // Zero access
   },
   store_incharge: {
-    project_data: { create: false, edit: false, update: false, delete: false, view: false },
+    project_data: { create: false, edit: false, update: false, delete: false, view: true }, // View projects/units for inventory
     planning: { create: false, edit: false, update: false, delete: false, view: true },    // View Only
     work_progress: { create: false, edit: false, update: false, delete: false, view: true }, // View Only
     inventory: { create: true, edit: true, update: true, delete: false, view: true },
@@ -85,7 +86,7 @@ const ROLE_PERMISSIONS = {
     billing: { create: false, edit: false, update: false, delete: false, view: false, approve: false }, // Zero access
   },
   accounts: {
-    project_data: { create: false, edit: false, update: false, delete: false, view: false },
+    project_data: { create: false, edit: false, update: false, delete: false, view: true }, // View projects for context
     planning: { create: false, edit: false, update: false, delete: false, view: true },    // View Only
     work_progress: { create: false, edit: false, update: false, delete: false, view: true }, // View Only
     inventory: { create: true, edit: true, update: true, delete: false, view: true },       // View Only
@@ -104,7 +105,8 @@ function normalizeRole(role) {
 }
 
 /**
- * Check if a role has permission for module + action
+ * Check if a role has permission for module + action.
+ * Strict: only roles and authority.xlsx matrix (ROLE_PERMISSIONS) — no bypasses.
  * @param {string} role - Role name (from user.role)
  * @param {string} module - One of: project_data, planning, work_progress, inventory, attendance, billing
  * @param {string} action - One of: create, edit, update, delete, view, approve
@@ -127,9 +129,12 @@ const ENTITY_TO_MODULE = {
   client: 'project_data',
   building: 'project_data',
   flat: 'project_data',
+  unit: 'project_data',
+  units: 'project_data',
   contractor: 'project_data',
   labourmaster: 'project_data',
   workrate: 'project_data',
+  material: 'inventory',
   plannedwork: 'planning',
   activities: 'work_progress',
   workassign: 'work_progress',

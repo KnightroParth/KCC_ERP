@@ -2,7 +2,6 @@ const XLSX = require('xlsx');
 const mongoose = require('mongoose');
 const path = require('path');
 const fs = require('fs');
-const { globSync } = require('glob');
 
 // Load environment variables
 const backendDir = path.resolve(__dirname, '..');
@@ -17,17 +16,20 @@ if (!DATABASE) {
     process.exit(1);
 }
 
+console.log('📂 Excel Path:', EXCEL_PATH);
+if (!fs.existsSync(EXCEL_PATH)) {
+    console.error('❌ Excel file not found at path:', EXCEL_PATH);
+    process.exit(1);
+}
+
 async function runImport() {
     try {
         await mongoose.connect(DATABASE);
         console.log('✅ Connected to MongoDB');
 
-        // Load all models (use backend dir as base)
-        const modelsDir = path.join(backendDir, 'src/models');
-        const modelsFiles = globSync(path.join(modelsDir, '**/*.js'));
-        for (const filePath of modelsFiles) {
-            require(path.resolve(filePath));
-        }
+        // Explicitly load models
+        require(path.join(backendDir, 'src/models/appModels/Project'));
+        require(path.join(backendDir, 'src/models/appModels/WorkRate'));
 
         const Project = mongoose.model('Project');
         const WorkRate = mongoose.model('WorkRate');
@@ -51,11 +53,13 @@ async function runImport() {
 
         console.log('✅ Target Projects found in DB:', targetProjects.map(p => p.name));
 
-        // AGGRESSIVE CLEAR OLD DATA
+        // SELECTIVE CLEAR: only remove rates for C1-C5 buildings (Lotus Park duplex block)
+        const TARGET_BUILDINGS = ['C1', 'C2', 'C3', 'C4', 'C5'];
         const deleteResult = await WorkRate.deleteMany({
-            projectId: { $in: projectIdentities }
+            projectId: { $in: projectIdentities },
+            buildingName: { $in: TARGET_BUILDINGS }
         });
-        console.log(`🧹 Cleared ${deleteResult.deletedCount} existing rates`);
+        console.log(`🧹 Cleared ${deleteResult.deletedCount} existing rates for buildings: ${TARGET_BUILDINGS.join(', ')}`);
 
         const workbook = XLSX.readFile(EXCEL_PATH);
         const sheetNames = workbook.SheetNames;
@@ -78,6 +82,13 @@ async function runImport() {
             for (let i = 1; i < data.length; i++) {
                 const rowArr = data[i];
                 if (!rowArr || rowArr.length === 0) continue;
+
+                if (String(rowArr[1] || '').includes('C1') || String(rowArr[1] || '').includes('C2')) {
+                    console.log(`[DEBUG FOUND C1/C2 Row:${i}] Sheet:${sheetName} Raw:${JSON.stringify(rowArr)}`);
+                }
+                if (JSON.stringify(rowArr).includes('260')) {
+                    console.log(`[DEBUG FOUND 260 Row:${i}] Sheet:${sheetName} Raw:${JSON.stringify(rowArr)}`);
+                }
 
                 // Sub-header detection for Civil Work
                 if (sheetName.trim() === 'Civil Work') {
@@ -118,7 +129,15 @@ async function runImport() {
                 const metaCols = ['Project Name', 'Building', 'Unit Type', 'From Floor', 'To Floor', '__EMPTY'];
                 const taskKeys = (headers || []).filter(h => h && !metaCols.includes(String(h).trim()));
 
-                const buildings = rawBuilding ? String(rawBuilding).split(/,\s*/).map(b => b.trim()).filter(Boolean) : [null];
+                const allBuildings = rawBuilding ? String(rawBuilding).split(/,\s*/).map(b => b.trim()).filter(Boolean) : [null];
+                // Only process buildings in our target list
+                const buildings = allBuildings.filter(b => b && TARGET_BUILDINGS.map(t => t.toLowerCase()).includes(b.toLowerCase()));
+                if (buildings.length === 0) {
+                    if (i >= 5 && i <= 7) {
+                        console.log(`[DEBUG SKIPPED Row:${i}] RawBuilding: "${rawBuilding}" Filtered: ${JSON.stringify(buildings)}`);
+                    }
+                    continue; // row has no matching buildings
+                }
 
                 for (const bName of buildings) {
                     for (const task of taskKeys) {
@@ -145,6 +164,16 @@ async function runImport() {
                             isConsolidated: false,
                             componentActivities: []
                         };
+
+                        if (i >= 5 && i <= 7) {
+                            console.log(`[DEBUG LOG Row:${i}] Task:${task} Headers:`, JSON.stringify(headers));
+                            console.log(`[DEBUG LOG Row:${i}] RowArr:`, JSON.stringify(rowArr));
+                            console.log(`[DEBUG LOG Row:${i}] Building: ${bName}, UnitType: ${unitType}, Parsed: ${rate}`);
+                        }
+
+                        if (bName === 'C2' && currentCategory === 'Mivan' && task === 'Mivan Centering') {
+                            console.log(`[DEBUG C2 Mivan] Row:${i} RateRaw:${rateValue} Parsed:${rate} UnitType:${unitType} Floor:${fromFloor}-${toFloor}`);
+                        }
 
                         await new WorkRate(payload).save();
                         totalImported++;

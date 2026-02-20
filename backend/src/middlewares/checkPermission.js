@@ -3,6 +3,7 @@ const { hasPermission } = require('@/config/roles');
 /**
  * RBAC middleware: require permission (module, action) for the current user.
  * Must be used after isValidAuthToken so req.admin (or req[userModel]) is set.
+ * Permissions are strictly from roles and authority.xlsx (ROLE_PERMISSIONS).
  *
  * @param {string} module - One of: project_data, planning, work_progress, inventory, attendance, billing
  * @param {string} action - One of: create, edit, update, delete, view, approve

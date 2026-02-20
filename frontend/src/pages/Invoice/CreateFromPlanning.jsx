@@ -149,7 +149,7 @@ export default function CreateFromPlanning() {
       billingWeekStart: weekStartDate,
       sourceProjectId: projectId || selectedRows[0]?.projectId?._id || selectedRows[0]?.projectId,
       sourceContractorId: contractorId || selectedRows[0]?.contractorId?._id || selectedRows[0]?.contractorId,
-      plannedWorkIds: selectedRows.map((r) => r._id),
+      plannedWorkIds: selectedRows.map((r) => (r._id != null ? String(r._id) : null)).filter(Boolean),
     };
 
     setCreating(true);

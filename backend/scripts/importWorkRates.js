@@ -13,7 +13,13 @@ require(path.join(__dirname, '../src/models/appModels/Project'));
 const META_COLS = ['Project Name', 'Building', 'Unit Type', 'From Floor', 'To Floor', '__EMPTY'];
 
 async function importWorkRatesFromFile(filePath, options = {}) {
-    const { projectFilter } = options; // e.g. { name: /Lotus Park/i } or null for all projects
+    const { projectFilter, buildingFilter } = options;
+    // buildingFilter: array of building names (e.g. ['C1','C2','C3','C4','C5'])
+    //   → only delete/import rates for those buildings
+    //   → null/undefined = no filter, process everything
+    const buildingSet = Array.isArray(buildingFilter)
+        ? new Set(buildingFilter.map(b => String(b).trim().toLowerCase()))
+        : null;
     const workbook = XLSX.readFile(filePath);
     const sheetNames = workbook.SheetNames.filter(n => n !== 'Instructions');
 
@@ -37,7 +43,15 @@ async function importWorkRatesFromFile(filePath, options = {}) {
         if (p.projectCode) projectIdentities.push(p.projectCode);
     });
 
-    const deleteResult = await WorkRate.deleteMany({ projectId: { $in: projectIdentities } });
+    let deleteQuery = { projectId: { $in: projectIdentities } };
+    if (buildingSet) {
+        // Only wipe rates for the specific buildings we are about to re-import
+        deleteQuery.buildingName = { $in: [...buildingSet].map(b =>
+            // Rebuild original casing from buildingFilter array for the DB query
+            buildingFilter.find(x => String(x).trim().toLowerCase() === b) || b
+        )};
+    }
+    const deleteResult = await WorkRate.deleteMany(deleteQuery);
     let totalImported = 0;
 
     for (const sheetName of sheetNames) {
@@ -87,7 +101,13 @@ async function importWorkRatesFromFile(filePath, options = {}) {
             const toFloor = parseInt(row['To Floor']) || 1000;
 
             const taskKeys = headers.filter(h => h && !META_COLS.includes(h));
-            const buildings = rawBuilding ? String(rawBuilding).split(/,\s*/).map(b => b.trim()).filter(Boolean) : [null];
+            const allBuildings = rawBuilding ? String(rawBuilding).split(/,\s*/).map(b => b.trim()).filter(Boolean) : [null];
+
+            // Apply building filter – skip buildings we are not importing
+            const buildings = buildingSet
+                ? allBuildings.filter(b => b && buildingSet.has(b.toLowerCase()))
+                : allBuildings;
+            if (buildings.length === 0) continue; // no matching buildings in this row
 
             for (const bName of buildings) {
                 for (const task of taskKeys) {
