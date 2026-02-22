@@ -49,6 +49,7 @@ const workRateController = {
                 const codes = [];
                 if (project) {
                     codes.push(project._id);
+                    codes.push(project._id.toString()); // match string-stored projectId
                     if (project.projectCode) codes.push(project.projectCode);
                     if (project.projectId && project.projectId !== project.projectCode) codes.push(project.projectId);
                 } else {

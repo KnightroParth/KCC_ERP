@@ -175,6 +175,7 @@ export const MENU_MODULE_MAP = {
   'work-module': 'planning',
   'work/planning': 'planning',
   'work/wip': 'work_progress',
+  '/work/balance-work': 'work_progress',
   'work/set-rate': 'project_data',
   'attendance-module': 'attendance',
   attendance: 'attendance',

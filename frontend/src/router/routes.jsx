@@ -32,6 +32,7 @@ const Project = lazy(() => import('@/modules/ProjectModule'));
 const WorkInProgress = lazy(() => import('@/pages/work/WorkInProgress'));
 // ✅ Work Planning UI (friend)
 const Planning = lazy(() => import('@/pages/work/planning'));
+const BalanceWork = lazy(() => import('@/pages/work/BalanceWork'));
 const SetRate = lazy(() => import('@/pages/work/SetRate'));
 
 const Attendance = lazy(() => import('@/pages/Attendance'));
@@ -81,8 +82,9 @@ let routes = {
 
 
     // Work
-    { path: '/work/wip', element: <WorkInProgress /> },
     { path: '/work/planning', element: <Planning /> },
+    { path: '/work/wip', element: <WorkInProgress /> },
+    { path: '/work/balance-work', element: <BalanceWork /> },
     { path: '/work/set-rate', element: <SetRate /> },
 
     { path: '/attendance', element: <Attendance /> },

@@ -95,7 +95,7 @@ export default function SetRate() {
                 const bName = u.buildingName || u.towerOrWing;
                 return matchesProject && bName === selectedBuilding;
             });
-            const uniqueFloors = [...new Set(buildingUnits.map(u => u.floor || u.floorNumber).filter(f => f != null && f !== ''))].sort((a, b) => parseInt(a) - parseInt(b));
+            const uniqueFloors = [...new Set(buildingUnits.map(u => u.floor ?? u.floorNumber).filter(f => f != null && f !== ''))].sort((a, b) => parseInt(a) - parseInt(b));
             setFloors(uniqueFloors);
         } else {
             setFloors([]);
@@ -144,8 +144,8 @@ export default function SetRate() {
                 return matchesProject && bName === selectedBuilding;
             });
 
-            if (selectedFloor) {
-                filteredUnits = filteredUnits.filter(u => (u.floor || u.floorNumber) === selectedFloor);
+            if (selectedFloor !== null && selectedFloor !== undefined && selectedFloor !== '') {
+                filteredUnits = filteredUnits.filter(u => (u.floor ?? u.floorNumber) === selectedFloor);
             }
 
             const normalizeUnitType = (ut) => (ut ? String(ut).replace(/\s+/g, '').replace(/BHK/i, 'BHK') : '');
@@ -157,10 +157,10 @@ export default function SetRate() {
                 const unitData = {
                     key: unit._id,
                     unitNumber: unit.unitNumber,
-                    floor: unit.floor || unit.floorNumber,
+                    floor: unit.floor ?? unit.floorNumber,
                     unitType: unit.unitType
                 };
-                const unitFloor = floorNum(unit.floor || unit.floorNumber);
+                const unitFloor = floorNum(unit.floor ?? unit.floorNumber);
                 const unitTypeNorm = normalizeUnitType(unit.unitType);
                 const normalizeBuilding = (b) => (b ? String(b).replace(/[\s-]/g, '').toUpperCase() : '');
                 const unitBuildingNorm = normalizeBuilding(unit.buildingName || unit.towerOrWing);

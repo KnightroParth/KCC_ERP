@@ -509,7 +509,7 @@ export default function Planning() {
 
             for (const unit of tableData) {
                 // If filtering by floor, only sync units on that floor (redundant as tableData is already filtered, but good for safety)
-                if (selectedFloor && unit.floor !== selectedFloor) continue;
+                if (selectedFloor !== null && selectedFloor !== undefined && selectedFloor !== '' && unit.floor !== selectedFloor) continue;
 
                 for (const taskName of categoryTasks) {
                     const isCheckedOnScreen = unit[taskName];
@@ -647,8 +647,8 @@ export default function Planning() {
                 let buildingUnits = getBuildingUnits();
 
                 // Apply Floor Filter
-                if (selectedFloor) {
-                    buildingUnits = buildingUnits.filter(u => (u.floor || u.floorNumber) === selectedFloor);
+                if (selectedFloor !== null && selectedFloor !== undefined && selectedFloor !== '') {
+                    buildingUnits = buildingUnits.filter(u => (u.floor ?? u.floorNumber) === selectedFloor);
                 }
 
                 const checklistItems = selectedCategory.fields || [];
@@ -743,19 +743,30 @@ export default function Planning() {
 
                         // 2. Floor/building/unitType match (incl. Other category) – same logic as Set Rate
                         const unitTypeNormVal = unitTypeNorm(unit.unitType);
-                        const floorMatch = workRates.find(wr => {
+                        // Helper: check floor + building match regardless of unit type
+                        const matchesFloorBuilding = (wr) => {
                             if (normalizeCat(wr.category) !== selCatNorm && normalizeCat(wr.category) !== 'other') return false;
                             if (!subCategoryMatches(wr.subCategory, task)) return false;
-                            const wrUt = unitTypeNorm(wr.unitType);
-                            if (unitTypeNormVal && wrUt && wrUt !== unitTypeNormVal && (wrUt || '').toLowerCase() !== 'all') return false;
                             if (floorNum < (wr.minFloor ?? 0) || floorNum > (wr.maxFloor ?? 100)) return false;
                             if (wr.buildingName) {
                                 if (normalizeBuilding(wr.buildingName) !== selectedBuildingNorm) return false;
                             }
                             if (wr.buildingPattern && wr.buildingPattern !== 'AllBuildings' && selectedBuilding && !wr.buildingPattern.includes(selectedBuilding)) return false;
                             return true;
+                        };
+                        // First pass: exact unit type or 'All' unit type
+                        const floorMatch = workRates.find(wr => {
+                            if (!matchesFloorBuilding(wr)) return false;
+                            const wrUt = unitTypeNorm(wr.unitType);
+                            if (unitTypeNormVal && wrUt && wrUt !== unitTypeNormVal && (wrUt || '').toLowerCase() !== 'all') return false;
+                            return true;
                         });
                         if (floorMatch) return { rate: floorMatch.rate, note: floorMatch.isConsolidated ? floorMatch.activityNote : null };
+                        // Fallback pass: any rate for same building/floor/task regardless of unit type
+                        // (mirrors Set Rate behaviour so duplex/mixed-type buildings get rates too)
+                        const fallbackMatch = workRates.find(wr => matchesFloorBuilding(wr) && (wr.rate ?? 0) > 0)
+                            || workRates.find(wr => matchesFloorBuilding(wr));
+                        if (fallbackMatch) return { rate: fallbackMatch.rate, note: null };
 
                         // 3. Fallback: consolidated bundle (componentActivities)
                         const bundleMatch = workRates.find(wr =>
@@ -778,7 +789,7 @@ export default function Planning() {
                     const unitData = {
                         _id: unit._id,
                         unitNumber: unit.unitNumber,
-                        floor: unit.floor || unit.floorNumber || '-',
+                        floor: (u => u.floor != null ? u.floor : (u.floorNumber != null ? u.floorNumber : '-'))(unit),
                         unitType: unit.unitType || '-',
                         rate: plannedWork?.rate || 0, // Rate will be task specific now
                     };
@@ -962,7 +973,7 @@ export default function Planning() {
                             value={selectedFloor}
                             allowClear
                         >
-                            {[...new Set(getBuildingUnits().map(u => u.floor || u.floorNumber).filter(f => f != null && f !== ''))].sort((a, b) => parseInt(a) - parseInt(b)).map(f => (
+                            {[...new Set(getBuildingUnits().map(u => u.floor ?? u.floorNumber).filter(f => f != null && f !== ''))].sort((a, b) => parseInt(a) - parseInt(b)).map(f => (
                                 <Option key={f} value={f}>{f === 0 || f === '0' ? '0 (Ground)' : f}</Option>
                             ))}
                         </Select>

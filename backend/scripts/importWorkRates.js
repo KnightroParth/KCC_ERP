@@ -12,14 +12,16 @@ require(path.join(__dirname, '../src/models/appModels/Project'));
 
 const META_COLS = ['Project Name', 'Building', 'Unit Type', 'From Floor', 'To Floor', '__EMPTY'];
 
+// Generate D-1 to D-42 array
+const DUPLEX_UNITS = Array.from({ length: 42 }, (_, i) => `D-${i + 1}`);
+const TARGET_BUILDINGS = ['C1', 'C2', 'C3', 'C4', 'C5'];
+
 async function importWorkRatesFromFile(filePath, options = {}) {
     const { projectFilter, buildingFilter } = options;
-    // buildingFilter: array of building names (e.g. ['C1','C2','C3','C4','C5'])
-    //   → only delete/import rates for those buildings
-    //   → null/undefined = no filter, process everything
     const buildingSet = Array.isArray(buildingFilter)
         ? new Set(buildingFilter.map(b => String(b).trim().toLowerCase()))
         : null;
+
     const workbook = XLSX.readFile(filePath);
     const sheetNames = workbook.SheetNames.filter(n => n !== 'Instructions');
 
@@ -43,15 +45,25 @@ async function importWorkRatesFromFile(filePath, options = {}) {
         if (p.projectCode) projectIdentities.push(p.projectCode);
     });
 
-    let deleteQuery = { projectId: { $in: projectIdentities } };
+    // SELECTIVE CLEAR
+    let deleteQueryBuildings = { projectId: { $in: projectIdentities } };
     if (buildingSet) {
-        // Only wipe rates for the specific buildings we are about to re-import
-        deleteQuery.buildingName = { $in: [...buildingSet].map(b =>
-            // Rebuild original casing from buildingFilter array for the DB query
-            buildingFilter.find(x => String(x).trim().toLowerCase() === b) || b
-        )};
+        deleteQueryBuildings.buildingName = { $in: [...buildingSet].map(b => buildingFilter.find(x => String(x).trim().toLowerCase() === b) || b) };
+    } else {
+        // If no building filter, clear all TARGET_BUILDINGS (C1-C5) by default, or you can decide to wipe all
+        // Let's wipe all for the targeted projects just in case, but let's be safe and wipe the specific ones
+        deleteQueryBuildings.buildingName = { $in: TARGET_BUILDINGS };
     }
-    const deleteResult = await WorkRate.deleteMany(deleteQuery);
+
+    // Wipe building rates
+    const deleteResult = await WorkRate.deleteMany(deleteQueryBuildings);
+
+    // Wipe Duplex units
+    const deleteResultDuplex = await WorkRate.deleteMany({
+        projectId: { $in: projectIdentities },
+        unitNumber: { $in: DUPLEX_UNITS }
+    });
+
     let totalImported = 0;
 
     for (const sheetName of sheetNames) {
@@ -85,44 +97,67 @@ async function importWorkRatesFromFile(filePath, options = {}) {
             const projectNameKey = String(rawProjectName).toLowerCase().trim();
             let currentProject = projectMap[projectNameKey];
             if (!currentProject) {
-                const partial = targetProjects.find(p =>
-                    p.name.toLowerCase().includes(projectNameKey) || projectNameKey.includes(p.name.toLowerCase())
-                );
+                const partial = targetProjects.find(p => p.name.toLowerCase().includes(projectNameKey) || projectNameKey.includes(p.name.toLowerCase()));
                 currentProject = partial;
             }
             if (!currentProject) continue;
 
             const rawBuilding = row['Building'];
             const rawUnitType = row['Unit Type'];
-            const unitType = (rawUnitType != null && String(rawUnitType).trim() !== '')
-                ? String(rawUnitType).trim()
-                : 'All';
-            const fromFloor = parseInt(row['From Floor']) || 0;
-            const toFloor = parseInt(row['To Floor']) || 1000;
+            let unitType = (rawUnitType != null && String(rawUnitType).trim() !== '') ? String(rawUnitType).trim() : 'All';
 
-            const taskKeys = headers.filter(h => h && !META_COLS.includes(h));
-            const allBuildings = rawBuilding ? String(rawBuilding).split(/,\s*/).map(b => b.trim()).filter(Boolean) : [null];
+            let fromFloor = parseInt(row['From Floor']);
+            if (isNaN(fromFloor)) fromFloor = 0;
+            let toFloor = parseInt(row['To Floor']);
+            if (isNaN(toFloor)) toFloor = 1000;
 
-            // Apply building filter – skip buildings we are not importing
-            const buildings = buildingSet
-                ? allBuildings.filter(b => b && buildingSet.has(b.toLowerCase()))
-                : allBuildings;
-            if (buildings.length === 0) continue; // no matching buildings in this row
+            const taskKeys = (headers || []).filter(h => h && !META_COLS.includes(String(h).trim()));
 
-            for (const bName of buildings) {
-                for (const task of taskKeys) {
-                    const rateValue = row[task];
-                    let rate = 0;
-                    if (rateValue != null && rateValue !== '') {
-                        const parsed = typeof rateValue === 'number' ? rateValue : parseFloat(String(rateValue).trim());
-                        rate = isNaN(parsed) ? 0 : parsed;
-                    }
+            let buildingsToProcess = [];
+            let unitsToProcess = [];
 
+            if (rawBuilding && String(rawBuilding).toUpperCase().includes('DUPLEX')) {
+                if (String(rawBuilding).toUpperCase().includes('GROUND')) {
+                    fromFloor = 0;
+                    toFloor = 0;
+                } else if (String(rawBuilding).toUpperCase().includes('FIRST')) {
+                    fromFloor = 1;
+                    toFloor = 1;
+                }
+                unitsToProcess = DUPLEX_UNITS;
+                unitType = 'Duplex';
+            } else {
+                const allBuildings = rawBuilding ? String(rawBuilding).split(/,\s*/).map(b => b.trim()).filter(Boolean) : [null];
+                const matchedBuildings = buildingSet
+                    ? allBuildings.filter(b => b && buildingSet.has(b.toLowerCase()))
+                    : allBuildings.filter(b => b && TARGET_BUILDINGS.map(t => t.toLowerCase()).includes(b.toLowerCase()));
+
+                if (matchedBuildings.length === 0) continue;
+
+                // Expand C1,C2 to include all C1-C5 (if we're targeting those)
+                if ((matchedBuildings.includes('C1') || matchedBuildings.includes('C2')) && (!buildingSet || buildingSet.has('c5'))) {
+                    buildingsToProcess = [...TARGET_BUILDINGS];
+                } else {
+                    buildingsToProcess = matchedBuildings;
+                }
+            }
+
+            if (buildingsToProcess.length === 0 && unitsToProcess.length === 0) continue;
+
+            for (const task of taskKeys) {
+                const rateValue = row[task];
+                let rate = 0;
+                if (rateValue != null && rateValue !== '') {
+                    const parsed = typeof rateValue === 'number' ? rateValue : parseFloat(String(rateValue).trim());
+                    rate = isNaN(parsed) ? 0 : parsed;
+                }
+
+                for (const bName of buildingsToProcess) {
                     const payload = {
-                        projectId: new mongoose.Types.ObjectId(currentProject._id.toString()),
+                        projectId: currentProject._id.toString(), // critical fix
                         category: currentCategory,
                         subCategory: (task || '').trim(),
-                        buildingName: bName ? bName.trim() : null,
+                        buildingName: bName,
                         unitType,
                         minFloor: fromFloor,
                         maxFloor: toFloor,
@@ -133,7 +168,26 @@ async function importWorkRatesFromFile(filePath, options = {}) {
                         isConsolidated: false,
                         componentActivities: [],
                     };
+                    await new WorkRate(payload).save();
+                    totalImported++;
+                }
 
+                for (const uName of unitsToProcess) {
+                    const payload = {
+                        projectId: currentProject._id.toString(), // critical fix
+                        category: currentCategory,
+                        subCategory: (task || '').trim(),
+                        buildingName: null,
+                        unitType,
+                        minFloor: fromFloor,
+                        maxFloor: toFloor,
+                        unitNumber: uName,
+                        rate,
+                        removed: false,
+                        enabled: true,
+                        isConsolidated: false,
+                        componentActivities: [],
+                    };
                     await new WorkRate(payload).save();
                     totalImported++;
                 }
@@ -141,7 +195,7 @@ async function importWorkRatesFromFile(filePath, options = {}) {
         }
     }
 
-    return { totalImported, deletedCount: deleteResult.deletedCount };
+    return { totalImported, deletedCount: deleteResult.deletedCount + deleteResultDuplex.deletedCount };
 }
 
 module.exports = { importWorkRatesFromFile };
