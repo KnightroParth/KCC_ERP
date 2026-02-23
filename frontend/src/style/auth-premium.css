@@ -1,0 +1,286 @@
+/* ===== MASTER LAYOUT ===== */
+.auth-premium-container {
+  display: flex;
+  height: 100vh;
+  width: 100%;
+  overflow: hidden;
+  font-family: "Inter", sans-serif;
+}
+
+/* ===== LEFT PANEL (SLIM, BLACK PREMIUM) ===== */
+.auth-left {
+  flex: 0.7; /* smaller width */
+  background: linear-gradient(135deg, #000000, #111111);
+  padding: 60px 40px;
+  color: white;
+  display: flex;
+  align-items: center;   /* center vertically */
+  justify-content: center; /* center horizontally */
+  text-align: center;
+}
+
+.side-panel-content {
+  max-width: 380px;
+}
+
+.side-logo {
+  width: 210px;
+  margin-bottom: 35px;
+}
+
+/* Headline */
+.side-title {
+  font-size: 34px;
+  font-weight: 700;
+  color: #ffffff;
+  margin-bottom: 10px;
+}
+
+/* Gold Tagline */
+.side-tagline {
+  font-size: 20px;
+  font-weight: 500;
+  color: #d9c79f;
+  margin-bottom: 20px;
+}
+
+/* Subtext */
+.side-description {
+  font-size: 14px;
+  line-height: 1.6;
+  color: #e2e2e2;
+  margin-bottom: 20px;
+}
+
+.side-points {
+  margin-top: 18px;
+}
+
+.side-points li {
+  list-style: none;
+  margin-bottom: 8px;
+  font-size: 14px;
+  color: #e8e8e8;
+}
+
+.side-points li::before {
+  content: "•";
+  color: #d9c79f;
+  font-size: 20px;
+  margin-right: 8px;
+}
+
+/* ===== RIGHT PANEL (CINEMATIC BACKGROUND) ===== */
+.auth-right {
+  flex: 1.3;
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+}
+
+/* Each BG layer */
+.bg-layer {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  opacity: 0;
+  transform: scale(1.05) translateY(0px);
+  transition: 
+    opacity 2.2s ease-in-out,
+    transform 6s ease-in-out;
+}
+
+/* Active image visible */
+.bg-layer.active {
+  opacity: 1;
+  transform: scale(1.1) translateY(-6px); /* slight zoom + parallax */
+}
+
+/* Dark soft overlay */
+.auth-right::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.22);
+  z-index: 1;
+}
+
+/* ===== PREMIUM LOGIN CARD ===== */
+.auth-form-box {
+  position: relative;
+  width: 380px;
+  max-width: 95vw;
+  padding: 45px 38px;
+  background: rgba(255, 255, 255, 0.94);
+  border-radius: 16px;
+  backdrop-filter: blur(3px);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.25);
+  z-index: 5;
+}
+
+.auth-form-box .login-profiles-step {
+  width: 100%;
+}
+
+.auth-form-box h2 {
+  margin-bottom: 22px;
+  font-size: 22px;
+  color: #0d2845;
+  font-weight: 600;
+}
+
+/* Form fields */
+.ant-input,
+.ant-input-password {
+  border-radius: 10px !important;
+  height: 44px !important;
+}
+
+/* Align prefix icon (lock) with password input – auth form */
+.auth-form-box .ant-input-affix-wrapper {
+  display: flex !important;
+  align-items: center !important;
+  height: 44px !important;
+  border-radius: 10px !important;
+  padding: 0 11px 0 12px !important;
+}
+
+.auth-form-box .ant-input-affix-wrapper .ant-input-prefix {
+  display: flex;
+  align-items: center;
+  margin-right: 8px;
+}
+
+.auth-form-box .ant-input-affix-wrapper .ant-input {
+  height: 42px !important;
+  padding: 0 !important;
+  border: none !important;
+  background: transparent !important;
+}
+
+.auth-form-box .ant-input-affix-wrapper .ant-input:focus {
+  box-shadow: none !important;
+}
+
+/* Login Button */
+.ant-btn-primary {
+  height: 48px !important;
+  border-radius: 10px !important;
+  background-color: #1a617d !important;
+  border: none !important;
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.ant-btn-primary:hover {
+  background-color: #144c60 !important;
+}
+
+/* ===== NETFLIX-STYLE PROFILE PICKER ===== */
+.login-profiles-step {
+  width: 100%;
+  text-align: center;
+}
+
+.login-profiles-title {
+  font-size: 26px;
+  font-weight: 600;
+  color: #0d2845;
+  margin-bottom: 8px;
+}
+
+.login-profiles-subtitle {
+  font-size: 14px;
+  color: #666;
+  margin-bottom: 28px;
+}
+
+.login-profiles-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  justify-content: center;
+  align-items: flex-start;
+  max-width: 320px;
+  margin: 0 auto;
+}
+
+.login-profile-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  border-radius: 12px;
+  transition: transform 0.2s, background 0.2s;
+}
+
+.login-profile-item:hover {
+  transform: scale(1.08);
+  background: rgba(26, 97, 125, 0.08);
+}
+
+.login-profile-avatar {
+  background: linear-gradient(135deg, #1a617d, #144c60) !important;
+  font-size: 32px !important;
+  color: #fff !important;
+}
+
+.login-profile-label {
+  font-size: 14px;
+  font-weight: 500;
+  color: #0d2845;
+  max-width: 90px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Password step (after profile selected) */
+.login-password-step {
+  width: 100%;
+}
+
+.login-back-profiles {
+  margin-bottom: 8px;
+  color: #666;
+  padding-left: 0;
+}
+
+.login-back-profiles:hover {
+  color: #1a617d;
+}
+
+.login-selected-profile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.login-selected-label {
+  font-size: 18px;
+  font-weight: 600;
+  color: #0d2845;
+}
+
+.login-avatar {
+  background: linear-gradient(135deg, #1a617d, #144c60) !important;
+  font-size: 36px !important;
+  color: #fff !important;
+}
+
+/* Match password step form spacing – password field right under profile */
+.login-password-step .ant-form-item {
+  margin-bottom: 16px;
+}
+
+.login-password-step .ant-form-item:last-child {
+  margin-bottom: 0;
+}

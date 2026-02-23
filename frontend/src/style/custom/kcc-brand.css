@@ -1,0 +1,155 @@
+/* ==== KCC SIDEBAR BRANDING (FINAL CLEAN VERSION) ==== */
+
+/* Remove any browser/layout default margin causing left gap */
+html,
+body {
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* Layout reset */
+.ant-layout {
+  margin: 0 !important;
+  padding: 0 !important;
+  min-height: 100vh !important;
+  background: #ffffff !important;
+}
+
+/* Sidebar main container */
+.ant-layout-sider {
+  background-color: #0A1528 !important;
+  border-right: none !important;
+  min-width: 290px !important;
+  max-width: 290px !important;
+  width: 290px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  left: 0 !important;
+  /* Forces to stick to screen start */
+  position: relative !important;
+  z-index: 10;
+}
+
+/* Ensure sidebar inner wrapper also has no gap */
+.ant-layout-sider-children {
+  margin: 0 !important;
+  padding: 0 !important;
+  height: 100vh !important;
+  background-color: #0A1528 !important;
+}
+
+/* Logo section */
+.kcc-logo-container {
+  width: 100%;
+  padding: 30px 10px 22px 10px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* Logo sizing */
+.kcc-logo {
+  width: 92%;
+  max-height: 160px;
+  object-fit: contain;
+  background: transparent !important;
+  filter: drop-shadow(0 0 8px rgba(0, 0, 0, 0.25));
+}
+
+/* MENU STYLING */
+.ant-menu {
+  background: transparent !important;
+  padding-top: 12px;
+  border-inline-end: none !important;
+}
+
+.ant-menu-item {
+  color: #fff !important;
+  font-size: 16px;
+  padding: 12px 24px !important;
+  border-radius: 8px;
+}
+
+.ant-menu-item-selected {
+  background: rgba(201, 165, 103, 0.24) !important;
+  color: #C9A567 !important;
+}
+
+.anticon {
+  color: #fff !important;
+}
+
+.ant-menu-item-selected .anticon,
+.ant-menu-item:hover .anticon {
+  color: #C9A567 !important;
+}
+
+.ant-menu-item:hover {
+  color: #C9A567 !important;
+}
+
+/* ==== SUBMENU MODULE STYLES ==== */
+
+/* 1. SELECTION & OPEN BACKGROUND (Gold) */
+/* This applies the gold bar if the item is Selected OR just Open (Dropdown active) */
+.inventory-submenu.ant-menu-submenu-selected>.ant-menu-submenu-title,
+.inventory-submenu.ant-menu-submenu-open>.ant-menu-submenu-title,
+.work-submenu.ant-menu-submenu-selected>.ant-menu-submenu-title,
+.work-submenu.ant-menu-submenu-open>.ant-menu-submenu-title,
+.attendance-submenu.ant-menu-submenu-selected>.ant-menu-submenu-title,
+.attendance-submenu.ant-menu-submenu-open>.ant-menu-submenu-title {
+  background-color: rgba(201, 165, 103, 0.24) !important;
+  /* Gold Background */
+  border-radius: 8px;
+}
+
+/* 2. ARROW COLOR (White) */
+/* Ensure arrow is white in all submenu modules */
+.inventory-submenu .ant-menu-submenu-arrow,
+.work-submenu .ant-menu-submenu-arrow,
+.attendance-submenu .ant-menu-submenu-arrow {
+  color: #ffffff !important;
+}
+
+/* 3. HOVER STATE */
+.inventory-submenu:hover>.ant-menu-submenu-title,
+.work-submenu:hover>.ant-menu-submenu-title,
+.attendance-submenu:hover>.ant-menu-submenu-title {
+  background-color: rgba(201, 165, 103, 0.1) !important;
+}
+
+/* ==== DRAWER & MODAL FIXES ==== */
+
+/* 1. Enable Scrolling in the Right Pane (Drawer) */
+.ant-drawer-body {
+  overflow-y: auto !important;
+  padding-bottom: 80px !important;
+  /* Make space for bottom buttons */
+  scrollbar-width: thin;
+}
+
+/* 2. Fix Horizontal Overflow for Tables inside the Form */
+.ant-drawer-body .ant-table-wrapper {
+  overflow-x: auto;
+}
+
+/* 3. Ensure Text Color in Tables is Visible (Fix for "Empty" looking rows) */
+.ant-table-cell {
+  color: #1f1f1f !important;
+  /* Force Dark Text */
+}
+
+.ant-table-cell a {
+  color: #1677ff !important;
+  /* Force Blue Links */
+}
+
+/* 4. Fix Form Field Widths in Drawer */
+.ant-drawer-body .ant-form-item {
+  margin-bottom: 24px;
+}
+
+.ant-drawer-body .ant-picker,
+.ant-drawer-body .ant-select {
+  width: 100% !important;
+}

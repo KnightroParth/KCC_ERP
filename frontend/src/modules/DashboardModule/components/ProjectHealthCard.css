@@ -1,0 +1,80 @@
+.project-health-card {
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.95) 0%, rgba(248, 249, 250, 0.98) 100%);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(0, 32, 96, 0.08);
+  border-radius: 12px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  cursor: pointer;
+  height: 100%;
+}
+
+.project-health-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 32, 96, 0.12);
+  border-color: rgba(201, 162, 39, 0.3);
+}
+
+.project-health-card .ant-card-body {
+  padding: 16px;
+}
+
+.project-health-card-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.project-health-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  margin-bottom: 4px;
+}
+
+.project-health-card-name {
+  font-weight: 600;
+  color: #002060;
+  font-size: 14px;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.project-health-card-tag {
+  flex-shrink: 0;
+}
+
+.project-health-card-code {
+  font-size: 11px;
+  color: #8c8c8c;
+  margin-bottom: 12px;
+}
+
+.project-health-card-progress-wrap {
+  margin: 8px 0;
+}
+
+.project-health-card-percent {
+  font-size: 14px;
+  font-weight: 700;
+  color: #002060;
+}
+
+.project-health-card-footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  font-size: 11px;
+  color: #595959;
+  margin-top: 8px;
+}
+
+.project-health-card-budget,
+.project-health-card-actual {
+  white-space: nowrap;
+}

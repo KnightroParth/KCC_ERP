@@ -1,0 +1,396 @@
+{
+  "Instructions": {
+    "headers": [
+      "Set Rate Template Instructions"
+    ],
+    "sample": [
+      ""
+    ]
+  },
+  "Mivan": {
+    "headers": [
+      "Project Name",
+      "Building",
+      "Unit Type",
+      "From Floor",
+      "To Floor",
+      "Mivan Centering",
+      "Slab Beam Reinforcement"
+    ],
+    "sample": [
+      "Project Name Here",
+      "Building Name Here",
+      "2BHK",
+      0,
+      10,
+      0,
+      0
+    ]
+  },
+  "Electrical Work-I": {
+    "headers": [
+      "Project Name",
+      "Building",
+      "Unit Type",
+      "From Floor",
+      "To Floor",
+      "Slab Piping",
+      "Ziri Cutting + Pipe fitting",
+      "Conselled box fitting",
+      "Block Wiring",
+      "Switch Plate fitting",
+      "Testing Repair & Finish",
+      "Final Testing"
+    ],
+    "sample": [
+      "Project Name Here",
+      "Building Name Here",
+      null,
+      0,
+      10,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  "Electrical Work-E": {
+    "headers": [
+      "Project Name",
+      "Building",
+      "Unit Type",
+      "From Floor",
+      "To Floor",
+      "Block to parking meter panel pipe fitting",
+      "Block to parking meter panel wiring",
+      "Block Panel Fitting",
+      "Testing"
+    ],
+    "sample": [
+      "Project Name Here",
+      "Building Name Here",
+      "2BHK",
+      0,
+      10,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  "Water Proofing": {
+    "headers": [
+      "Project Name",
+      "Building",
+      "Unit Type",
+      "From Floor",
+      "To Floor",
+      "Chipping & Leakage Pipe",
+      "First Coat",
+      "Koba filling & Finishing",
+      "Wash up pipe & Concrete Finish"
+    ],
+    "sample": [
+      "Project Name Here",
+      "Building Name Here",
+      "2BHK",
+      0,
+      10,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  "Plumbing-I": {
+    "headers": [
+      "Project Name",
+      "Building",
+      "Unit Type",
+      "From Floor",
+      "To Floor",
+      "Slab Pipeing",
+      "Zari Cutting + Holes",
+      "Internal Pipe Line Fitting",
+      "Zari Repairing & Testing",
+      "Nani trap fitting",
+      "Show Fitting"
+    ],
+    "sample": [
+      "Project Name Here",
+      "Building Name Here",
+      "2BHK",
+      0,
+      10,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  "Plumbing-E": {
+    "headers": [
+      "Project Name",
+      "Building",
+      "Unit Type",
+      "From Floor",
+      "To Floor",
+      "Rain Water Line Fitting",
+      "Toilet Outlet Pipe Fitting",
+      "Kichen & Bal Outlet pipe Fitting",
+      "Water Supply Line",
+      "Ground Water Tank To Overhead",
+      "Additional Work"
+    ],
+    "sample": [
+      "Project Name Here",
+      "Building Name Here",
+      "2BHK",
+      0,
+      10,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  "Tiles": {
+    "headers": [
+      "Project Name",
+      "Building",
+      "Unit Type",
+      "From Floor",
+      "To Floor",
+      "Floor",
+      "Floor Scurting",
+      "Balcony Floor",
+      "Balcony Wall",
+      "Kitchen- Wall",
+      "Kitchen- Otta",
+      "Window Seal",
+      "Kadapa Rack",
+      "Toilet-1 Floor",
+      "Toilet-1 Wall",
+      "Toilet-2 Floor",
+      "Toilet-2 Wall",
+      "Toilet-3 Floor",
+      "Toilet-3 Wall",
+      "Acid Wash",
+      "Extra Work"
+    ],
+    "sample": [
+      "Project Name Here",
+      "Building Name Here",
+      "2BHK",
+      0,
+      10,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  "POP": {
+    "headers": [
+      "Project Name",
+      "Building",
+      "Unit Type",
+      "From Floor",
+      "To Floor",
+      "Dhar & Line finishing of beam and column",
+      "False Ceiling",
+      "Metal Framing",
+      "Sheet fitting & Finishing",
+      "Electric Hole Cutting"
+    ],
+    "sample": [
+      "Project Name Here",
+      "Building Name Here",
+      "2BHK",
+      0,
+      10,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  "Civil Work": {
+    "headers": [
+      "Project Name",
+      "Building",
+      "Unit Type",
+      "From Floor",
+      "To Floor",
+      "Hall",
+      "Balcony",
+      "Kitchen",
+      "Toilet1",
+      "Toilet2",
+      "Toilet3",
+      "Bedroom1",
+      "Bedroom2",
+      "Bedroom3"
+    ],
+    "sample": [
+      "Project Name Here",
+      "Building Name Here",
+      "2BHK",
+      0,
+      10,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  "Fabrication Work": {
+    "headers": [
+      "Project Name",
+      "Building",
+      "Unit Type",
+      "From Floor",
+      "To Floor",
+      "Grill Fitting",
+      "Railing Fixing",
+      "Gate Fixing"
+    ],
+    "sample": [
+      "Project Name Here",
+      "Building Name Here",
+      "2BHK",
+      0,
+      10,
+      0,
+      0,
+      0
+    ]
+  },
+  "Painting": {
+    "headers": [
+      "Project Name",
+      "Building",
+      "Unit Type",
+      "From Floor",
+      "To Floor",
+      "Grinding",
+      "Putti-1",
+      "Putti-2 (Final Base)",
+      "Primer/Gasai",
+      "Paint Coat-1",
+      "Paint Coat-2",
+      "O Paint =Door+Grill+Chaukat+Railing",
+      "Cleaning 100%",
+      "Texture"
+    ],
+    "sample": [
+      "Project Name Here",
+      "Building Name Here",
+      "2BHK",
+      0,
+      10,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  "Finishing-W": {
+    "headers": [
+      "Project Name",
+      "Building",
+      "Unit Type",
+      "From Floor",
+      "To Floor",
+      "Hall",
+      "Balcony",
+      "Kitchen",
+      "Toilet-1",
+      "Toilet-2",
+      "Toilet-3",
+      "BedRoom-1",
+      "BedRoom-2",
+      "BedRoom-3"
+    ],
+    "sample": [
+      "Project Name Here",
+      "Building Name Here",
+      "2BHK",
+      0,
+      10,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  "Finishing-D": {
+    "headers": [
+      "Project Name",
+      "Building",
+      "Unit Type",
+      "From Floor",
+      "To Floor",
+      "Hall",
+      "Balcony",
+      "Kitchen",
+      "Toilet1",
+      "Toilet2",
+      "Toilet3",
+      "Bedroom1",
+      "Bedroom2",
+      "Bedroom3"
+    ],
+    "sample": [
+      "Project Name Here",
+      "Building Name Here",
+      "2BHK",
+      0,
+      10,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  }
+}

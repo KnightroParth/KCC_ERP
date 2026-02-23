@@ -1,0 +1,44 @@
+/* frontend/src/pages/work/SetRate/setrate_styles.css */
+
+.setrate-layout {
+    min-height: 100vh;
+    background: #f0f2f5;
+}
+
+.setrate-content {
+    padding: 24px;
+    max-width: 1600px;
+    margin: 0 auto;
+}
+
+.filter-card {
+    margin-bottom: 24px;
+    border-radius: 8px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+}
+
+.table-card {
+    border-radius: 8px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+}
+
+.ant-table-thead>tr>th {
+    background: #fafafa !important;
+    font-weight: 600;
+}
+
+.ant-input-number-affix-wrapper {
+    border-radius: 4px;
+}
+
+.ant-select-selector {
+    border-radius: 4px !important;
+}
+
+.ant-card {
+    transition: all 0.3s;
+}
+
+.ant-card:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}

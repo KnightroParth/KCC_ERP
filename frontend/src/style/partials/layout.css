@@ -1,0 +1,99 @@
+.wideAppContainer {
+  max-width: 1200px;
+}
+
+.appContainer {
+  max-width: 1100px;
+}
+
+.smallNavigation {
+  margin-left: 100px;
+}
+
+.wideNavigation {
+  margin-left: 220px;
+}
+
+/* Content padding standardization */
+.page-content-inner {
+  width: 100%;
+  margin: 0 auto;
+}
+
+/* Enhanced spacing for better visual hierarchy */
+.content-wrapper {
+  padding: 32px 24px;
+  background: #fafafa;
+  min-height: 100vh;
+}
+
+/* Section spacing standardization */
+.section-wrapper {
+  margin-bottom: 32px;
+}
+
+.section-wrapper:last-child {
+  margin-bottom: 0;
+}
+
+/* Two-column layout for wide screens */
+@media (min-width: 1200px) {
+  .layout-two-col {
+    display: grid;
+    grid-template-columns: 1fr 320px;
+    gap: 24px;
+  }
+}
+
+/* Responsive adjustments for tablets */
+@media (max-width: 992px) {
+  .page-content-inner {
+    padding: 24px 16px;
+  }
+
+  .card-section {
+    padding: 16px;
+  }
+
+  .filter-bar {
+    padding: 12px 16px;
+    gap: 12px;
+  }
+
+  .filter-bar-item {
+    min-width: auto !important;
+  }
+}
+
+/* Mobile adjustments */
+@media (max-width: 576px) {
+  .page-content-inner {
+    padding: 16px 12px;
+  }
+
+  .card-section {
+    padding: 12px;
+    margin-bottom: 16px;
+  }
+
+  .filter-bar {
+    flex-direction: column;
+    padding: 12px;
+  }
+
+  .filter-bar-item {
+    width: 100%;
+  }
+
+  .page-title {
+    font-size: 20px;
+  }
+
+  .card-header-title {
+    font-size: 16px;
+  }
+
+  .section-title {
+    font-size: 16px;
+  }
+}

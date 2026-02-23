@@ -1,0 +1,110 @@
+/* KCC Dashboard - Navy & Gold theme, glassmorphism */
+.kpi-card {
+  background: linear-gradient(135deg, rgba(0, 32, 96, 0.85) 0%, rgba(0, 42, 82, 0.9) 100%);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(201, 162, 39, 0.25);
+  border-radius: 12px;
+  overflow: hidden;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  min-height: 140px;
+}
+
+.kpi-card .ant-card-body {
+  padding: 20px;
+}
+
+.kpi-card-clickable {
+  cursor: pointer;
+}
+
+.kpi-card-clickable:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 32, 96, 0.35);
+  border-color: rgba(201, 162, 39, 0.45);
+}
+
+.kpi-card-inner {
+  color: rgba(255, 255, 255, 0.95);
+}
+
+.kpi-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 8px;
+}
+
+.kpi-card-title {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.kpi-card-icon {
+  font-size: 22px;
+  opacity: 0.9;
+}
+
+.kpi-card-value {
+  font-size: 26px;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: -0.5px;
+  line-height: 1.2;
+}
+
+.kpi-card-subtitle {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.75);
+  margin-top: 4px;
+}
+
+.kpi-card-progress {
+  margin-top: 12px;
+}
+
+.kpi-card-progress .ant-progress-line {
+  margin-bottom: 4px;
+}
+
+.kpi-card-progress-label {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.kpi-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 10px;
+  gap: 8px;
+}
+
+.kpi-card-trend {
+  font-size: 14px;
+}
+
+.kpi-card-trend-up {
+  color: #52c41a;
+}
+
+.kpi-card-trend-down {
+  color: #ff4d4f;
+}
+
+.kpi-card-sparkline {
+  flex: 1;
+  max-width: 100px;
+  margin-left: auto;
+}
+
+/* White/light theme for Critical Alerts etc. */
+.kpi-card-white .kpi-card-inner { color: rgba(0, 32, 96, 0.9); }
+.kpi-card-white .kpi-card-title { color: rgba(0, 32, 96, 0.75); }
+.kpi-card-white .kpi-card-value { color: #002060; }
+.kpi-card-white .kpi-card-subtitle { color: #595959; }
+.kpi-card-white .kpi-card-progress-label { color: #595959; }
+.kpi-card-white:hover { border-color: rgba(0, 32, 96, 0.2); }

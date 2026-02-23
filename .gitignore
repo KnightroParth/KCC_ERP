@@ -1,0 +1,5 @@
+.DS_Store
+# Excel lock/temp files (created when workbook is open)
+~$*
+# Local backup files
+*.bak
