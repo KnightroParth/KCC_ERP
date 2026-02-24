@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Layout, Select, Card, Empty, Table, Button, Input } from 'antd';
-import { DownloadOutlined, FilePdfOutlined, FileExcelOutlined } from '@ant-design/icons';
+import { FilePdfOutlined, FileExcelOutlined } from '@ant-design/icons';
 import { useSelector } from 'react-redux';
 import request from '@/request/request';
 import { selectCurrentProject, selectShouldLockProject } from '@/redux/erp/selectors';
+import { useGranularPermission } from '@/hooks/usePermission';
 import { WORK_CATEGORIES } from '@/config/workConfig';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
@@ -13,6 +14,8 @@ const { Content } = Layout;
 const { Option } = Select;
 
 export default function BalanceWork() {
+    const canExportExcel = useGranularPermission('work_progress', 'balanceWork.exportExcel');
+    const canExportPdf = useGranularPermission('work_progress', 'balanceWork.exportPdf');
     const currentProject = useSelector(selectCurrentProject);
     const shouldLockProject = useSelector(selectShouldLockProject);
     const [projects, setProjects] = useState([]);
@@ -449,23 +452,27 @@ export default function BalanceWork() {
                             <p style={{ color: '#8c8c8c' }}>View progress and pending work for units</p>
                         </div>
                         <div style={{ display: 'flex', gap: '10px' }}>
-                            <Button
-                                icon={<FileExcelOutlined />}
-                                onClick={exportToExcel}
-                                disabled={tableData.length === 0}
-                                style={{ color: '#52c41a', borderColor: '#52c41a' }}
-                            >
-                                Excel
-                            </Button>
-                            <Button
-                                type="primary"
-                                icon={<FilePdfOutlined />}
-                                onClick={exportToPDF}
-                                disabled={tableData.length === 0}
-                                danger
-                            >
-                                PDF
-                            </Button>
+                            {canExportExcel && (
+                                <Button
+                                    icon={<FileExcelOutlined />}
+                                    onClick={exportToExcel}
+                                    disabled={tableData.length === 0}
+                                    style={{ color: '#52c41a', borderColor: '#52c41a' }}
+                                >
+                                    Excel
+                                </Button>
+                            )}
+                            {canExportPdf && (
+                                <Button
+                                    type="primary"
+                                    icon={<FilePdfOutlined />}
+                                    onClick={exportToPDF}
+                                    disabled={tableData.length === 0}
+                                    danger
+                                >
+                                    PDF
+                                </Button>
+                            )}
                         </div>
                     </div>
 

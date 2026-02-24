@@ -4,6 +4,7 @@ import { Button } from 'antd';
 import { FileTextOutlined, PlusOutlined } from '@ant-design/icons';
 import useLanguage from '@/locale/useLanguage';
 import { useMoney, useDate } from '@/settings';
+import { useGranularPermission } from '@/hooks/usePermission';
 import InvoiceDataTableModule from '@/modules/InvoiceModule/InvoiceDataTableModule';
 
 export default function Invoice() {
@@ -11,6 +12,8 @@ export default function Invoice() {
   const translate = useLanguage();
   const { dateFormat } = useDate();
   const { moneyFormatter } = useMoney();
+  const canCreateFromPlanning = useGranularPermission('billing', 'dashboard.accessCreateBillFromPlanning');
+  const canCreateDirect = useGranularPermission('billing', 'invoice.createDirectBill');
 
   const dataTableColumns = [
     { title: translate('Number'), dataIndex: 'number' },
@@ -77,21 +80,29 @@ export default function Invoice() {
     },
     deleteModalLabels: ['number', 'contractorDisplayName'],
     headerExtra: [
-      <Button
-        key="from-planning"
-        onClick={() => navigate('/billing/planning')}
-        icon={<FileTextOutlined />}
-      >
-        Create from Planning
-      </Button>,
-      <Button
-        key="direct"
-        type="primary"
-        onClick={() => navigate('/invoice/create')}
-        icon={<PlusOutlined />}
-      >
-        Direct Bill
-      </Button>,
+      ...(canCreateFromPlanning
+        ? [
+            <Button
+              key="from-planning"
+              onClick={() => navigate('/billing/planning')}
+              icon={<FileTextOutlined />}
+            >
+              Create from Planning
+            </Button>,
+          ]
+        : []),
+      ...(canCreateDirect
+        ? [
+            <Button
+              key="direct"
+              type="primary"
+              onClick={() => navigate('/invoice/create')}
+              icon={<PlusOutlined />}
+            >
+              Direct Bill
+            </Button>,
+          ]
+        : []),
     ],
   };
 

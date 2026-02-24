@@ -3,12 +3,13 @@ import { Card, Steps, Button, Modal, Input, message } from 'antd';
 import { PauseCircleOutlined, PlayCircleOutlined } from '@ant-design/icons';
 import request from '@/request/request';
 import ImageUpload from '@/components/ImageUpload';
+import { useGranularPermission } from '@/hooks/usePermission';
 
 const STAGES = [
   { key: 'draft', label: 'Draft' },
-  { key: 'audit', label: 'Audit Check' },
-  { key: 'checking', label: 'Final Check' },
-  { key: 'approval', label: 'Approval' },
+  { key: 'audit', label: 'Audit Check', permission: 'auditCheck' },
+  { key: 'checking', label: 'Final Check', permission: 'finalCheck' },
+  { key: 'approval', label: 'Approval', permission: 'approval' },
   { key: 'payment', label: 'Ledger / Payment' },
 ];
 
@@ -31,12 +32,24 @@ export default function BillingWorkflowStrip({ invoice, onRefresh }) {
   const [holdPhotos, setHoldPhotos] = useState([]);
   const [submitting, setSubmitting] = useState(false);
 
+  const canAuditCheck = useGranularPermission('billing', 'invoice.auditCheck');
+  const canFinalCheck = useGranularPermission('billing', 'invoice.finalCheck');
+  const canApproval = useGranularPermission('billing', 'invoice.approval');
+  const canPutOnHold = useGranularPermission('billing', 'invoice.putOnHold');
+  const canResumeFromHold = useGranularPermission('billing', 'invoice.resumeFromHold');
+
   const rawStage = invoice?.billingStage || 'draft';
   const stage = normalizeStage(rawStage);
   const isOnHold = stage === 'on_hold' || invoice?.status === 'on hold';
   const currentIndex = isOnHold ? -1 : STAGES.findIndex((s) => s.key === stage);
   const canAdvance = currentIndex >= 0 && currentIndex < STAGES.length - 1;
   const nextStage = canAdvance ? STAGES[currentIndex + 1] : null;
+  const canAdvanceToNext =
+    nextStage &&
+    (!nextStage.permission ||
+      (nextStage.permission === 'auditCheck' && canAuditCheck) ||
+      (nextStage.permission === 'finalCheck' && canFinalCheck) ||
+      (nextStage.permission === 'approval' && canApproval));
 
   const handleAdvanceStage = async () => {
     if (!nextStage || !invoice?._id) return;
@@ -188,22 +201,24 @@ export default function BillingWorkflowStrip({ invoice, onRefresh }) {
         />
         <div style={{ marginTop: 16, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           {isOnHold ? (
-            <Button
-              type="primary"
-              icon={<PlayCircleOutlined />}
-              onClick={handleResume}
-              loading={submitting}
-            >
-              Resume from Hold
-            </Button>
+            canResumeFromHold && (
+              <Button
+                type="primary"
+                icon={<PlayCircleOutlined />}
+                onClick={handleResume}
+                loading={submitting}
+              >
+                Resume from Hold
+              </Button>
+            )
           ) : (
             <>
-              {nextStage && (
+              {canAdvanceToNext && (
                 <Button type="primary" onClick={handleAdvanceStage} loading={submitting}>
                   Send to {nextStage.label}
                 </Button>
               )}
-              {stage !== 'on_hold' && (
+              {stage !== 'on_hold' && canPutOnHold && (
                 <Button
                   icon={<PauseCircleOutlined />}
                   onClick={handlePutOnHold}

@@ -1,0 +1,137 @@
+Module,Sub-Module,Specific Action / Permission,Master,Admin,PM,Planner,Site Incharge,Site Engineer,Store Incharge,Accounts
+Dashboard,,View Dashboard,Yes,Yes,Yes,Yes,Yes,Yes,Yes,Yes
+Dashboard,,View High-Level Financials,Yes,Yes,Yes,No,No,No,No,Yes
+Dashboard,,View Project Summaries,Yes,Yes,Yes,No,No,No,No,Yes
+Dashboard,,View Recent Activity,Yes,Yes,Yes,Yes,Yes,Yes,Yes,Yes
+Dashboard,,View Alerts,Yes,Yes,Yes,Yes,Yes,Yes,Yes,Yes
+Project Data,Projects,View Project List,Yes,Yes,Yes,Yes,Yes,Yes,Yes,Yes
+Project Data,Projects,Create Project,Yes,Yes,No,No,No,No,No,No
+Project Data,Projects,Edit Project,Yes,Yes,No,No,No,No,No,No
+Project Data,Projects,Update Project,Yes,Yes,yes,No,No,No,No,No
+Project Data,Projects,Delete Project,Yes,No,No,No,No,No,No,No
+Project Data,Customer / Client,View Customer List,Yes,Yes,Yes,Yes,Yes,Yes,Yes,Yes
+Project Data,Customer / Client,Create Customer,Yes,Yes,No,No,No,No,No,No
+Project Data,Customer / Client,Edit Customer,Yes,Yes,No,No,No,No,No,No
+Project Data,Customer / Client,Update Customer,Yes,Yes,Yes,No,No,No,No,No
+Project Data,Customer / Client,Delete Customer,Yes,Yes,No,No,No,No,No,No
+Project Data,Units,View Units List,Yes,Yes,Yes,Yes,Yes,Yes,Yes,Yes
+Project Data,Units,Create Unit,Yes,Yes,No,No,No,No,No,No
+Project Data,Units,Edit Unit,Yes,Yes,No,No,No,No,No,No
+Project Data,Units,Update Unit,Yes,Yes,No,No,No,No,No,No
+Project Data,Units,Delete Unit,Yes,Yes,No,No,No,No,No,No
+Project Data,Set Rate (Work Rates),View Rate List,Yes,Yes,Yes,Yes,Yes,Yes,No,Yes
+Project Data,Set Rate (Work Rates),Create / Edit Set Rates,Yes,Yes,No,No,No,No,No,Yes
+Project Data,Set Rate (Work Rates),Update Rates (Save),Yes,Yes,Yes,No,No,No,No,Yes
+Project Data,Set Rate (Work Rates),Delete Rate,Yes,Yes,Yes,No,No,No,No,Yes
+Project Data,Set Rate (Work Rates),Import Rates from Excel,Yes,Yes,Yes,Yes,Yes,Yes,No,Yes
+Project Data,Set Rate (Work Rates),Get Rate for Activity (Lookup),Yes,Yes,Yes,Yes,Yes,Yes,No,Yes
+Project Data,Vendor (Contractors),View Vendor List,Yes,Yes,Yes,Yes,Yes,Yes,Yes,Yes
+Project Data,Vendor (Contractors),Create Vendor,Yes,Yes,Yes,No,No,No,No,Yes
+Project Data,Vendor (Contractors),Edit Vendor,Yes,Yes,Yes,No,No,No,No,Yes
+Project Data,Vendor (Contractors),Update Vendor,Yes,Yes,Yes,No,No,No,No,Yes
+Project Data,Vendor (Contractors),Delete Vendor,Yes,Yes,Yes,No,No,No,No,No
+Billing,Billing Dashboard,View Billing Dashboard,Yes,Yes,Yes,Yes,Yes,No,No,Yes
+Billing,Billing Dashboard,Access Create Bill from Planning,Yes,Yes,Yes,Yes,Yes,No,No,Yes
+Billing,Billing Dashboard,Access Direct Bill,Yes,Yes,Yes,Yes,Yes,No,No,Yes
+Billing,Billing Dashboard,Access All Bills List,Yes,Yes,Yes,Yes,Yes,No,No,Yes
+Billing,Invoice / Bills,View Bill List,Yes,Yes,Yes,Yes,Yes,Yes,No,Yes
+Billing,Invoice / Bills,View Single Bill (Read),Yes,Yes,Yes,Yes,No,No,No,Yes
+Billing,Invoice / Bills,Create Draft Bill (from Planning),Yes,Yes,Yes,Yes,No,No,No,No
+Billing,Invoice / Bills,Create Direct Bill,Yes,Yes,Yes,Yes,No,No,No,Yes
+Billing,Invoice / Bills,Edit Draft Bill,Yes,Yes,Yes,Yes,Yes,No,No,Yes
+Billing,Invoice / Bills,Update Bill (Save),Yes,Yes,Yes,No,No,No,No,No
+Billing,Invoice / Bills,Delete Bill,Yes,Yes,Yes,No,No,No,No,No
+Billing,Invoice / Bills,Audit Check (Review / Advance to Audit),Yes,Yes,Yes,Yes,Yes,No,No,Yes
+Billing,Invoice / Bills,Final Check (Advance to Final Check),Yes,Yes,Yes,Yes,Yes,No,No,Yes
+Billing,Invoice / Bills,Approval (Advance to Approved),Yes,Yes,Yes,Yes,No,No,No,No
+Billing,Invoice / Bills,Add Advance Deduction,Yes,Yes,Yes,Yes,Yes,No,No,Yes
+Billing,Invoice / Bills,Add Penalty,Yes,Yes,Yes,Yes,Yes,No,No,Yes
+Billing,Invoice / Bills,Add Hold (Amount / Reason / Photos),Yes,Yes,Yes,Yes,Yes,No,No,Yes
+Billing,Invoice / Bills,Put Bill on Hold,Yes,Yes,Yes,Yes,Yes,No,No,Yes
+Billing,Invoice / Bills,Resume from Hold,Yes,Yes,Yes,Yes,Yes,No,No,Yes
+Billing,Invoice / Bills,Generate / Download Bill PDF,Yes,Yes,Yes,No,Yes,No,No,Yes
+Billing,Invoice / Bills,Mark as Paid (Record Payment),Yes,Yes,Yes,No,No,No,No,Yes
+Billing,Invoice / Bills,Send Invoice by Mail,Yes,Yes,Yes,No,No,No,No,Yes
+Billing,Invoice / Bills,Get Planning for Billing (API),Yes,Yes,Yes,Yes,Yes,yes,No,Yes
+Inventory,Inventory Dashboard,View Inventory Dashboard,Yes,Yes,yes,Yes,Yes,yes,Yes,Yes
+Inventory,Inventory Dashboard,View Stock Summary by Project,Yes,Yes,yes,Yes,Yes,yes,Yes,Yes
+Inventory,Inventory Dashboard,View Pending Shipments,Yes,Yes,yes,Yes,Yes,Yes,Yes,Yes
+Inventory,Material Library,View Material List,Yes,Yes,Yes,Yes,Yes,Yes,Yes,Yes
+Inventory,Material Library,Create Material,Yes,Yes,Yes,No,No,No,No,No
+Inventory,Material Library,Edit Material,Yes,Yes,Yes,No,No,No,No,No
+Inventory,Material Library,Update Material,Yes,Yes,Yes,No,No,No,Yes,No
+Inventory,Material Library,Delete Material,Yes,Yes,No,No,No,No,No,No
+Inventory,Material Library,View Material Stock,Yes,Yes,Yes,Yes,Yes,Yes,Yes,Yes
+Inventory,Material Library,Import Materials (Excel/CSV),Yes,Yes,Yes,Yes,Yes,Yes,Yes,Yes
+Inventory,Indent Request (Stock Requirement),View Indent List,Yes,Yes,Yes,Yes,Yes,No,Yes,Yes
+Inventory,Indent Request (Stock Requirement),Create Indent Request,Yes,Yes,Yes,Yes,No,No,Yes,Yes
+Inventory,Indent Request (Stock Requirement),Edit Indent Request,Yes,Yes,Yes,Yes,No,No,Yes,Yes
+Inventory,Indent Request (Stock Requirement),Update Indent Request,Yes,Yes,Yes,Yes,No,No,Yes,Yes
+Inventory,Indent Request (Stock Requirement),Delete Indent Request,Yes,Yes,Yes,No,No,No,Yes,Yes
+Inventory,Indent Request (Stock Requirement),Convert Indent to Purchase Order,Yes,Yes,No,No,No,No,No,Yes
+Inventory,Purchase Order,View PO List,Yes,Yes,No,No,No,No,No,Yes
+Inventory,Purchase Order,Create Purchase Order,Yes,Yes,No,No,No,No,No,Yes
+Inventory,Purchase Order,Edit Purchase Order,Yes,Yes,No,No,No,No,No,Yes
+Inventory,Purchase Order,Update Purchase Order,Yes,Yes,No,No,No,No,No,Yes
+Inventory,Purchase Order,Delete Purchase Order,Yes,Yes,No,No,No,No,No,Yes
+Inventory,Purchase Order,Get PO for GRN (Link),Yes,Yes,No,No,No,No,Yes,Yes
+Inventory,Purchase Order,Generate PO PDF,Yes,Yes,No,No,No,No,Yes,Yes
+Inventory,GRN (Goods Receipt Note),View GRN List,Yes,Yes,Yes,No,No,No,Yes,Yes
+Inventory,GRN (Goods Receipt Note),Create GRN (Receive Stock),Yes,Yes,Yes,No,No,No,Yes,No
+Inventory,GRN (Goods Receipt Note),Delete GRN,Yes,Yes,Yes,No,No,No,No,No
+Inventory,Consumption (Issue Stock),View Consumption List,Yes,Yes,Yes,Yes,Yes,Yes,Yes,Yes
+Inventory,Consumption (Issue Stock),Create Consumption (Issue),Yes,Yes,Yes,Yes,Yes,Yes,Yes,No
+Inventory,Consumption (Issue Stock),Edit Consumption,Yes,Yes,Yes,Yes,No,No,Yes,No
+Inventory,Consumption (Issue Stock),Update Consumption,Yes,Yes,Yes,Yes,Yes,No,Yes,No
+Inventory,Consumption (Issue Stock),Delete Consumption,Yes,Yes,Yes,Yes,No,No,No,Yes
+Inventory,Site Transfer,View Site Transfer List,Yes,Yes,Yes,Yes,Yes,Yes,Yes,Yes
+Inventory,Site Transfer,Create Site Transfer,Yes,Yes,Yes,No,No,No,Yes,No
+Inventory,Site Transfer,Edit Site Transfer,Yes,Yes,Yes,No,No,No,Yes,No
+Inventory,Site Transfer,Update Site Transfer,Yes,Yes,Yes,No,No,No,Yes,No
+Inventory,Site Transfer,Delete Site Transfer,Yes,Yes,No,No,No,No,Yes,No
+Inventory,Supplier,View Supplier List,Yes,Yes,Yes,Yes,Yes,Yes,Yes,Yes
+Inventory,Supplier,Create Supplier,Yes,Yes,Yes,No,No,No,No,Yes
+Inventory,Supplier,Edit Supplier,Yes,Yes,Yes,No,No,No,No,Yes
+Inventory,Supplier,Update Supplier,Yes,Yes,Yes,No,No,No,No,Yes
+Inventory,Supplier,Delete Supplier,Yes,Yes,Yes,No,No,No,No,Yes
+Inventory,Stock Ledger,View Current Stock by Project,Yes,Yes,Yes,Yes,Yes,Yes,Yes,Yes
+Inventory,Stock Ledger,View Inventory List (Project Inventory),Yes,Yes,Yes,Yes,Yes,Yes,Yes,Yes
+Planning,Work Planning,View Planning Chart / Plans,Yes,Yes,Yes,Yes,Yes,Yes,Yes,Yes
+Planning,Work Planning,Add Activity (Zari Plaster Electrical etc),Yes,Yes,Yes,Yes,No,No,No,No
+Planning,Work Planning,Edit Activity / Quantities,Yes,Yes,Yes,Yes,Yes,No,No,No
+Planning,Work Planning,Delete Planned Activity,Yes,Yes,Yes,Yes,Yes,No,No,No
+Planning,Work Planning,Set Date Range (Start / End),Yes,Yes,Yes,Yes,Yes,No,No,No
+Planning,Work Planning,Assign Contractor to Activity,Yes,Yes,Yes,Yes,Yes,No,No,No
+Planning,Work Planning,Assign Site Engineer / Incharge / Supervisor,Yes,Yes,Yes,Yes,Yes,No,No,No
+Planning,Work Planning,Export Planning PDF,Yes,Yes,Yes,Yes,Yes,Yes,Yes,Yes
+Work Progress,Work in Progress (WIP),View WIP Activity List,Yes,Yes,Yes,Yes,Yes,Yes,Yes,Yes
+Work Progress,Work in Progress (WIP),Update Progress %,Yes,Yes,Yes,Yes,Yes,Yes,No,No
+Work Progress,Work in Progress (WIP),Upload Before / After Photos,Yes,Yes,Yes,Yes,Yes,Yes,Yes,No
+Work Progress,Work in Progress (WIP),Complete Checklist (Complex Tasks),Yes,Yes,Yes,Yes,Yes,Yes,No,No
+Work Progress,Work in Progress (WIP),Mark Activity Complete (100%),Yes,Yes,Yes,Yes,Yes,Yes,No,No
+Work Progress,Balance Work,View Balance Work Report,Yes,Yes,Yes,Yes,Yes,Yes,Yes,Yes
+Work Progress,Balance Work,Export Balance Work Excel,Yes,Yes,Yes,Yes,Yes,No,No,Yes
+Work Progress,Balance Work,Export Balance Work PDF,Yes,Yes,Yes,Yes,Yes,Yes,No,Yes
+Attendance,Attendance,View Attendance by Date / Project,Yes,Yes,Yes,Yes,Yes,Yes,Yes,Yes
+Attendance,Attendance,Mark Daily Attendance (Vendor-wise),Yes,Yes,Yes,Yes,Yes,Yes,Yes,Yes
+Attendance,Attendance,Save / Update Labour Counts,Yes,Yes,Yes,Yes,Yes,Yes,Yes,Yes
+Attendance,Attendance,Add Custom Labour Type (per vendor),Yes,Yes,Yes,Yes,Yes,No,Yes,No
+Attendance,Labour (Labour Master),View Labour List,Yes,Yes,Yes,Yes,Yes,Yes,Yes,Yes
+Attendance,Labour (Labour Master),Add Labour,Yes,Yes,Yes,Yes,Yes,No,No,Yes
+Attendance,Labour (Labour Master),Edit Labour,Yes,Yes,Yes,No,No,No,No,No
+Attendance,Labour (Labour Master),Update Labour,Yes,Yes,Yes,No,No,No,No,No
+Attendance,Labour (Labour Master),Delete Labour,Yes,Yes,Yes,No,No,No,No,No
+Attendance,Manage Company Staff,View Company Staff List,Yes,Yes,Yes,Yes,Yes,Yes,Yes,Yes
+Attendance,Manage Company Staff,Add Company Staff (Create Login),Yes,Yes,No,No,No,No,No,No
+Attendance,Manage Company Staff,Edit Company Staff,Yes,Yes,No,No,No,No,No,No
+Attendance,Manage Company Staff,Update Company Staff,Yes,Yes,No,No,No,No,No,No
+Attendance,Manage Company Staff,Delete Company Staff,Yes,Yes,No,No,No,No,No,No
+Attendance,Manage Company Staff,Assign Designation (Site Incharge / Site Engineer / Store Incharge / Accounts),Yes,Yes,No,No,No,No,No,No
+Vendors,Vendor (Contractors),View Vendor List,Yes,Yes,Yes,Yes,Yes,Yes,Yes,Yes
+Vendors,Vendor (Contractors),Create Vendor,Yes,Yes,Yes,No,No,No,No,No
+Vendors,Vendor (Contractors),Edit Vendor,Yes,Yes,Yes,No,No,No,No,No
+Vendors,Vendor (Contractors),Update Vendor,Yes,Yes,Yes,No,No,No,No,No
+Vendors,Vendor (Contractors),Delete Vendor,Yes,Yes,Yes,No,No,No,No,No
+Settings,Profile,View Own Profile,Yes,Yes,Yes,Yes,Yes,Yes,Yes,Yes
+Settings,Profile,Update Own Profile,Yes,Yes,Yes,No,No,No,No,No
+Settings,About,View About Page,Yes,Yes,Yes,Yes,Yes,Yes,Yes,Yes

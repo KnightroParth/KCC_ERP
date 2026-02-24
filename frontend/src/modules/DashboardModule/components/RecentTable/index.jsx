@@ -9,10 +9,16 @@ import { erp } from '@/redux/erp/actions';
 import useLanguage from '@/locale/useLanguage';
 import { useNavigate } from 'react-router-dom';
 import { DOWNLOAD_BASE_URL } from '@/config/serverApiConfig';
+import { useGranularPermission } from '@/hooks/usePermission';
+import usePermission from '@/hooks/usePermission';
+import { ENTITY_TO_MODULE } from '@/config/roles';
 
 export default function RecentTable({ ...props }) {
   const translate = useLanguage();
   let { entity, dataTableColumns } = props;
+  const module = ENTITY_TO_MODULE[entity] || entity;
+  const canEdit = usePermission(module, 'edit');
+  const canDownloadInvoicePdf = useGranularPermission('billing', 'invoice.generatePdf');
 
   const items = [
     {
@@ -20,17 +26,17 @@ export default function RecentTable({ ...props }) {
       key: 'read',
       icon: <EyeOutlined />,
     },
-    {
+    canEdit && {
       label: translate('Edit'),
       key: 'edit',
       icon: <EditOutlined />,
     },
-    {
+    (entity !== 'invoice' || canDownloadInvoicePdf) && {
       label: translate('Download'),
       key: 'download',
       icon: <FilePdfOutlined />,
     },
-  ];
+  ].filter(Boolean);
 
   const navigate = useNavigate();
   const dispatch = useDispatch();

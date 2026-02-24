@@ -3,6 +3,7 @@ import { Table, Card, Button, message, Space, Modal, Select } from 'antd';
 import { ExportOutlined, SendOutlined, PauseCircleOutlined, StopOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import request from '@/request/request';
+import { useGranularPermission } from '@/hooks/usePermission';
 
 const REASONS_FOR_HOLD = [
   { value: 'audit_hold', label: 'Audit hold' },
@@ -23,6 +24,7 @@ export default function AuditCheck({
   onSendToFinalCheck,
   disabled,
 }) {
+  const canExportAuditExcel = useGranularPermission('billing', 'invoice.auditCheck');
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [selectedRowKeys, setSelectedRowKeys] = useState([]);
@@ -238,9 +240,11 @@ export default function AuditCheck({
         >
           Suspend
         </Button>
-        <Button icon={<ExportOutlined />} onClick={handleExport} disabled={!data.length}>
-          Export to Excel (CSV)
-        </Button>
+        {canExportAuditExcel && (
+          <Button icon={<ExportOutlined />} onClick={handleExport} disabled={!data.length}>
+            Export to Excel (CSV)
+          </Button>
+        )}
         <Button
           type="primary"
           icon={<SendOutlined />}

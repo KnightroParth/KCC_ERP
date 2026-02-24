@@ -6,7 +6,7 @@ import { useSelector } from 'react-redux';
 import { useAppContext } from '@/context/appContext';
 import useResponsive from '@/hooks/useResponsive';
 import { selectCurrentAdmin } from '@/redux/auth/selectors';
-import { hasPermission, MENU_MODULE_MAP } from '@/config/roles';
+import { getEffectiveRole, getPermissionsForRole, canAccessModule, hasGranularPermission, MENU_MODULE_MAP, MENU_WHITELIST_KEYS, MENU_ITEM_GRANULAR } from '@/config/roles';
 
 import logoText from '@/style/images/logo-text.png';
 import "@/style/custom/kcc-brand.css";
@@ -20,7 +20,6 @@ import {
   ReconciliationOutlined,
   ToolOutlined,
   UserOutlined,
-  TeamOutlined,
   AppstoreAddOutlined
 } from '@ant-design/icons';
 
@@ -31,10 +30,24 @@ export default function Navigation() {
   return isMobile ? <MobileSidebar /> : <Sidebar collapsible={false} />;
 }
 
-function canView(role, key) {
+/**
+ * Strict: show item only if (1) key is whitelisted, or (2) module.view and any required granular.
+ * Unmapped key => false. Billing sub-items require granular (e.g. billing/direct => accessDirectBill).
+ */
+function canViewItem(perms, role, key) {
   const module = MENU_MODULE_MAP[key];
-  if (module == null) return true;
-  return hasPermission(role, module, 'view');
+  if (module === undefined) return false;
+  if (module === null) return MENU_WHITELIST_KEYS.has(key);
+  if (role === null) return false;
+  if (!canAccessModule(role, module)) return false;
+  const mod = perms[module];
+  if (mod == null || mod.view !== true) return false;
+  const granular = MENU_ITEM_GRANULAR[key];
+  if (granular) {
+    const [modName, actionPath] = granular;
+    if (!hasGranularPermission(role, modName, actionPath)) return false;
+  }
+  return true;
 }
 
 function Sidebar({ collapsible, isMobile = false }) {
@@ -43,7 +56,9 @@ function Sidebar({ collapsible, isMobile = false }) {
   const { isNavMenuClose } = stateApp;
   const { navMenu } = appContextAction;
   const currentAdmin = useSelector(selectCurrentAdmin);
-  const role = currentAdmin?.role;
+  const role = getEffectiveRole(currentAdmin);
+  const perms = getPermissionsForRole(role);
+  const hasKnownRole = role !== null;
 
   const navigate = useNavigate();
 
@@ -54,32 +69,21 @@ function Sidebar({ collapsible, isMobile = false }) {
     if (location.pathname === '/') {
       setCurrentPath('dashboard');
     } else {
-      const path = location.pathname.startsWith('/')
-        ? location.pathname.slice(1)
-        : location.pathname;
+      const path = location.pathname.startsWith('/') ? location.pathname.slice(1) : location.pathname;
       setCurrentPath(path);
     }
   }, [location.pathname]);
 
-  // Active module checks
   const isInventoryActive = currentPath.includes('inventory');
   const isAttendanceActive =
     currentPath === 'attendance' ||
     currentPath === 'labour' ||
     currentPath === 'attendance/manage-company-staff' ||
     currentPath === 'vendor';
-
-  const isWorkActive =
-    currentPath === 'work/wip' ||
-    currentPath.startsWith('work/');
-
+  const isWorkActive = currentPath === 'work/wip' || currentPath.startsWith('work/');
   const isBillingActive =
-    currentPath === 'billing' ||
-    currentPath.startsWith('billing/') ||
-    currentPath === 'invoice' ||
-    currentPath.startsWith('invoice/');
+    currentPath === 'billing' || currentPath.startsWith('billing/') || currentPath === 'invoice' || currentPath.startsWith('invoice/');
 
-  // Auto-expand relevant modules
   useEffect(() => {
     const keys = [];
     if (isInventoryActive) keys.push('inventory-module');
@@ -89,7 +93,6 @@ function Sidebar({ collapsible, isMobile = false }) {
     setOpenKeys(keys);
   }, [isInventoryActive, isAttendanceActive, isWorkActive, isBillingActive]);
 
-  // Styles
   const parentLabelStyle = { fontSize: '15px', fontWeight: '600' };
   const parentModuleLabelStyle = { fontSize: '15px', fontWeight: '600', color: '#ffffff' };
   const subLinkStyle = { fontSize: '13px', fontWeight: '400' };
@@ -99,7 +102,6 @@ function Sidebar({ collapsible, isMobile = false }) {
     { key: 'dashboard', icon: <DashboardOutlined style={iconStyle} />, label: <Link to="/" style={parentLabelStyle}>Dashboard</Link> },
     { key: 'customer', icon: <CustomerServiceOutlined style={iconStyle} />, label: <Link to="/customer" style={parentLabelStyle}>Projects</Link> },
     { key: 'units', icon: <ContainerOutlined style={iconStyle} />, label: <Link to="/units" style={parentLabelStyle}>Units</Link> },
-
     {
       key: 'work-module',
       className: 'work-submenu',
@@ -112,7 +114,6 @@ function Sidebar({ collapsible, isMobile = false }) {
         { key: 'work/set-rate', label: <Link to="/work/set-rate" style={{ ...subLinkStyle, color: currentPath === 'work/set-rate' ? '#ffffff' : '#1677ff' }}>Set Rate</Link> },
       ],
     },
-
     {
       key: 'attendance-module',
       className: 'attendance-submenu',
@@ -125,7 +126,6 @@ function Sidebar({ collapsible, isMobile = false }) {
         { key: 'vendor', label: <Link to="/vendor" style={{ ...subLinkStyle, color: currentPath === 'vendor' ? '#ffffff' : '#1677ff' }}>Manage Contractor</Link> },
       ],
     },
-
     {
       key: 'inventory-module',
       className: 'inventory-submenu',
@@ -142,7 +142,6 @@ function Sidebar({ collapsible, isMobile = false }) {
         { key: 'inventory/supplier', label: <Link to="/inventory/supplier" style={{ ...subLinkStyle, color: currentPath === 'inventory/supplier' ? '#ffffff' : '#1677ff' }}>Suppliers</Link> },
       ],
     },
-
     {
       key: 'billing-module',
       icon: <FileSyncOutlined style={iconStyle} />,
@@ -157,20 +156,28 @@ function Sidebar({ collapsible, isMobile = false }) {
     { key: 'about', icon: <ReconciliationOutlined style={iconStyle} />, label: <Link to="/about" style={parentLabelStyle}>About</Link> },
   ];
 
-  // Filter menu by role: hide items (and parent groups) when user has no view permission for that module
   const items = useMemo(() => {
-    if (!role) return allItems;
-    return allItems
-      .map((item) => {
-        if (item.children) {
-          const visibleChildren = item.children.filter((c) => canView(role, c.key));
-          if (visibleChildren.length === 0) return null; // hide parent if no child is visible
-          return { ...item, children: visibleChildren };
-        }
-        return canView(role, item.key) ? item : null;
-      })
-      .filter(Boolean);
-  }, [role, currentPath]);
+    if (!hasKnownRole) {
+      return allItems.filter((item) => {
+        if (item.children) return false;
+        return MENU_WHITELIST_KEYS.has(item.key);
+      });
+    }
+    const out = [];
+    for (const item of allItems) {
+      if (item.children) {
+        const moduleForParent = MENU_MODULE_MAP[item.key];
+        if (moduleForParent != null && !canAccessModule(role, moduleForParent)) continue;
+        const visibleChildren = item.children.filter((c) => canViewItem(perms, role, c.key));
+        if (visibleChildren.length === 0) continue; /* Module-level purge: drop parent entirely when no visible children */
+        out.push({ ...item, children: visibleChildren });
+      } else {
+        if (!canViewItem(perms, role, item.key)) continue;
+        out.push(item);
+      }
+    }
+    return out;
+  }, [role, perms, hasKnownRole, currentPath]);
 
   return (
     <Sider
@@ -180,17 +187,11 @@ function Sidebar({ collapsible, isMobile = false }) {
       className="kcc-sidebar"
       width={256}
       theme="dark"
-      style={{
-        height: '100vh',
-        overflowY: 'auto',
-        backgroundColor: '#001529',
-        borderRight: '1px solid #f0f0f0'
-      }}
+      style={{ height: '100vh', overflowY: 'auto', backgroundColor: '#001529', borderRight: '1px solid #f0f0f0' }}
     >
       <div className="kcc-logo-container" onClick={() => navigate('/')} style={{ background: '#001529' }}>
         <img src={logoText} alt="KCC Logo" className="kcc-logo" />
       </div>
-
       <Menu
         items={items}
         mode="inline"
@@ -211,7 +212,6 @@ function MobileSidebar() {
       <Button type="text" size="large" onClick={() => setVisible(true)} className="mobile-sidebar-btn" style={{ marginLeft: 25 }}>
         <MenuOutlined style={{ fontSize: 18 }} />
       </Button>
-
       <Drawer width={250} placement="left" closable={false} onClose={() => setVisible(false)} open={visible}>
         <Sidebar collapsible={false} isMobile />
       </Drawer>

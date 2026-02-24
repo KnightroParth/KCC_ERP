@@ -9,45 +9,54 @@ import {
   DollarOutlined,
 } from '@ant-design/icons';
 import { ErpLayout } from '@/layout';
+import { useGranularPermission } from '@/hooks/usePermission';
 
 const { Content } = Layout;
 const { Title, Text } = Typography;
 
-const CARD_CONFIG = [
-  {
-    key: 'planning',
-    path: '/billing/planning',
-    icon: FileSearchOutlined,
-    iconBg: '#e6f4ff',
-    iconColor: '#1677ff',
-    title: 'Create Bill from Planning',
-    description: 'Bill contractors against their completed work. Draft → Audit → Final Check → Download PDF & Record Payment (when you pay the contractor).',
-    label: 'From Planning',
-  },
-  {
-    key: 'direct',
-    path: '/billing/direct',
-    icon: FileAddOutlined,
-    iconBg: '#f6ffed',
-    iconColor: '#52c41a',
-    title: 'Direct Bill',
-    description: 'Create a bill to a contractor without linking to planning (ad-hoc or one-off).',
-    label: 'Ad-hoc',
-  },
-  {
-    key: 'all',
-    path: '/invoice',
-    icon: UnorderedListOutlined,
-    iconBg: '#f9f0ff',
-    iconColor: '#722ed1',
-    title: 'All Bills',
-    description: 'View all bills to contractors, record payments to contractors, download PDFs, or open any bill.',
-    label: 'List',
-  },
-];
-
 export default function BillingDashboard() {
   const navigate = useNavigate();
+  const canAccessFromPlanning = useGranularPermission('billing', 'dashboard.accessCreateBillFromPlanning');
+  const canDirectBill = useGranularPermission('billing', 'dashboard.accessDirectBill');
+  const canAccessAllBills = useGranularPermission('billing', 'dashboard.accessAllBillsList');
+
+  const cards = [
+    {
+      key: 'planning',
+      path: '/billing/planning',
+      show: canAccessFromPlanning,
+      icon: FileSearchOutlined,
+      iconBg: '#e6f4ff',
+      iconColor: '#1677ff',
+      title: 'Create Bill from Planning',
+      description: 'Bill contractors against their completed work. Draft → Audit → Final Check → Download PDF & Record Payment (when you pay the contractor).',
+      label: 'From Planning',
+    },
+    {
+      key: 'direct',
+      path: '/billing/direct',
+      show: canDirectBill,
+      icon: FileAddOutlined,
+      iconBg: '#f6ffed',
+      iconColor: '#52c41a',
+      title: 'Direct Bill',
+      description: 'Create a bill to a contractor without linking to planning (ad-hoc or one-off).',
+      label: 'Ad-hoc',
+    },
+    {
+      key: 'all',
+      path: '/invoice',
+      show: canAccessAllBills,
+      icon: UnorderedListOutlined,
+      iconBg: '#f9f0ff',
+      iconColor: '#722ed1',
+      title: 'All Bills',
+      description: 'View all bills to contractors, record payments to contractors, download PDFs, or open any bill.',
+      label: 'List',
+    },
+  ];
+
+  const visibleCards = cards.filter((c) => c.show === true);
 
   return (
     <ErpLayout>
@@ -63,7 +72,7 @@ export default function BillingDashboard() {
         </div>
 
         <Row gutter={[24, 24]}>
-          {CARD_CONFIG.map((item) => {
+          {visibleCards.map((item) => {
             const Icon = item.icon;
             return (
               <Col xs={24} sm={24} md={8} lg={8} key={item.key}>

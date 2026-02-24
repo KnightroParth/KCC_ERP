@@ -11,6 +11,7 @@ import SelectAsync from '@/components/SelectAsync';
 import { request } from '@/request';
 import { API_BASE_URL } from '@/config/serverApiConfig';
 import dayjs from 'dayjs';
+import { useGranularPermission } from '@/hooks/usePermission';
 
 function PurchaseOrderForm({ isUpdateForm = false }) {
   const form = Form.useFormInstance();
@@ -27,6 +28,7 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
   const { result: currentItem } = useSelector(selectCurrentItem);
   const safeCurrentItem = currentItem || {};
   const hasSavedPO = safeCurrentItem?._id ? true : false;
+  const canGeneratePoPdf = useGranularPermission('inventory', 'purchaseOrder.generatePdf');
 
   useEffect(() => {
     if (!isUpdateForm && shouldLockProject && currentProject) {
@@ -412,7 +414,7 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
 
   return (
     <>
-      {hasSavedPO && (
+      {hasSavedPO && canGeneratePoPdf && (
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 20 }}>
           <Button type="primary" icon={<FilePdfOutlined />} onClick={handleDownloadPDF} loading={pdfLoading} size="large">Download PDF</Button>
         </div>

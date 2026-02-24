@@ -18,6 +18,7 @@ import AutoCompleteAsync from '@/components/AutoCompleteAsync';
 import dayjs from 'dayjs';
 import request from '@/request/request';
 import { useSelector } from 'react-redux';
+import { useGranularPermission } from '@/hooks/usePermission';
 import { selectFinanceSettings } from '@/redux/settings/selectors';
 import { selectCurrentProject, selectShouldLockProject } from '@/redux/erp/selectors';
 import { settingsAction } from '@/redux/settings/actions';
@@ -50,6 +51,7 @@ export default function BillingFromPlanning() {
   const currentProject = useSelector(selectCurrentProject);
   const shouldLockProject = useSelector(selectShouldLockProject);
   const { last_invoice_number } = useSelector(selectFinanceSettings) || {};
+  const canMarkAsPaid = useGranularPermission('billing', 'invoice.markAsPaid');
   const [projectId, setProjectId] = useState(undefined);
   const [projectName, setProjectName] = useState('');
   const [contractorId, setContractorId] = useState(undefined);
@@ -202,13 +204,15 @@ export default function BillingFromPlanning() {
                   Use <strong>Record Payment</strong> when you pay the contractor so the bill shows as Paid and the amount paid is updated.
                 </p>
                 <Space wrap size="middle">
-                  <Button
-                    type="primary"
-                    icon={<CreditCardOutlined />}
-                    onClick={() => navigate(`/invoice/pay/${draftInvoice._id}`)}
-                  >
-                    Record Payment
-                  </Button>
+                  {canMarkAsPaid && (
+                    <Button
+                      type="primary"
+                      icon={<CreditCardOutlined />}
+                      onClick={() => navigate(`/invoice/pay/${draftInvoice._id}`)}
+                    >
+                      Record Payment
+                    </Button>
+                  )}
                   <Button
                     icon={<UnorderedListOutlined />}
                     onClick={() => navigate(`/invoice/read/${draftInvoice._id}`)}

@@ -22,6 +22,7 @@ import { useErpContext } from '@/context/erp';
 import { generate as uniqueId } from 'shortid';
 import { useNavigate } from 'react-router-dom';
 import { hasPermission, ENTITY_TO_MODULE } from '@/config/roles';
+import { useGranularPermission } from '@/hooks/usePermission';
 
 import { DOWNLOAD_BASE_URL } from '@/config/serverApiConfig';
 import request from '@/request/request';
@@ -63,6 +64,7 @@ export default function DataTable({ config, extra = [] }) {
   const module = ENTITY_TO_MODULE[entity] || entity;
   const canDelete = hasPermission(role, module, 'delete');
   const canEdit = hasPermission(role, module, 'edit');
+  const canDownloadInvoicePdf = useGranularPermission('billing', 'invoice.generatePdf');
 
   const items = [
     {
@@ -75,7 +77,7 @@ export default function DataTable({ config, extra = [] }) {
       key: 'edit',
       icon: <EditOutlined />,
     },
-    {
+    ((entity !== 'invoice') || canDownloadInvoicePdf) && {
       label: translate('Download'),
       key: 'download',
       icon: <FilePdfOutlined />,
