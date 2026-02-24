@@ -515,9 +515,10 @@ export default function Planning() {
                     const isCheckedOnScreen = unit[taskName];
                     const userRate = unit[`${taskName}_rate`];
 
-                    // Find existing record for this unit/task/period (regardless of contractor)
+                    // Find existing record for this unit/task/period (same building, regardless of contractor)
                     const existing = plannedWorks.find(pw =>
                         (pw.projectId?._id === selectedProject._id || pw.projectId === selectedProject._id) &&
+                        pw.buildingName === selectedBuilding &&
                         pw.unitNumber === unit.unitNumber &&
                         pw.category === selectedCategory.label &&
                         pw.workType === taskName &&
@@ -786,10 +787,11 @@ export default function Planning() {
                         return { rate: 0, note: null };
                     };
 
+                    const rawFloor = unit.floor != null ? unit.floor : (unit.floorNumber != null ? unit.floorNumber : null);
                     const unitData = {
                         _id: unit._id,
                         unitNumber: unit.unitNumber,
-                        floor: (u => u.floor != null ? u.floor : (u.floorNumber != null ? u.floorNumber : '-'))(unit),
+                        floor: rawFloor,
                         unitType: unit.unitType || '-',
                         rate: plannedWork?.rate || 0, // Rate will be task specific now
                     };
@@ -825,15 +827,14 @@ export default function Planning() {
                             const selProjectId = selectedProject._id?.toString();
                             const pwContractorId = (pw.contractorId?._id || pw.contractorId)?.toString();
 
-                            // Planning Check (Independent of Date)
+                            // Planning Check (Independent of Date) — MUST match building to prevent duplex floor bleed
                             const matchesBasic = pwProjectId === selProjectId &&
+                                pw.buildingName === selectedBuilding &&
                                 pw.unitNumber === unit.unitNumber &&
                                 pw.category === selectedCategory.label &&
                                 pw.workType === item;
 
                             // We only consider it "Found" for checkboxes if it matches the current contractor
-                            // or if we just want to know if it's planned AT ALL. 
-                            // Requirements: locked if planned Irrespective of date.
                             return matchesBasic && pwContractorId === currentContractorId;
                         });
 
@@ -844,6 +845,9 @@ export default function Planning() {
                         // 3. Flags for coloring & locking (Independent of Date)
                         if (foundPlanned) {
                             unitData[`${item}_isPlanned`] = true;
+                            if (foundPlanned.description === "Carry Forwarded because not completed within time") {
+                                unitData[`${item}_isCarryForwarded`] = true;
+                            }
                         }
 
                         // Red tick = work finished: either billed OR 100% progress OR project Complete (building done, no remaining work).
@@ -974,7 +978,7 @@ export default function Planning() {
                             allowClear
                         >
                             {[...new Set(getBuildingUnits().map(u => u.floor ?? u.floorNumber).filter(f => f != null && f !== ''))].sort((a, b) => parseInt(a) - parseInt(b)).map(f => (
-                                <Option key={f} value={f}>{f === 0 || f === '0' ? '0 (Ground)' : f}</Option>
+                                <Option key={f} value={f}>{(f === 0 || f === '0') ? 'G' : f}</Option>
                             ))}
                         </Select>
                     </div>
@@ -1234,8 +1238,12 @@ function PlanningChart({ data, vendors, staff, groupOption, headerDetails, onDel
                                     dataIndex: 'floor',
                                     key: 'floor',
                                     align: 'center',
-                                    render: (val) => val || '-',
-                                    sorter: (a, b) => (a.floor || '').localeCompare(b.floor || '', undefined, { numeric: true })
+                                    render: (val) => (val === 0 || val === '0') ? 'G' : (val != null ? val : '-'),
+                                    sorter: (a, b) => {
+                                        const fA = (a.floor === 0 || a.floor === '0') ? 0 : (parseInt(a.floor) || 0);
+                                        const fB = (b.floor === 0 || b.floor === '0') ? 0 : (parseInt(b.floor) || 0);
+                                        return fA - fB;
+                                    }
                                 },
                                 {
                                     title: 'Unit',
@@ -1350,8 +1358,12 @@ function PlanningChart({ data, vendors, staff, groupOption, headerDetails, onDel
                             dataIndex: 'floor',
                             key: 'floor',
                             align: 'center',
-                            render: (val) => val || '-',
-                            sorter: (a, b) => (a.floor || '').localeCompare(b.floor || '', undefined, { numeric: true })
+                            render: (val) => (val === 0 || val === '0') ? 'G' : (val != null ? val : '-'),
+                            sorter: (a, b) => {
+                                const fA = (a.floor === 0 || a.floor === '0') ? 0 : (parseInt(a.floor) || 0);
+                                const fB = (b.floor === 0 || b.floor === '0') ? 0 : (parseInt(b.floor) || 0);
+                                return fA - fB;
+                            }
                         },
                         {
                             title: 'Unit',
@@ -1441,7 +1453,12 @@ function PlanningTable({ data, category, onCheckChange, onRateChange, disabled }
             key: 'floor',
             width: 80,
             align: 'center',
-            sorter: (a, b) => (a.floor || '').localeCompare(b.floor || '', undefined, { numeric: true }),
+            render: (val) => (val === 0 || val === '0') ? 'G' : (val != null ? val : '-'),
+            sorter: (a, b) => {
+                const fA = (a.floor === 0 || a.floor === '0') ? 0 : (parseInt(a.floor) || 0);
+                const fB = (b.floor === 0 || b.floor === '0') ? 0 : (parseInt(b.floor) || 0);
+                return fA - fB;
+            },
         },
         {
             title: 'Unit Type',
@@ -1463,18 +1480,34 @@ function PlanningTable({ data, category, onCheckChange, onRateChange, disabled }
                     const isPlanned = record[`${taskName}_isPlanned`];
 
                     if (isBilled) {
-                        return <Checkbox checked={true} disabled style={{ color: '#FF0000' }} className="billed-checkbox" />;
+                        return (
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                                <Checkbox checked={true} disabled style={{ color: '#FF0000' }} className="billed-checkbox" />
+                            </div>
+                        );
                     }
                     if (isPlanned) {
-                        return <Checkbox checked={true} disabled style={{ color: '#008000' }} className="planned-checkbox" />;
+                        return (
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+                                <Checkbox checked={true} disabled style={{ color: '#008000' }} className="planned-checkbox" />
+                                {record[`${taskName}_isCarryForwarded`] && (
+                                    <span style={{ fontSize: '10px', color: '#fa8c16', lineHeight: 1, textAlign: 'center' }}>Carry<br />Forwarded</span>
+                                )}
+                            </div>
+                        );
                     }
 
                     return (
-                        <Checkbox
-                            checked={checked || false}
-                            onChange={(e) => onCheckChange(record, taskName, e.target.checked)}
-                            disabled={disabled}
-                        />
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+                            <Checkbox
+                                checked={checked || false}
+                                onChange={(e) => onCheckChange(record, taskName, e.target.checked)}
+                                disabled={disabled}
+                            />
+                            {record[`${taskName}_isCarryForwarded`] && (
+                                <span style={{ fontSize: '10px', color: '#fa8c16', lineHeight: 1, textAlign: 'center' }}>Carry<br />Forwarded</span>
+                            )}
+                        </div>
                     );
                 },
             },

@@ -1,5 +1,6 @@
+import React from 'react';
 import { notification } from 'antd';
-
+import { CheckCircleOutlined, WarningOutlined } from '@ant-design/icons';
 import codeMessage from './codeMessage';
 
 const successHandler = (response, options = { notifyOnSuccess: false, notifyOnFailed: true }) => {
@@ -14,8 +15,10 @@ const successHandler = (response, options = { notifyOnSuccess: false, notifyOnFa
         maxCount: 2,
       });
       notification.success({
+        className: 'custom-success-notification',
         message: `Request success`,
         description: successText,
+        icon: React.createElement(CheckCircleOutlined, { style: { color: '#52c41a' } }),
       });
     }
   } else {
@@ -28,8 +31,10 @@ const successHandler = (response, options = { notifyOnSuccess: false, notifyOnFa
         maxCount: 2,
       });
       notification.error({
+        className: 'custom-error-notification',
         message: `Request error ${status}`,
         description: errorText,
+        icon: React.createElement(WarningOutlined, { style: { color: '#ff4d4f' } }),
       });
     }
   }

@@ -7,32 +7,136 @@ export const WORK_TASK_CONFIG = {
     "Plumbing-E": ["Rain Water Line Fitting", "Toilet Outlet Pipe Fitting", "Kichen & Bal Outlet pipe Fitting", "Water Supply Line", "Ground Water Tank To Overhead", "Additional Work"],
     "Tiles": ["Floor", "Floor Scurting", "Balcony Floor", "Balcony Wall", "Kitchen- Wall", "Kitchen- Otta", "Window Seal", "Kadapa Rack", "Toilet-1 Floor", "Toilet-1 Wall", "Toilet-2 Floor", "Toilet-2 Wall", "Toilet-3 Floor", "Toilet-3 Wall", "Acid Wash", "Extra Work"],
     "POP": ["Dhar & Line finishing of beam and column", "False Ceiling", "Metal Framing", "Sheet fitting & Finishing", "Electric Hole Cutting"],
-    "Civil Work": ["Hall", "Balcony", "Kitchen", "Toilet1", "Toilet2", "Toilet3", "Bedroom1", "Bedroom2", "Bedroom3"],
-    "Civil Work (Loft Centering)": ["Hall", "Balcony", "Kitchen", "Toilet1", "Toilet2", "Toilet3", "Bedroom1", "Bedroom2", "Bedroom3"],
-    "Civil Work (Loft Casting)": ["Hall", "Balcony", "Kitchen", "Toilet1", "Toilet2", "Toilet3", "Bedroom1", "Bedroom2", "Bedroom3"],
+    "Civil Work": ["CW-Hall", "CW-Balcony", "CW-Kitchen", "CW-Toilet1", "CW-Toilet2", "CW-Toilet3", "CW-Bedroom1", "CW-Bedroom2", "CW-Bedroom3"],
+    "Civil Work (Loft Centering)": ["LC-Hall", "LC-Balcony", "LC-Kitchen", "LC-Toilet1", "LC-Toilet2", "LC-Toilet3", "LC-Bedroom1", "LC-Bedroom2", "LC-Bedroom3"],
+    "Civil Work (Loft Casting)": ["LCast-Hall", "LCast-Balcony", "LCast-Kitchen", "LCast-Toilet1", "LCast-Toilet2", "LCast-Toilet3", "LCast-Bedroom1", "LCast-Bedroom2", "LCast-Bedroom3"],
     "Fabrication Work": ["Grill Fitting", "Railing Fixing", "Gate Fixing"],
     "Painting": ["Grinding", "Putti-1", "Putti-2 (Final Base)", "Primer/Gasai", "Paint Coat-1", "Paint Coat-2", "O Paint =Door+Grill+Chaukat+Railing", "Cleaning 100%", "Texture"],
-    "Finishing-W": ["Hall", "Balcony", "Kitchen", "Toilet-1", "Toilet-2", "Toilet-3", "BedRoom-1", "BedRoom-2", "BedRoom-3"],
-    "Finishing-D": ["Hall", "Balcony", "Kitchen", "Toilet1", "Toilet2", "Toilet3", "Bedroom1", "Bedroom2", "Bedroom3"]
+    "Finishing-W": ["FW-Hall", "FW-Balcony", "FW-Kitchen", "FW-Toilet-1", "FW-Toilet-2", "FW-Toilet-3", "FW-BedRoom-1", "FW-BedRoom-2", "FW-BedRoom-3"],
+    "Finishing-D": ["FD-Hall", "FD-Balcony", "FD-Kitchen", "FD-Toilet1", "FD-Toilet2", "FD-Toilet3", "FD-Bedroom1", "FD-Bedroom2", "FD-Bedroom3"]
 };
 
 export const COMPLEX_TASK_COMPONENTS = {
+    // Mivan
     "Mivan Centering": "MivanCenteringForm",
     "Slab Beam Reinforcement": "SlabReinforcementForm",
+    // Electrical Work-I
     "Slab Piping": "ElectricalWorkIForm",
+    "Ziri Cutting + Pipe fitting": "ElectricalWorkIForm",
     "Conselled box fitting": "ElectricalWorkIForm",
     "Block Wiring": "ElectricalWorkIForm",
     "Switch Plate fitting": "ElectricalWorkIForm",
     "Testing Repair & Finish": "ElectricalWorkIForm",
+    "Final Testing": "ElectricalWorkIForm",
+    // Electrical Work-E
     "Block to parking meter panel pipe fitting": "ElectricalWorkEForm",
     "Block to parking meter panel wiring": "ElectricalWorkEForm",
     "Block Panel Fitting": "ElectricalWorkEForm",
+    "Testing": "ElectricalWorkEForm",
+    // Water Proofing
+    "Chipping & Leakage Pipe": "WaterProofingForm",
+    "First Coat": "WaterProofingForm",
+    "Koba filling & Finishing": "WaterProofingForm",
+    "Wash up pipe & Concrete Finish": "WaterProofingForm",
+    // Plumbing-I
     "Slab Pipeing": "PlumbingForm",
     "Zari Cutting + Holes": "PlumbingForm",
     "Internal Pipe Line Fitting": "PlumbingForm",
+    "Zari Repairing & Testing": "PlumbingIExtraForm",
+    "Nani trap fitting": "PlumbingIExtraForm",
+    "Show Fitting": "PlumbingIExtraForm",
+    // Plumbing-E
+    "Rain Water Line Fitting": "PlumbingEForm",
+    "Toilet Outlet Pipe Fitting": "PlumbingEForm",
+    "Kichen & Bal Outlet pipe Fitting": "PlumbingEForm",
+    "Water Supply Line": "PlumbingEForm",
+    "Ground Water Tank To Overhead": "PlumbingEForm",
+    "Additional Work": "PlumbingEForm",
+    // Tiles
     "Floor": "TilesForm",
     "Kitchen- Wall": "TilesForm",
     "Toilet-1 Wall": "TilesForm",
+    "Floor Scurting": "TilesExtraForm",
+    "Balcony Floor": "TilesExtraForm",
+    "Balcony Wall": "TilesExtraForm",
+    "Kitchen- Otta": "TilesExtraForm",
+    "Window Seal": "TilesExtraForm",
+    "Kadapa Rack": "TilesExtraForm",
+    "Toilet-2 Floor": "TilesExtraForm",
+    "Toilet-2 Wall": "TilesExtraForm",
+    "Toilet-3 Floor": "TilesExtraForm",
+    "Toilet-3 Wall": "TilesExtraForm",
+    "Acid Wash": "TilesExtraForm",
+    // POP
+    "Dhar & Line finishing of beam and column": "POPForm",
+    "False Ceiling": "POPForm",
+    "Metal Framing": "POPForm",
+    "Sheet fitting & Finishing": "POPForm",
+    "Electric Hole Cutting": "POPForm",
+    // Civil Work (generic)
+    "CW-Hall": "CivilWorkForm",
+    "CW-Balcony": "CivilWorkForm",
+    "CW-Kitchen": "CivilWorkForm",
+    "CW-Toilet1": "CivilWorkForm",
+    "CW-Toilet2": "CivilWorkForm",
+    "CW-Toilet3": "CivilWorkForm",
+    "CW-Bedroom1": "CivilWorkForm",
+    "CW-Bedroom2": "CivilWorkForm",
+    "CW-Bedroom3": "CivilWorkForm",
+    // Civil Work (Loft Centering)
+    "LC-Hall": "CivilWorkForm",
+    "LC-Balcony": "CivilWorkForm",
+    "LC-Kitchen": "CivilWorkForm",
+    "LC-Toilet1": "CivilWorkForm",
+    "LC-Toilet2": "CivilWorkForm",
+    "LC-Toilet3": "CivilWorkForm",
+    "LC-Bedroom1": "CivilWorkForm",
+    "LC-Bedroom2": "CivilWorkForm",
+    "LC-Bedroom3": "CivilWorkForm",
+    // Civil Work (Loft Casting)
+    "LCast-Hall": "CivilWorkForm",
+    "LCast-Balcony": "CivilWorkForm",
+    "LCast-Kitchen": "CivilWorkForm",
+    "LCast-Toilet1": "CivilWorkForm",
+    "LCast-Toilet2": "CivilWorkForm",
+    "LCast-Toilet3": "CivilWorkForm",
+    "LCast-Bedroom1": "CivilWorkForm",
+    "LCast-Bedroom2": "CivilWorkForm",
+    "LCast-Bedroom3": "CivilWorkForm",
+    // Fabrication Work
+    "Grill Fitting": "FabricationForm",
+    "Railing Fixing": "FabricationForm",
+    "Gate Fixing": "FabricationForm",
+    // Painting
+    "Grinding": "PaintingForm",
+    "Putti-1": "PaintingForm",
+    "Putti-2 (Final Base)": "PaintingForm",
+    "Primer/Gasai": "PaintingForm",
+    "Paint Coat-1": "PaintingForm",
+    "Paint Coat-2": "PaintingForm",
+    "O Paint =Door+Grill+Chaukat+Railing": "PaintingForm",
+    "Cleaning 100%": "PaintingForm",
+    "Texture": "PaintingForm",
+    // Finishing-W (Aluminium Windows)
+    "FW-Hall": "FinishingWForm",
+    "FW-Balcony": "FinishingWForm",
+    "FW-Kitchen": "FinishingWForm",
+    "FW-Toilet-1": "FinishingWForm",
+    "FW-Toilet-2": "FinishingWForm",
+    "FW-Toilet-3": "FinishingWForm",
+    "FW-BedRoom-1": "FinishingWForm",
+    "FW-BedRoom-2": "FinishingWForm",
+    "FW-BedRoom-3": "FinishingWForm",
+    // Finishing-D (Door Panels)
+    "FD-Hall": "FinishingDForm",
+    "FD-Balcony": "FinishingDForm",
+    "FD-Kitchen": "FinishingDForm",
+    "FD-Toilet1": "FinishingDForm",
+    "FD-Toilet2": "FinishingDForm",
+    "FD-Toilet3": "FinishingDForm",
+    "FD-Bedroom1": "FinishingDForm",
+    "FD-Bedroom2": "FinishingDForm",
+    "FD-Bedroom3": "FinishingDForm",
 };
 
 /**
@@ -64,7 +168,7 @@ export const SUB_CATEGORY_ALIASES = {
     // POP
     "Electric Hole Cutting": ["Electric Hole Cutting", "Electric Hole Cutting "],
     // Civil
-    "Hall": ["Hall", "Door Frame Fitting", "Door Panels"],
+    "CW-Hall": ["CW-Hall", "Hall", "Door Frame Fitting"],
 };
 
 export const WORK_CATEGORIES = [

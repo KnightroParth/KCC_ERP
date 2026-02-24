@@ -222,6 +222,34 @@ function activitiesController() {
     }
   };
 
+  /* ============================================
+      DELETE ALL — mark all activities and plannedwork as removed
+  ============================================= */
+  methods.deleteAll = async (req, res) => {
+    try {
+      const activitiesResult = await Model.updateMany(
+        { removed: false },
+        { $set: { removed: true } }
+      );
+
+      const PlannedWork = mongoose.model("PlannedWork");
+      const plannedWorkResult = await PlannedWork.updateMany(
+        { removed: false },
+        { $set: { removed: true } }
+      );
+
+      return res.status(200).json({
+        success: true,
+        message: `Successfully deleted ${activitiesResult.modifiedCount} activities and ${plannedWorkResult.modifiedCount} planned work entries.`,
+      });
+    } catch (error) {
+      return res.status(500).json({
+        success: false,
+        message: error.message,
+      });
+    }
+  };
+
   return methods;
 }
 

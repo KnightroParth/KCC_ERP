@@ -4,21 +4,27 @@ import {
   Table,
   Button,
   InputNumber,
-  Input,
   Row,
   Col,
   message,
   Space,
   Form,
+  Select,
 } from 'antd';
 import { CheckOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import request from '@/request/request';
 import ImageUpload from '@/components/ImageUpload';
 
+const REASONS_FOR_HOLD = [
+  { value: 'audit_hold', label: 'Audit hold' },
+  { value: 'quality_hold', label: 'Quality hold' },
+  { value: 'pending', label: 'Pending' },
+];
+
 /**
- * Final Check: Shows audited items, adjustments panel (advance, penalty, hold),
- * hold reason + photos when hold amount > 0, Bill Number/Date, "Finalize & Approve".
+ * Final Check: Shows audited items, adjustments panel (advance, penalty, audit hold),
+ * reasons for hold dropdown + photos when audit hold > 0, Bill Number/Date, "Finalize & Approve".
  */
 export default function FinalCheck({ invoice, onFinalized }) {
   const [form] = Form.useForm();
@@ -60,7 +66,7 @@ export default function FinalCheck({ invoice, onFinalized }) {
 
   const handleFinalize = async () => {
     if (holdAmount > 0 && !holdReason.trim()) {
-      message.warning('Please enter Hold Reason when Hold Amount is set.');
+      message.warning('Please select Reason for hold when Audit Hold is set.');
       return;
     }
     setSubmitting(true);
@@ -189,7 +195,7 @@ export default function FinalCheck({ invoice, onFinalized }) {
           </Col>
           <Col xs={24} sm={8}>
             <Space direction="vertical" size={4} style={{ width: '100%' }}>
-              <span>Hold Amount (₹)</span>
+              <span>Audit Hold (₹)</span>
               <InputNumber
                 min={0}
                 style={{ width: '100%' }}
@@ -202,12 +208,14 @@ export default function FinalCheck({ invoice, onFinalized }) {
             <>
               <Col span={24}>
                 <Space direction="vertical" size={4} style={{ width: '100%' }}>
-                  <span>Hold Reason <span style={{ color: '#ff4d4f' }}>*</span></span>
-                  <Input.TextArea
-                    rows={2}
-                    value={holdReason}
-                    onChange={(e) => setHoldReason(e.target.value)}
-                    placeholder="Reason for hold"
+                  <span>Reasons for hold <span style={{ color: '#ff4d4f' }}>*</span></span>
+                  <Select
+                    style={{ width: '100%' }}
+                    placeholder="Select reason for hold"
+                    value={holdReason || undefined}
+                    onChange={(v) => setHoldReason(v || '')}
+                    options={REASONS_FOR_HOLD}
+                    allowClear
                   />
                 </Space>
               </Col>
@@ -234,7 +242,7 @@ export default function FinalCheck({ invoice, onFinalized }) {
           <Col span={12} style={{ textAlign: 'right' }}><strong>{billNumber}/{year}</strong></Col>
           <Col span={12}>Bill Date</Col>
           <Col span={12} style={{ textAlign: 'right' }}>{billDate.format('DD/MM/YYYY')}</Col>
-          <Col span={12}>Deductions (Advance + Penalty + Hold)</Col>
+          <Col span={12}>Deductions (Advance + Penalty + Audit Hold)</Col>
           <Col span={12} style={{ textAlign: 'right' }}>₹{deductions.toFixed(2)}</Col>
           <Col span={12}><strong>Net Payable</strong></Col>
           <Col span={12} style={{ textAlign: 'right' }}><strong>₹{netPayable.toFixed(2)}</strong></Col>
