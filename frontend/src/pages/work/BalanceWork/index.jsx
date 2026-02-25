@@ -19,7 +19,6 @@ export default function BalanceWork() {
     const [unitsList, setUnitsList] = useState([]);
     const [selectedProject, setSelectedProject] = useState(null);
     const [selectedBuilding, setSelectedBuilding] = useState(null);
-    const [selectedCategory, setSelectedCategory] = useState(null);
     const [buildings, setBuildings] = useState([]);
     const [loading, setLoading] = useState(false);
 
@@ -71,7 +70,7 @@ export default function BalanceWork() {
     // Fetch progress / activity data when filters change
     useEffect(() => {
         const fetchData = async () => {
-            if (!selectedProject || !selectedBuilding || !selectedCategory) {
+            if (!selectedProject || !selectedBuilding) {
                 setTableData([]);
                 setActivityData([]);
                 return;
@@ -101,11 +100,10 @@ export default function BalanceWork() {
                     allActivities = res.result || [];
                 }
 
-                // 3. Filter activities for this project + building + category
+                // 3. Filter activities for this project + building
                 let filteredActivities = allActivities.filter(a => {
                     const pId = a.projectId?._id || a.projectId;
                     if (pId !== selectedProject) return false;
-                    if (a.category !== selectedCategory) return false;
 
                     const unitId = a.unitId?._id || a.unitId;
                     const u = buildingUnits.find(bu => bu._id === unitId);
@@ -117,8 +115,19 @@ export default function BalanceWork() {
                 setActivityData(filteredActivities);
 
                 // 4. Map data exactly to units for the table
-                const categoryConfig = WORK_CATEGORIES.find(c => c.label === selectedCategory);
-                const tasks = categoryConfig ? categoryConfig.fields : [];
+                // Gather all tasks across all categories except 'Extra Work' (optional, but requested: combined building-wise)
+                // If you want ALL tasks including extra work, just map everything.
+                const allTasks = [];
+                WORK_CATEGORIES.forEach(cat => {
+                    if (cat.fields) {
+                        cat.fields.forEach(task => {
+                            if (!allTasks.includes(task)) {
+                                allTasks.push(task);
+                            }
+                        });
+                    }
+                });
+                const tasks = allTasks;
 
                 const mappedData = buildingUnits.map(unit => {
                     const row = {
@@ -155,12 +164,20 @@ export default function BalanceWork() {
             }
         };
         fetchData();
-    }, [selectedProject, selectedBuilding, selectedCategory, unitsList, projects]);
+    }, [selectedProject, selectedBuilding, unitsList, projects]);
 
 
     // Columns definition
-    const categoryConfig = WORK_CATEGORIES.find(c => c.label === selectedCategory);
-    const taskColumnsList = categoryConfig ? categoryConfig.fields : [];
+    const taskColumnsList = [];
+    WORK_CATEGORIES.forEach(cat => {
+        if (cat.fields) {
+            cat.fields.forEach(task => {
+                if (!taskColumnsList.includes(task)) {
+                    taskColumnsList.push(task);
+                }
+            });
+        }
+    });
 
     const columns = [
         {
@@ -189,29 +206,38 @@ export default function BalanceWork() {
         }
     ];
 
-    // Add dynamic task columns
-    taskColumnsList.forEach(task => {
-        columns.push({
-            title: task,
-            dataIndex: task,
-            key: task,
-            align: 'center',
-            width: 120,
-            render: (val) => {
-                let color = '#d9d9d9'; // default grey for 0%
-                if (val === '25%') color = '#ffa940';
-                if (val === '50%') color = '#fadb14';
-                if (val === '75%') color = '#95de64';
-                if (val === '100%') color = '#52c41a';
-                if (val === '-') color = '#bfbfbf'; // light grey for N/A
+    // Add dynamic task columns grouped by Work Type
+    WORK_CATEGORIES.forEach(cat => {
+        if (cat.fields && cat.fields.length > 0) {
+            const childrenColumns = cat.fields.map(task => {
+                return {
+                    title: task,
+                    dataIndex: task,
+                    key: task,
+                    align: 'center',
+                    width: 120,
+                    render: (val) => {
+                        let color = '#d9d9d9'; // default grey for 0%
+                        if (val === '25%') color = '#ffa940';
+                        if (val === '50%') color = '#fadb14';
+                        if (val === '75%') color = '#95de64';
+                        if (val === '100%') color = '#52c41a';
+                        if (val === '-') color = '#bfbfbf'; // light grey for N/A
 
-                return (
-                    <span style={{ color, fontWeight: 'bold' }}>
-                        {val || '0%'}
-                    </span>
-                );
-            }
-        });
+                        return (
+                            <span style={{ color, fontWeight: 'bold' }}>
+                                {val || '0%'}
+                            </span>
+                        );
+                    }
+                };
+            });
+
+            columns.push({
+                title: cat.label,
+                children: childrenColumns
+            });
+        }
     });
 
     // Compute Summaries for Footer
@@ -306,55 +332,112 @@ export default function BalanceWork() {
 
         const ws = XLSX.utils.json_to_sheet(excelData);
         XLSX.utils.book_append_sheet(wb, ws, "Balance Work");
-        XLSX.writeFile(wb, `BalanceWork_${selectedProject?.projectCode || 'Project'}_${selectedBuilding}_${selectedCategory}.xlsx`);
+        XLSX.writeFile(wb, `BalanceWork_${selectedProject?.projectCode || 'Project'}_${selectedBuilding}.xlsx`);
     };
 
     const exportToPDF = () => {
         const doc = new jsPDF('landscape');
 
         const projName = currentProject ? currentProject.name : 'Project';
-        const title = `Project: ${projName} | Building: ${selectedBuilding} | Work Type: ${selectedCategory}`;
 
-        doc.setFontSize(14);
-        doc.text(title, 14, 15);
+        let isFirstPage = true;
 
-        const tableHeaders = ['Floor', 'Flat', 'Unit', ...taskColumnsList];
+        // Render one table per work category
+        WORK_CATEGORIES.forEach(cat => {
+            if (!cat.fields || cat.fields.length === 0) return;
 
-        const tableRows = tableData.map(row => {
-            const floorStr = (row.floor === 0 || row.floor === '0') ? 'G' : (row.floor != null ? String(row.floor) : '-');
-            return [
-                floorStr,
-                row.unitNumber,
-                row.unitType,
-                ...taskColumnsList.map(task => row[task] || '0%')
-            ];
+            // Check if any unit has data for any task in this category
+            const relevantTasks = cat.fields;
+
+            if (!isFirstPage) {
+                doc.addPage();
+            }
+            isFirstPage = false;
+
+            // Page header
+            doc.setFontSize(12);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(0, 0, 0);
+            doc.text(`Project: ${projName} | Building: ${selectedBuilding}`, 14, 12);
+
+            doc.setFontSize(11);
+            doc.setTextColor(22, 119, 255);
+            doc.text(`Work Type: ${cat.label}`, 14, 20);
+
+            doc.setTextColor(0, 0, 0);
+            doc.setFont('helvetica', 'normal');
+
+            const tableHeaders = ['Floor', 'Flat', 'Unit Type', ...relevantTasks];
+
+            const tableRows = tableData.map(row => {
+                const floorStr = (row.floor === 0 || row.floor === '0') ? 'G' : (row.floor != null ? String(row.floor) : '-');
+                return [
+                    floorStr,
+                    String(row.unitNumber ?? '-'),
+                    String(row.unitType ?? '-'),
+                    ...relevantTasks.map(task => String(row[task] || '0%'))
+                ];
+            });
+
+            // Summary rows per category
+            const totalRowArr = ['', 'Total Flat', String(tableData.length), ...relevantTasks.map(task => String(calculateTotalFlats(task)))];
+            const pendingRowArr = ['', 'Pending Flat', '', ...relevantTasks.map(task => String(pendingStats[task] ?? 0))];
+            tableRows.push(totalRowArr);
+            tableRows.push(pendingRowArr);
+
+            autoTable(doc, {
+                head: [tableHeaders],
+                body: tableRows,
+                startY: 25,
+                theme: 'grid',
+                styles: { fontSize: 7, cellPadding: 2, halign: 'center', overflow: 'linebreak' },
+                headStyles: { fillColor: [22, 119, 255], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 7 },
+                columnStyles: {
+                    0: { cellWidth: 14 },
+                    1: { cellWidth: 18 },
+                    2: { cellWidth: 22 },
+                },
+                didParseCell: function (data) {
+                    if (data.row.index >= tableData.length) {
+                        data.cell.styles.fontStyle = 'bold';
+                        data.cell.styles.fillColor = [245, 245, 245];
+                        data.cell.styles.textColor = [0, 0, 0];
+                    }
+                    // Colour code progress values in body
+                    if (data.section === 'body' && data.row.index < tableData.length) {
+                        const val = data.cell.raw;
+                        if (val === '100%') data.cell.styles.textColor = [82, 196, 26];
+                        else if (val === '75%') data.cell.styles.textColor = [149, 222, 100];
+                        else if (val === '50%') data.cell.styles.textColor = [200, 170, 0];
+                        else if (val === '25%') data.cell.styles.textColor = [255, 114, 40];
+                        else if (val === '0%') data.cell.styles.textColor = [255, 77, 79];
+                    }
+                },
+                didDrawPage: function (data) {
+                    // Re-draw header on continuation pages
+                    doc.setFontSize(10);
+                    doc.setFont('helvetica', 'bold');
+                    doc.setTextColor(0, 0, 0);
+                    doc.text(`${projName} | ${selectedBuilding} | ${cat.label} (cont.)`, 14, 8);
+                    doc.setFont('helvetica', 'normal');
+                }
+            });
         });
 
-        // Add Summary Rows directly to body
-        const totalRowArr = ['', 'Total Flat', String(calculateTotalFlats()), ...taskColumnsList.map(task => String(calculateTotalFlats(task)))];
-        const pendingRowArr = ['', 'Pending Flat', '', ...taskColumnsList.map(task => String(pendingStats[task]))];
+        doc.save(`BalanceWork_${projName}_${selectedBuilding}.pdf`);
+    };
 
-        tableRows.push(totalRowArr);
-        tableRows.push(pendingRowArr);
-
-        autoTable(doc, {
-            head: [tableHeaders],
-            body: tableRows,
-            startY: 25,
-            theme: 'grid',
-            styles: { fontSize: 8, cellPadding: 2, halign: 'center' },
-            headStyles: { fillColor: [240, 240, 240], textColor: [0, 0, 0], fontStyle: 'bold' },
-            didParseCell: function (data) {
-                // Formatting for summary rows
-                if (data.row.index >= tableData.length) {
-                    data.cell.styles.fontStyle = 'bold';
-                    data.cell.styles.fillColor = [250, 250, 250];
-                }
+    const totalFlatsCount = tableData.length;
+    const pendingFlatsCount = tableData.filter(row => {
+        let isPending = false;
+        taskColumnsList.forEach(task => {
+            const val = row[task];
+            if (val && val !== '-' && val !== '100%') {
+                isPending = true;
             }
         });
-
-        doc.save(`BalanceWork_${projName}_${selectedBuilding}_${selectedCategory}.pdf`);
-    };
+        return isPending;
+    }).length;
 
     return (
         <Layout style={{ minHeight: '100vh', background: '#fafafa' }}>
@@ -416,34 +499,37 @@ export default function BalanceWork() {
                         >
                             {buildings.map(b => <Option key={b} value={b}>{b}</Option>)}
                         </Select>
-
-                        <Select
-                            placeholder="Select Work Type"
-                            style={{ flex: 1 }}
-                            onChange={setSelectedCategory}
-                            value={selectedCategory}
-                            allowClear
-                        >
-                            {WORK_CATEGORIES.map(c => <Option key={c.label} value={c.label}>{c.label}</Option>)}
-                        </Select>
                     </div>
 
-                    <Card bordered={false} bodyStyle={{ padding: 0 }}>
-                        {selectedProject && selectedBuilding && selectedCategory ? (
-                            <Table
-                                columns={columns}
-                                dataSource={tableData}
-                                rowKey="key"
-                                loading={loading}
-                                pagination={false}
-                                bordered
-                                size="small"
-                                scroll={{ x: 'max-content', y: 600 }}
-                                footer={footerRender}
-                            />
+                    <Card bordered={false} bodyStyle={{ padding: 16 }}>
+                        {selectedProject && selectedBuilding ? (
+                            <>
+                                <div style={{ marginBottom: 24, display: 'flex', gap: '32px', padding: '16px', background: '#f5f5f5', borderRadius: '8px', border: '1px solid #d9d9d9' }}>
+                                    <div>
+                                        <div style={{ fontSize: '14px', color: '#8c8c8c', textTransform: 'uppercase', fontWeight: 600 }}>Grand Total Flats</div>
+                                        <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#1677ff', lineHeight: 1.2 }}>{totalFlatsCount}</div>
+                                    </div>
+                                    <div style={{ width: '1px', background: '#d9d9d9', height: '40px', alignSelf: 'center' }}></div>
+                                    <div>
+                                        <div style={{ fontSize: '14px', color: '#8c8c8c', textTransform: 'uppercase', fontWeight: 600 }}>Total Pending Flats</div>
+                                        <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#faad14', lineHeight: 1.2 }}>{pendingFlatsCount}</div>
+                                    </div>
+                                </div>
+                                <Table
+                                    columns={columns}
+                                    dataSource={tableData}
+                                    rowKey="key"
+                                    loading={loading}
+                                    pagination={false}
+                                    bordered
+                                    size="small"
+                                    scroll={{ x: 'max-content', y: 600 }}
+                                    footer={footerRender}
+                                />
+                            </>
                         ) : (
                             <div style={{ textAlign: 'center', padding: '40px 0' }}>
-                                <Empty description="Please select Project, Building and Work Type to view Balance Work" />
+                                <Empty description="Please select Project and Building to view Balance Work" />
                             </div>
                         )}
                     </Card>
@@ -452,3 +538,5 @@ export default function BalanceWork() {
         </Layout>
     );
 }
+
+

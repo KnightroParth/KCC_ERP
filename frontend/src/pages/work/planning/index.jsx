@@ -845,6 +845,9 @@ export default function Planning() {
                         // 3. Flags for coloring & locking (Independent of Date)
                         if (foundPlanned) {
                             unitData[`${item}_isPlanned`] = true;
+                            if (foundPlanned.description === "Carry Forwarded because not completed within time") {
+                                unitData[`${item}_isCarryForwarded`] = true;
+                            }
                         }
 
                         // Red tick = work finished: either billed OR 100% progress OR project Complete (building done, no remaining work).
@@ -1477,18 +1480,34 @@ function PlanningTable({ data, category, onCheckChange, onRateChange, disabled }
                     const isPlanned = record[`${taskName}_isPlanned`];
 
                     if (isBilled) {
-                        return <Checkbox checked={true} disabled style={{ color: '#FF0000' }} className="billed-checkbox" />;
+                        return (
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                                <Checkbox checked={true} disabled style={{ color: '#FF0000' }} className="billed-checkbox" />
+                            </div>
+                        );
                     }
                     if (isPlanned) {
-                        return <Checkbox checked={true} disabled style={{ color: '#008000' }} className="planned-checkbox" />;
+                        return (
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+                                <Checkbox checked={true} disabled style={{ color: '#008000' }} className="planned-checkbox" />
+                                {record[`${taskName}_isCarryForwarded`] && (
+                                    <span style={{ fontSize: '10px', color: '#fa8c16', lineHeight: 1, textAlign: 'center' }}>Carry<br />Forwarded</span>
+                                )}
+                            </div>
+                        );
                     }
 
                     return (
-                        <Checkbox
-                            checked={checked || false}
-                            onChange={(e) => onCheckChange(record, taskName, e.target.checked)}
-                            disabled={disabled}
-                        />
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+                            <Checkbox
+                                checked={checked || false}
+                                onChange={(e) => onCheckChange(record, taskName, e.target.checked)}
+                                disabled={disabled}
+                            />
+                            {record[`${taskName}_isCarryForwarded`] && (
+                                <span style={{ fontSize: '10px', color: '#fa8c16', lineHeight: 1, textAlign: 'center' }}>Carry<br />Forwarded</span>
+                            )}
+                        </div>
                     );
                 },
             },

@@ -1,4 +1,6 @@
+import React from 'react';
 import { notification } from 'antd';
+import { WarningOutlined } from '@ant-design/icons';
 import codeMessage from './codeMessage';
 
 const errorHandler = (error) => {
@@ -9,8 +11,10 @@ const errorHandler = (error) => {
     });
     // Code to execute when there is internet connection
     notification.error({
+      className: 'custom-error-notification',
       message: 'No internet connection',
       description: 'Cannot connect to the Internet, Check your internet network',
+      icon: React.createElement(WarningOutlined, { style: { color: '#ff4d4f' } }),
     });
     return {
       success: false,
@@ -59,8 +63,10 @@ const errorHandler = (error) => {
       maxCount: 2,
     });
     notification.error({
+      className: 'custom-error-notification',
       message: `Request error ${status}`,
       description: errorText,
+      icon: React.createElement(WarningOutlined, { style: { color: '#ff4d4f' } }),
     });
 
     if (response?.data?.error?.name === 'JsonWebTokenError') {
@@ -77,8 +83,10 @@ const errorHandler = (error) => {
     if (navigator.onLine) {
       // Code to execute when there is internet connection
       notification.error({
+        className: 'custom-error-notification',
         message: 'Problem connecting to server',
         description: 'Cannot connect to the server, Try again later',
+        icon: React.createElement(WarningOutlined, { style: { color: '#ff4d4f' } }),
       });
       return {
         success: false,
@@ -88,8 +96,10 @@ const errorHandler = (error) => {
     } else {
       // Code to execute when there is no internet connection
       notification.error({
+        className: 'custom-error-notification',
         message: 'No internet connection',
         description: 'Cannot connect to the Internet, Check your internet network',
+        icon: React.createElement(WarningOutlined, { style: { color: '#ff4d4f' } }),
       });
       return {
         success: false,

@@ -78,7 +78,7 @@ const ActivitySchema = new mongoose.Schema(
     },
     progress: {
       type: String,
-      enum: ['0%', '25%', '50%', '75%', '100%'],
+      enum: ['0%', '25%', '50%', '75%', '99%', '100%'],
       default: '0%',
     },
     status: {

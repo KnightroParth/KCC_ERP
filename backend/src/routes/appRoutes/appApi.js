@@ -7,12 +7,12 @@ const { ENTITY_TO_MODULE } = require('@/config/roles');
 const router = express.Router();
 
 const uploadWorkRates = multer({
-    dest: path.join(__dirname, '../../src/public/uploads/temp'),
-    fileFilter: (req, file, cb) => {
-        const allowed = ['application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'text/csv'];
-        if (allowed.includes(file.mimetype)) cb(null, true);
-        else cb(new Error('Only Excel (.xls, .xlsx) or CSV files are allowed'));
-    },
+  dest: path.join(__dirname, '../../src/public/uploads/temp'),
+  fileFilter: (req, file, cb) => {
+    const allowed = ['application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'text/csv'];
+    if (allowed.includes(file.mimetype)) cb(null, true);
+    else cb(new Error('Only Excel (.xls, .xlsx) or CSV files are allowed'));
+  },
 }).single('file');
 
 const appControllers = require('@/controllers/appControllers');
@@ -32,6 +32,12 @@ const routerApp = (entity, controller) => {
   router.route(`/${entity}/filter`).get(can('view'), catchErrors(controller['filter']));
   router.route(`/${entity}/summary`).get(can('view'), catchErrors(controller['summary']));
 
+  if (entity === 'activities') {
+    router.route(`/${entity}/delete-all`).post(can('delete'), catchErrors(controller['deleteAll']));
+  }
+  if (entity === 'plannedwork') {
+    router.route(`/${entity}/carry-forward`).post(can('update'), catchErrors(controller['carryForward']));
+  }
   if (entity === 'invoice') {
     router.route(`/${entity}/mail`).post(can('create'), catchErrors(controller['mail']));
     router.route(`/${entity}/planning-for-billing`).get(can('view'), catchErrors(controller['getPlanningForBilling']));

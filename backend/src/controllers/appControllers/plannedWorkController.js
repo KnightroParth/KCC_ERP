@@ -141,6 +141,80 @@ function plannedWorkController() {
     };
 
 
+    /* ============================================
+        CARRY FORWARD — automatic shifting of overdue tasks
+    ============================================= */
+    methods.carryForward = async (req, res) => {
+        try {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            // Calculate CURRENT active planning cycle based on today
+            let nextStart, nextEnd;
+            if (today.getDate() <= 15) {
+                // Cycle: 1st to 15th
+                nextStart = new Date(today.getFullYear(), today.getMonth(), 1);
+                nextEnd = new Date(today.getFullYear(), today.getMonth(), 15);
+            } else {
+                // Cycle: 16th to End of Month
+                nextStart = new Date(today.getFullYear(), today.getMonth(), 16);
+                nextEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+            }
+
+            // Find all Activities with endDate < today and progress not 99% or 100%
+            const overdueActivities = await Activities.find({
+                endDate: { $lt: today },
+                progress: { $nin: ['99%', '100%'] },
+                removed: false
+            });
+
+            let updatedCount = 0;
+
+            for (const activity of overdueActivities) {
+                // Update Activity
+                const updatedData = { ...activity.data, carryForwarded: true, carryForwardMessage: "Carry Forwarded because not completed within time" };
+                await Activities.findByIdAndUpdate(activity._id, {
+                    startDate: nextStart,
+                    endDate: nextEnd,
+                    data: updatedData
+                });
+
+                // Get Unit number 
+                const Units = mongoose.model('Units');
+                const unit = await Units.findById(activity.unitId);
+
+                if (unit) {
+                    // Find and Update corresponding PlannedWork
+                    await Model.updateMany(
+                        {
+                            projectId: activity.projectId,
+                            unitNumber: unit.unitNumber,
+                            workType: activity.activityName,
+                            removed: false
+                        },
+                        {
+                            startDate: nextStart,
+                            endDate: nextEnd,
+                            $set: { "description": "Carry Forwarded because not completed within time" }
+                        }
+                    );
+                }
+                updatedCount++;
+            }
+
+            return res.status(200).json({
+                success: true,
+                message: `Successfully carried forward ${updatedCount} overdue tasks`,
+                updatedCount
+            });
+        } catch (error) {
+            return res.status(500).json({
+                success: false,
+                message: error.message,
+            });
+        }
+    };
+
     return methods;
 }
 

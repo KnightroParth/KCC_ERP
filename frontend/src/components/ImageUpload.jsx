@@ -4,7 +4,60 @@ import { Button, Space, Image, Spin, message } from 'antd';
 import { CameraOutlined, UploadOutlined, DeleteOutlined } from '@ant-design/icons';
 
 // Image compression utility - Direct canvas-based compression
-const compressImage = (base64String, maxWidth = 1024, quality = 0.7) => {
+const drawGeotagOverlay = (canvas, geoData) => {
+  const ctx = canvas.getContext('2d');
+  if (!ctx || !geoData) return;
+
+  const padding = 15;
+  const fontSize = 14;
+  const textColor = '#FFFFFF';
+  const bgColor = 'rgba(0, 0, 0, 0.7)';
+  const borderColor = '#FFD700'; // Gold border
+
+  ctx.font = `bold ${fontSize}px Arial`;
+  ctx.fillStyle = textColor;
+  ctx.strokeStyle = borderColor;
+
+  // Format timestamp in IST (Indian Standard Time)
+  const timestamp = new Date(geoData.timestamp);
+  const istTime = timestamp.toLocaleString('en-IN', {
+    timeZone: 'Asia/Kolkata',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: true
+  });
+
+  // Create single line with all info
+  const geotagText = `Lat: ${geoData.latitude}° | Long: ${geoData.longitude}° | ${istTime} IST`;
+
+  // Calculate box dimensions for single line
+  const textMetrics = ctx.measureText(geotagText);
+  const boxWidth = textMetrics.width + padding * 2;
+  const boxHeight = fontSize + padding * 2;
+
+  // Draw background box at bottom-left
+  const x = padding;
+  const y = canvas.height - boxHeight - padding;
+
+  ctx.fillStyle = bgColor;
+  ctx.fillRect(x, y, boxWidth, boxHeight);
+
+  // Draw border
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = borderColor;
+  ctx.strokeRect(x, y, boxWidth, boxHeight);
+
+  // Draw text
+  ctx.fillStyle = textColor;
+  ctx.font = `bold ${fontSize}px Arial`;
+  ctx.fillText(geotagText, x + padding, y + padding + fontSize);
+};
+
+const compressImage = (base64String, maxWidth = 1024, quality = 0.7, geoData = null) => {
   return new Promise((resolve, reject) => {
     try {
       // Create a temporary canvas to load and compress the image
@@ -40,6 +93,10 @@ const compressImage = (base64String, maxWidth = 1024, quality = 0.7) => {
           ctx.fillStyle = '#fff';
           ctx.fillRect(0, 0, width, height);
           ctx.drawImage(img, 0, 0, width, height);
+
+          if (geoData) {
+            drawGeotagOverlay(canvas, geoData);
+          }
 
           // Convert to base64 with quality compression
           const compressedBase64 = canvas.toDataURL('image/jpeg', quality);
@@ -144,26 +201,52 @@ export default function ImageUpload({ value, onChange, label = 'Upload Image' })
 
   const convertFileToBase64 = (file) => {
     setLoading(true);
-    const reader = new FileReader();
-    reader.onload = async () => {
-      try {
-        const base64String = reader.result;
-        // Compress the image before saving
-        const compressedBase64 = await compressImage(base64String, 1024, 0.7);
-        onChange(compressedBase64);
-        message.success('Image uploaded and compressed successfully');
-      } catch (error) {
-        console.error('Error compressing image:', error);
-        message.error('Failed to compress image');
-      } finally {
+    message.loading({ content: 'Acquiring location and processing image...', key: 'uploading' });
+
+    const processFile = (geoData) => {
+      const reader = new FileReader();
+      reader.onload = async () => {
+        try {
+          const base64String = reader.result;
+          // Compress the image before saving + stamp with geotag if available
+          const compressedBase64 = await compressImage(base64String, 1024, 0.7, geoData);
+          onChange(compressedBase64);
+          message.success({ content: geoData ? 'Image uploaded with geotag successfully' : 'Image uploaded successfully', key: 'uploading' });
+        } catch (error) {
+          console.error('Error compressing image:', error);
+          message.error({ content: 'Failed to compress image', key: 'uploading' });
+        } finally {
+          setLoading(false);
+        }
+      };
+      reader.onerror = () => {
+        message.error({ content: 'Failed to read file', key: 'uploading' });
         setLoading(false);
-      }
+      };
+      reader.readAsDataURL(file);
     };
-    reader.onerror = () => {
-      message.error('Failed to read file');
-      setLoading(false);
-    };
-    reader.readAsDataURL(file);
+
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+          const geoData = {
+            latitude: latitude.toFixed(6),
+            longitude: longitude.toFixed(6),
+            timestamp: new Date(),
+          };
+          processFile(geoData);
+        },
+        (error) => {
+          console.warn('Geolocation error for file upload:', error.message);
+          message.warning({ content: 'Location not available - uploading without geotag', key: 'uploading', duration: 3 });
+          processFile(null);
+        },
+        { enableHighAccuracy: false, timeout: 5000, maximumAge: 30000 }
+      );
+    } else {
+      processFile(null);
+    }
   };
 
   const startCamera = async () => {
@@ -313,58 +396,7 @@ export default function ImageUpload({ value, onChange, label = 'Upload Image' })
     setGeoStatus('idle');
   };
 
-  const drawGeotagOverlay = (canvas, geoData) => {
-    const ctx = canvas.getContext('2d');
-    if (!ctx || !geoData) return;
 
-    const padding = 15;
-    const fontSize = 14;
-    const textColor = '#FFFFFF';
-    const bgColor = 'rgba(0, 0, 0, 0.7)';
-    const borderColor = '#FFD700'; // Gold border
-
-    ctx.font = `bold ${fontSize}px Arial`;
-    ctx.fillStyle = textColor;
-    ctx.strokeStyle = borderColor;
-
-    // Format timestamp in IST (Indian Standard Time)
-    const timestamp = new Date(geoData.timestamp);
-    const istTime = timestamp.toLocaleString('en-IN', {
-      timeZone: 'Asia/Kolkata',
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      hour12: true
-    });
-
-    // Create single line with all info
-    const geotagText = `Lat: ${geoData.latitude}° | Long: ${geoData.longitude}° | ${istTime} IST`;
-
-    // Calculate box dimensions for single line
-    const textMetrics = ctx.measureText(geotagText);
-    const boxWidth = textMetrics.width + padding * 2;
-    const boxHeight = fontSize + padding * 2;
-
-    // Draw background box at bottom-left
-    const x = padding;
-    const y = canvas.height - boxHeight - padding;
-
-    ctx.fillStyle = bgColor;
-    ctx.fillRect(x, y, boxWidth, boxHeight);
-
-    // Draw border
-    ctx.lineWidth = 2;
-    ctx.strokeStyle = borderColor;
-    ctx.strokeRect(x, y, boxWidth, boxHeight);
-
-    // Draw text
-    ctx.fillStyle = textColor;
-    ctx.font = `bold ${fontSize}px Arial`;
-    ctx.fillText(geotagText, x + padding, y + padding + fontSize);
-  };
 
   const capturePhoto = async () => {
     try {
