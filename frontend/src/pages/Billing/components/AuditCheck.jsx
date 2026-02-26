@@ -1,13 +1,44 @@
 import React, { useState, useEffect } from 'react';
-import { Table, Card, Button, message, Space } from 'antd';
-import { ExportOutlined, SendOutlined } from '@ant-design/icons';
+import { Table, Card, Button, message, Space, Divider, Image, Tag, Empty, Descriptions, Tooltip } from 'antd';
+import { ExportOutlined, SendOutlined, PictureOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import request from '@/request/request';
+
+/**
+ * Flatten a potentially nested checklist data object into [{ label, value, checked }] pairs.
+ * Includes ALL items — both marked (truthy) and unmarked (falsy) — so the
+ * full checklist is visible with ✓ / ✗ indicators.
+ */
+function flattenChecklistData(data, prefix = '') {
+  if (!data || typeof data !== 'object') return [];
+  const entries = [];
+  Object.entries(data).forEach(([key, val]) => {
+    if (key === 'carryForwarded') return; // skip internal flags
+    const label = prefix ? `${prefix} › ${key}` : key;
+    if (val !== null && val !== undefined && typeof val === 'object' && !Array.isArray(val) && val !== '') {
+      entries.push(...flattenChecklistData(val, label));
+    } else {
+      // Determine checked status
+      const isChecked = val === true || (typeof val === 'string' && val.trim() !== '') || (typeof val === 'number' && val !== 0);
+      entries.push({
+        label,
+        value: isChecked
+          ? (typeof val === 'boolean' ? '✓ Yes' : String(val))
+          : '✗ No',
+        checked: isChecked,
+      });
+    }
+  });
+  return entries;
+}
+
+
 
 /**
  * Audit Check: Table of billable lines (from PlannedWork) with bulk checkbox.
  * Columns: Activity Name, Location (Wing/Floor/Unit), Rate, Qty, Amount.
  * Actions: Select All, Export to Excel (CSV), Send to Final Check.
+ * Photos & Checklist are available by clicking the expand (+) button on each row.
  */
 export default function AuditCheck({
   projectId,
@@ -135,7 +166,7 @@ export default function AuditCheck({
       const billToContractorId = contractorId || selectedRows[0]?.contractorId?._id || selectedRows[0]?.contractorId;
       const payload = {
         sourceContractorId: billToContractorId,
-        number: 0, // backend or settings will set
+        number: 0,
         year: new Date().getFullYear(),
         status: 'draft',
         date: weekEndDate,
@@ -172,44 +203,167 @@ export default function AuditCheck({
     }
   };
 
+  const expandedRowRender = (record) => {
+    const ad = record.activityData || {};
+    const photos = ad.photos || {};
+    const checklistEntries = flattenChecklistData(ad.data);
+    const hasPhotos = photos.before || photos.after;
+    const hasChecklist = checklistEntries.length > 0;
+
+    if (!hasPhotos && !hasChecklist) {
+      return (
+        <div style={{ padding: '12px 24px', color: '#888', fontStyle: 'italic' }}>
+          No photos or checklist data available for this activity.
+        </div>
+      );
+    }
+
+    return (
+      <div
+        style={{
+          padding: '20px',
+          background: '#fcfcfc',
+          borderRadius: 8,
+          border: '1px solid #f0f0f0',
+          boxShadow: 'inset 0 2px 8px rgba(0,0,0,0.02)',
+        }}
+      >
+        {hasPhotos && (
+          <div style={{ marginBottom: hasChecklist ? 20 : 0 }}>
+            <Image.PreviewGroup>
+              <Space size="large" wrap>
+                {photos.before ? (
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ marginBottom: 6, fontSize: 11, color: '#888', fontWeight: 600, letterSpacing: '0.05em' }}>BEFORE</div>
+                    <Image
+                      src={photos.before}
+                      alt="Before"
+                      width={180}
+                      height={140}
+                      style={{ objectFit: 'cover', borderRadius: 6, border: '2px solid #fadb14', cursor: 'zoom-in' }}
+                      preview={{ mask: <span style={{ fontSize: 12 }}>🔍 View</span> }}
+                    />
+                  </div>
+                ) : (
+                  <div style={{ textAlign: 'center', width: 180 }}>
+                    <div style={{ marginBottom: 6, fontSize: 11, color: '#888', fontWeight: 600, letterSpacing: '0.05em' }}>BEFORE</div>
+                    <div style={{
+                      width: 180, height: 140, background: '#f5f5f5', borderRadius: 6,
+                      border: '1px dashed #d9d9d9', display: 'flex', alignItems: 'center',
+                      justifyContent: 'center', color: '#bbb', fontSize: 11
+                    }}>
+                      No photo
+                    </div>
+                  </div>
+                )}
+                {photos.after ? (
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ marginBottom: 6, fontSize: 11, color: '#888', fontWeight: 600, letterSpacing: '0.05em' }}>AFTER</div>
+                    <Image
+                      src={photos.after}
+                      alt="After"
+                      width={180}
+                      height={140}
+                      style={{ objectFit: 'cover', borderRadius: 6, border: '2px solid #52c41a', cursor: 'zoom-in' }}
+                      preview={{ mask: <span style={{ fontSize: 12 }}>🔍 View</span> }}
+                    />
+                  </div>
+                ) : (
+                  <div style={{ textAlign: 'center', width: 180 }}>
+                    <div style={{ marginBottom: 6, fontSize: 11, color: '#888', fontWeight: 600, letterSpacing: '0.05em' }}>AFTER</div>
+                    <div style={{
+                      width: 180, height: 140, background: '#f5f5f5', borderRadius: 6,
+                      border: '1px dashed #d9d9d9', display: 'flex', alignItems: 'center',
+                      justifyContent: 'center', color: '#bbb', fontSize: 11
+                    }}>
+                      No photo
+                    </div>
+                  </div>
+                )}
+              </Space>
+            </Image.PreviewGroup>
+          </div>
+        )}
+
+        {hasChecklist && (
+          <Descriptions
+            bordered
+            size="small"
+            column={{ xs: 1, sm: 2, md: 3 }}
+            style={{ fontSize: 12, background: '#fff' }}
+          >
+            {checklistEntries.map((entry, i) => (
+              <Descriptions.Item
+                key={i}
+                label={
+                  <Tooltip title={entry.label}>
+                    <span style={{ fontWeight: 500, color: '#555' }}>
+                      {entry.label.length > 35 ? entry.label.slice(0, 35) + '…' : entry.label}
+                    </span>
+                  </Tooltip>
+                }
+              >
+                <span style={{
+                  color: entry.checked ? '#389e0d' : '#cf1322',
+                  fontWeight: 600,
+                }}>
+                  {entry.value}
+                </span>
+              </Descriptions.Item>
+            ))}
+          </Descriptions>
+        )}
+      </div>
+    );
+  };
+
   return (
-    <Card title="Audit Check (Draft bill to contractor)" size="small" style={{ color: '#333' }} className="billing-audit-check-card">
-      <Space style={{ marginBottom: 16 }}>
-        <Button icon={<ExportOutlined />} onClick={handleExport} disabled={!data.length}>
-          Export to Excel (CSV)
-        </Button>
-        <Button
-          type="primary"
-          icon={<SendOutlined />}
-          onClick={handleSendToFinalCheck}
-          loading={sending}
-          disabled={!canSend}
-        >
-          Send to Final Check
-        </Button>
-      </Space>
-      <Table
-        rowKey="_id"
-        columns={columns}
-        dataSource={data}
-        loading={loading}
-        rowSelection={rowSelection}
-        pagination={{ pageSize: 15 }}
-        size="small"
-        scroll={{ x: 600 }}
-        summary={() =>
-          selectedRows.length > 0 ? (
-            <Table.Summary.Row>
-              <Table.Summary.Cell index={0} colSpan={4} align="right">
-                <strong>Gross Total (selected)</strong>
-              </Table.Summary.Cell>
-              <Table.Summary.Cell index={1} align="right">
-                <strong>₹{grossTotal.toFixed(2)}</strong>
-              </Table.Summary.Cell>
-            </Table.Summary.Row>
-          ) : null
-        }
-      />
-    </Card>
+
+
+    <div className="billing-audit-container">
+      {/* Billing Audit Table */}
+      <Card title="Audit Check (Draft bill to contractor)" size="small" style={{ color: '#333' }} className="billing-audit-check-card">
+        <Space style={{ marginBottom: 16 }}>
+          <Button icon={<ExportOutlined />} onClick={handleExport} disabled={!data.length}>
+            Export to Excel (CSV)
+          </Button>
+          <Button
+            type="primary"
+            icon={<SendOutlined />}
+            onClick={handleSendToFinalCheck}
+            loading={sending}
+            disabled={!canSend}
+          >
+            Send to Final Check
+          </Button>
+        </Space>
+        <Table
+          rowKey="_id"
+          columns={columns}
+          dataSource={data}
+          loading={loading}
+          rowSelection={rowSelection}
+          expandable={{
+            expandedRowRender,
+            defaultExpandAllRows: false,
+          }}
+          pagination={{ pageSize: 15 }}
+          size="small"
+          scroll={{ x: 600 }}
+          summary={() =>
+            selectedRows.length > 0 ? (
+              <Table.Summary.Row>
+                <Table.Summary.Cell index={0} colSpan={4} align="right">
+                  <strong>Gross Total (selected)</strong>
+                </Table.Summary.Cell>
+                <Table.Summary.Cell index={1} align="right">
+                  <strong>₹{grossTotal.toFixed(2)}</strong>
+                </Table.Summary.Cell>
+              </Table.Summary.Row>
+            ) : null
+          }
+        />
+      </Card>
+    </div>
   );
 }
