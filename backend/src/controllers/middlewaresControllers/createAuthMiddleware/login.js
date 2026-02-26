@@ -59,7 +59,7 @@ const login = async (req, res, { userModel }) => {
         site_engineer: 'Site Engineer',
         accounts: 'Accounts',
         store_incharge: 'Store Incharge',
-        planner: 'Planner / Work Incharge',
+        planner: 'Planner / Site Incharge',
         pm: 'Project Manager',
         admin: 'Admin',
         master: 'Master',

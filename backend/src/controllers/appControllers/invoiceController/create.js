@@ -68,6 +68,9 @@ const create = async (req, res) => {
   if (value.auditChecklist && value.auditChecklist.length) body.auditChecklist = value.auditChecklist;
   if (value.finalChecklist && value.finalChecklist.length) body.finalChecklist = value.finalChecklist;
   if (value.adjustments) body.adjustments = value.adjustments;
+  if (value.holdReason !== undefined) body.holdReason = value.holdReason;
+  if (value.onHoldReasons !== undefined) body.onHoldReasons = value.onHoldReasons;
+  if (value.onHoldPhotos !== undefined) body.onHoldPhotos = value.onHoldPhotos;
 
   // Creating a new document in the collection
   let result;

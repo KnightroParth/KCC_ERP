@@ -15,7 +15,7 @@ const ROLES = [
   'accounts',
 ];
 
-/** Normalize role from DB (e.g. 'owner' => master, 'Planner / Work Incharge' => planner) */
+/** Normalize role from DB (e.g. 'owner' => master, 'Planner / Site Incharge' => planner) */
 const ROLE_ALIAS = {
   owner: 'master',
   master: 'master',
@@ -23,153 +23,100 @@ const ROLE_ALIAS = {
   pm: 'pm',
   planner: 'planner',
   'planner / site incharge': 'planner',
-  'planner / work incharge': 'planner',
-  'site incharge': 'planner',
-  siteincharge: 'planner',
   site_engineer: 'site_engineer',
   'site engineer': 'site_engineer',
-  siteengineer: 'site_engineer',
   store_incharge: 'store_incharge',
   'store incharge': 'store_incharge',
-  storeincharge: 'store_incharge',
   accounts: 'accounts',
 };
 
 /**
- * Granular permission matrix from KCC 24-02.csv. Planner = union of "Planner" and "Site Incharge".
- * Flat flags (view, create, edit, update, delete, approve) for route middleware.
- * Nested billing.invoice.* for granular API checks (auditCheck, finalCheck, markAsPaid, etc.).
+ * Permission matrix — MUST match roles and authority.xlsx (client source of truth).
+ * Update this object whenever the Excel is updated.
+ * Module keys: project_data, planning, work_progress, inventory, attendance, billing
+ * Actions: create, edit, update, delete, view, approve (billing only)
  */
-const T = true;
-const F = false;
-const inv = (vL, vS, cD, cDir, eD, uB, dB, audit, final, appr, adv, pen, hold, putHold, resume, pdf, paid, mail, plan) => ({
-  viewBillList: vL, viewSingleBill: vS, createDraftBill: cD, createDirectBill: cDir, editDraftBill: eD, updateBill: uB, deleteBill: dB,
-  auditCheck: audit, finalCheck: final, approval: appr, addAdvanceDeduction: adv, addPenalty: pen, addHold: hold, putOnHold: putHold, resumeFromHold: resume,
-  generatePdf: pdf, markAsPaid: paid, sendMail: mail, getPlanningForBilling: plan,
-});
-
 const ROLE_PERMISSIONS = {
   master: {
-    project_data: { view: T, create: T, edit: T, update: T, delete: T },
-    planning: { view: T, create: T, edit: T, update: T, delete: T },
-    work_progress: { view: T, create: T, edit: T, update: T, delete: T },
-    inventory: { view: T, create: T, edit: T, update: T, delete: T },
-    attendance: { view: T, create: T, edit: T, update: T, delete: T },
-    staff_manage: { view: T, create: T, edit: T, update: T, delete: T },
-    billing: { view: T, create: T, edit: T, update: T, delete: T, approve: T, invoice: inv(T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T) },
+    project_data: { create: true, edit: true, update: true, delete: true, view: true },
+    planning: { create: true, edit: true, update: true, delete: true, view: true },
+    work_progress: { create: true, edit: true, update: true, delete: true, view: true },
+    inventory: { create: true, edit: true, update: true, delete: true, view: true },
+    attendance: { create: true, edit: true, update: true, delete: true, view: true },
+    billing: { create: true, edit: true, update: true, delete: true, view: true, approve: true },
   },
   admin: {
-    project_data: { view: T, create: T, edit: T, update: T, delete: T },
-    planning: { view: T, create: T, edit: T, update: T, delete: T },
-    work_progress: { view: T, create: T, edit: T, update: T, delete: T },
-    inventory: { view: T, create: T, edit: T, update: T, delete: T },
-    attendance: { view: T, create: T, edit: T, update: T, delete: T },
-    staff_manage: { view: T, create: T, edit: T, update: T, delete: T },
-    billing: { view: T, create: T, edit: T, update: T, delete: T, approve: T, invoice: inv(T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T) },
+    project_data: { create: true, edit: false, update: true, delete: false, view: true },
+    planning: { create: true, edit: true, update: true, delete: true, view: true },
+    work_progress: { create: true, edit: true, update: true, delete: true, view: true },
+    inventory: { create: true, edit: true, update: true, delete: true, view: true },
+    attendance: { create: true, edit: true, update: true, delete: true, view: true },
+    billing: { create: true, edit: true, update: true, delete: true, view: true, approve: true },
   },
   pm: {
-    project_data: { view: T, create: F, edit: F, update: T, delete: F },
-    planning: { view: T, create: T, edit: T, update: T, delete: T },
-    work_progress: { view: T, create: T, edit: T, update: T, delete: T },
-    inventory: { view: T, create: T, edit: T, update: T, delete: T },
-    attendance: { view: T, create: T, edit: T, update: T, delete: T },
-    staff_manage: { view: T, create: F, edit: F, update: F, delete: F },
-    billing: { view: T, create: T, edit: T, update: T, delete: T, approve: T, invoice: inv(T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T) },
+    project_data: { create: false, edit: false, update: false, delete: false, view: true }, // View projects/units/rates
+    planning: { create: true, edit: true, update: true, delete: false, view: true },
+    work_progress: { create: true, edit: true, update: true, delete: true, view: true },
+    inventory: { create: true, edit: true, update: true, delete: true, view: true },
+    attendance: { create: false, edit: false, update: false, delete: false, view: true },
+    billing: { create: true, edit: true, update: true, delete: false, view: true, approve: true },
   },
   planner: {
-    project_data: { view: T, create: F, edit: F, update: F, delete: F },
-    planning: { view: T, create: T, edit: T, update: T, delete: T },
-    work_progress: { view: T, create: T, edit: T, update: T, delete: T },
-    inventory: { view: T, create: T, edit: T, update: T, delete: T },
-    attendance: { view: T, create: T, edit: F, update: T, delete: F },
-    staff_manage: { view: T, create: F, edit: F, update: F, delete: F },
-    billing: { view: T, create: T, edit: T, update: F, delete: F, approve: T, invoice: inv(T,T,T,F,T,F,F,T,T,T,T,T,T,T,T,T,F,F,T) },
+    project_data: { create: false, edit: false, update: false, delete: false, view: true }, // View projects/units/set rates
+    planning: { create: true, edit: true, update: true, delete: false, view: true },
+    work_progress: { create: false, edit: false, update: true, delete: false, view: true }, // View Only
+    inventory: { create: false, edit: false, update: true, delete: false, view: true },   // Update Full, View Only
+    attendance: { create: false, edit: false, update: false, delete: false, view: true }, // View Only
+    billing: { create: true, edit: true, update: true, delete: false, view: true, approve: false },
   },
   site_engineer: {
-    project_data: { view: T, create: F, edit: F, update: F, delete: F },
-    planning: { view: T, create: F, edit: F, update: F, delete: F },
-    work_progress: { view: T, create: T, edit: T, update: T, delete: T },
-    inventory: { view: T, create: F, edit: F, update: F, delete: F },
-    attendance: { view: T, create: T, edit: F, update: T, delete: F },
-    staff_manage: { view: T, create: F, edit: F, update: F, delete: F },
-    billing: { view: T, create: F, edit: F, update: F, delete: F, approve: F, invoice: inv(T,F,F,F,F,F,F,F,F,F,F,F,F,F,F,F,F,F,T) },
+    project_data: { create: false, edit: false, update: false, delete: false, view: true }, // View projects/units/set rates
+    planning: { create: false, edit: false, update: false, delete: false, view: true },   // View Only
+    work_progress: { create: true, edit: true, update: true, delete: false, view: true },
+    inventory: { create: false, edit: false, update: false, delete: false, view: true },  // View Only
+    attendance: { create: true, edit: true, update: true, delete: false, view: true },
+    billing: { create: false, edit: false, update: false, delete: false, view: false, approve: false }, // Zero access
   },
   store_incharge: {
-    project_data: { view: T, create: F, edit: F, update: F, delete: F },
-    planning: { view: T, create: F, edit: F, update: F, delete: F },
-    work_progress: { view: T, create: F, edit: F, update: T, delete: F },
-    inventory: { view: T, create: T, edit: T, update: T, delete: T },
-    attendance: { view: T, create: T, edit: F, update: T, delete: F },
-    staff_manage: { view: T, create: F, edit: F, update: F, delete: F },
-    billing: { view: F, create: F, edit: F, update: F, delete: F, approve: F, invoice: inv(F,F,F,F,F,F,F,F,F,F,F,F,F,F,F,F,F,F,F) },
+    project_data: { create: false, edit: false, update: false, delete: false, view: true }, // View projects/units for inventory
+    planning: { create: false, edit: false, update: false, delete: false, view: true },    // View Only
+    work_progress: { create: false, edit: false, update: false, delete: false, view: true }, // View Only
+    inventory: { create: true, edit: true, update: true, delete: false, view: true },
+    attendance: { create: false, edit: false, update: false, delete: false, view: false }, // No Access
+    billing: { create: false, edit: false, update: false, delete: false, view: false, approve: false }, // Zero access
   },
   accounts: {
-    project_data: { view: T, create: F, edit: F, update: F, delete: F },
-    planning: { view: T, create: F, edit: F, update: F, delete: F },
-    work_progress: { view: T, create: F, edit: F, update: F, delete: F },
-    inventory: { view: T, create: T, edit: T, update: T, delete: T },
-    attendance: { view: T, create: T, edit: F, update: T, delete: F },
-    staff_manage: { view: T, create: F, edit: F, update: F, delete: F },
-    billing: { view: T, create: T, edit: T, update: F, delete: F, approve: F, invoice: inv(T,T,F,T,T,F,F,T,T,F,T,T,T,T,T,T,T,T,T) },
+    project_data: { create: false, edit: false, update: false, delete: false, view: true }, // View projects for context
+    planning: { create: false, edit: false, update: false, delete: false, view: true },    // View Only
+    work_progress: { create: false, edit: false, update: false, delete: false, view: true }, // View Only
+    inventory: { create: true, edit: true, update: true, delete: false, view: true },       // View Only
+    attendance: { create: false, edit: false, update: false, delete: false, view: true }, // View Only
+    billing: { create: false, edit: true, update: true, delete: false, view: true, approve: true },
   },
 };
 
 /**
- * Resolve role string to canonical key. Fail closed: unknown => null.
+ * Resolve role string to canonical key (for DB values like "Planner / Site Incharge")
  */
 function normalizeRole(role) {
-  if (role == null || String(role).trim() === '') return null;
-  const key = String(role).toLowerCase().trim().replace(/\s+/g, ' ');
-  const byKey = ROLE_ALIAS[key];
-  if (byKey) return byKey;
-  const noSpaces = key.replace(/\s/g, '');
-  const byNoSpaces = ROLE_ALIAS[noSpaces];
-  if (byNoSpaces) return byNoSpaces;
-  return ROLES.includes(key) ? key : null;
-}
-
-/** Get effective role from user (role or designation). Returns null if unknown. */
-function getEffectiveRole(user) {
-  if (!user) return null;
-  const raw = user.role ?? user.designation;
-  return normalizeRole(raw);
-}
-
-function getByPath(obj, pathStr) {
-  if (!obj || !pathStr) return undefined;
-  const parts = String(pathStr).split('.');
-  let cur = obj;
-  for (const p of parts) {
-    cur = cur?.[p];
-    if (cur === undefined) return undefined;
-  }
-  return cur;
+  if (!role) return 'site_engineer'; // safe default
+  const key = String(role).toLowerCase().trim();
+  return ROLE_ALIAS[key] || (ROLES.includes(key) ? key : 'site_engineer');
 }
 
 /**
- * Check granular permission (e.g. billing.invoice.markAsPaid). Fail closed.
- */
-function hasGranularPermission(role, module, actionPath) {
-  const r = role != null && ROLES.includes(role) ? role : normalizeRole(role);
-  if (r == null) return false;
-  const perms = ROLE_PERMISSIONS[r];
-  if (!perms) return false;
-  const mod = perms[module];
-  if (!mod) return false;
-  return getByPath(mod, actionPath) === true;
-}
-
-/**
- * Check module + action. Supports legacy (view, create, ...) and dotted paths. Fail closed.
+ * Check if a role has permission for module + action.
+ * Strict: only roles and authority.xlsx matrix (ROLE_PERMISSIONS) — no bypasses.
+ * @param {string} role - Role name (from user.role)
+ * @param {string} module - One of: project_data, planning, work_progress, inventory, attendance, billing
+ * @param {string} action - One of: create, edit, update, delete, view, approve
  */
 function hasPermission(role, module, action) {
-  const r = role != null && ROLES.includes(role) ? role : normalizeRole(role);
-  if (r == null) return false;
+  const r = normalizeRole(role);
   const perms = ROLE_PERMISSIONS[r];
   if (!perms) return false;
   const mod = perms[module];
   if (!mod) return false;
-  if (String(action).includes('.')) return getByPath(mod, action) === true;
   return mod[action] === true;
 }
 
@@ -192,7 +139,7 @@ const ENTITY_TO_MODULE = {
   activities: 'work_progress',
   workassign: 'work_progress',
   attendancerecord: 'attendance',
-  staff: 'staff_manage',
+  staff: 'attendance',
   invoice: 'billing',
   payment: 'billing',
   quote: 'billing',
@@ -207,7 +154,5 @@ module.exports = {
   ROLE_PERMISSIONS,
   ENTITY_TO_MODULE,
   normalizeRole,
-  getEffectiveRole,
   hasPermission,
-  hasGranularPermission,
 };

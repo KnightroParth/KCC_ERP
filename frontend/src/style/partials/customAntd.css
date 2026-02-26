@@ -129,14 +129,14 @@ h6 {
 }
 
 /* Form Label Enhancement */
-.ant-form-item-label > label {
+.ant-form-item-label>label {
   font-weight: 500;
   color: #262626 !important;
   height: auto;
   padding-bottom: 8px;
 }
 
-.ant-form-item-label > label.ant-form-item-required::before {
+.ant-form-item-label>label.ant-form-item-required::before {
   display: inline-block;
   margin-inline-end: 4px;
   color: #ff4d4f;
@@ -236,6 +236,7 @@ h6 {
   color: #000 !important;
   background: #fff !important;
 }
+
 .erp-actions-dropdown-overlay .ant-dropdown-menu-item:hover,
 .erp-actions-dropdown-overlay [class*='menu-item']:hover {
   background: #f5f5f5 !important;
@@ -286,6 +287,10 @@ h6 {
   border-left: 6px solid #52c41a !important;
 }
 
+.custom-warning-notification {
+  border-left: 6px solid #faad14 !important;
+}
+
 /* Make Alert Box Look Richer */
 .ant-notification-notice {
   border-radius: 8px !important;
@@ -299,6 +304,9 @@ h6 {
   opacity: 1 !important;
   right: 16px !important;
   top: 16px !important;
+  display: block !important;
+  visibility: visible !important;
+  z-index: 1000 !important;
 }
 
 .ant-notification-notice-close:hover {
@@ -308,13 +316,22 @@ h6 {
 }
 
 .ant-notification-notice-close-x {
-  font-size: 18px !important; /* Larger X */
+  font-size: 18px !important;
+  /* Larger X */
   font-weight: bold;
   display: flex !important;
   align-items: center;
   justify-content: center;
   width: 24px;
   height: 24px;
+  line-height: 24px !important;
+}
+
+/* Ensure SVG icon inside close button is visible */
+.ant-notification-notice-close-x .anticon {
+  display: block !important;
+  color: inherit !important;
+  font-size: 18px !important;
 }
 
 /* Adjust Message & Description margins to accommodate custom icon size */

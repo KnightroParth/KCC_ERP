@@ -4,7 +4,7 @@ const schema = Joi.object({
   sourceContractorId: Joi.alternatives().try(Joi.string(), Joi.object()).optional().allow(null, ''),
   number: Joi.number().required(),
   year: Joi.number().required(),
-  status: Joi.string().required(),
+  status: Joi.string().valid('draft', 'pending', 'sent', 'refunded', 'cancelled', 'on hold', 'suspended').required(),
   notes: Joi.string().allow(''),
   expiredDate: Joi.date().required(),
   date: Joi.date().required(),
@@ -23,7 +23,7 @@ const schema = Joi.object({
   taxRate: Joi.alternatives().try(Joi.number(), Joi.string()).required(),
   // Billing module: normal (from planning) vs direct
   billType: Joi.string().valid('normal', 'direct').optional(),
-  billingStage: Joi.string().valid('draft', 'audit_check', 'final_check', 'approved', 'payment', 'on_hold', 'cancelled').optional(),
+  billingStage: Joi.string().valid('draft', 'audit_check', 'final_check', 'approved', 'payment', 'on_hold', 'suspended', 'cancelled').optional(),
   billingPeriod: Joi.object({
     start: Joi.date().optional(),
     end: Joi.date().optional(),
@@ -58,6 +58,7 @@ const schema = Joi.object({
   }).optional(),
   onHoldReasons: Joi.string().allow('').optional(),
   onHoldPhotos: Joi.array().items(Joi.string()).optional(),
+  holdReason: Joi.string().valid('Audit Hold', 'Quality Hold', 'Improper Work', 'Incomplete Work', '').optional(),
 });
 
 module.exports = schema;

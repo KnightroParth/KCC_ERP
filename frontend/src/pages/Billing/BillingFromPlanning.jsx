@@ -9,31 +9,41 @@ import {
   Button,
   Space,
   Input,
+  Spin,
+  message,
 } from 'antd';
-import { CreditCardOutlined, DownloadOutlined, UnorderedListOutlined } from '@ant-design/icons';
-import { useNavigate } from 'react-router-dom';
+import { ArrowLeftOutlined, PlayCircleOutlined } from '@ant-design/icons';
+import { useSearchParams } from 'react-router-dom';
 import { ErpLayout } from '@/layout';
 import SelectAsync from '@/components/SelectAsync';
 import AutoCompleteAsync from '@/components/AutoCompleteAsync';
 import dayjs from 'dayjs';
 import request from '@/request/request';
-import { useSelector } from 'react-redux';
-import { useGranularPermission } from '@/hooks/usePermission';
+import { useSelector, useDispatch } from 'react-redux';
 import { selectFinanceSettings } from '@/redux/settings/selectors';
 import { selectCurrentProject, selectShouldLockProject } from '@/redux/erp/selectors';
 import { settingsAction } from '@/redux/settings/actions';
-import { useDispatch } from 'react-redux';
+import { isInProgress } from './utils/billingStage';
+
+function billingStageToStep(billingStage) {
+  if (billingStage === 'final_check') return 2;
+  if (billingStage === 'approved') return 3;
+  return 1; // draft or audit_check → Final Check step
+}
 
 import AuditCheck from './components/AuditCheck';
 import FinalCheck from './components/FinalCheck';
 import PrintBill from './components/PrintBill';
+import ApprovalStep from './components/ApprovalStep';
+import LedgerStep from './components/LedgerStep';
 
 const { Content } = Layout;
 
 const STEPS = [
-  { title: '1. Draft & Audit (bill to contractor)', key: 'audit' },
-  { title: '2. Final Check & Approve', key: 'final' },
-  { title: '3. Download PDF & Record Payment', key: 'payment' },
+  { title: '1. Draft & Audit Check', key: 'draft_audit' },
+  { title: '2. Final Check', key: 'final' },
+  { title: '3. Approval', key: 'approval' },
+  { title: '4. Ledger', key: 'ledger' },
 ];
 
 function getLastSaturday() {
@@ -47,11 +57,9 @@ function getLastSaturday() {
 
 export default function BillingFromPlanning() {
   const dispatch = useDispatch();
-  const navigate = useNavigate();
   const currentProject = useSelector(selectCurrentProject);
   const shouldLockProject = useSelector(selectShouldLockProject);
   const { last_invoice_number } = useSelector(selectFinanceSettings) || {};
-  const canMarkAsPaid = useGranularPermission('billing', 'invoice.markAsPaid');
   const [projectId, setProjectId] = useState(undefined);
   const [projectName, setProjectName] = useState('');
   const [contractorId, setContractorId] = useState(undefined);
@@ -59,6 +67,10 @@ export default function BillingFromPlanning() {
   const [weekEnd, setWeekEnd] = useState(getLastSaturday());
   const [currentStep, setCurrentStep] = useState(0);
   const [draftInvoice, setDraftInvoice] = useState(null);
+  const [inProgressBills, setInProgressBills] = useState([]);
+  const [resumeLoading, setResumeLoading] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const resumeId = searchParams.get('resume');
 
   useEffect(() => {
     if (shouldLockProject && currentProject?._id) {
@@ -81,6 +93,50 @@ export default function BillingFromPlanning() {
     }
   }, [projectId]);
 
+  // Fetch in-progress bills for "Resume" (From Planning only)
+  useEffect(() => {
+    request.list({ entity: 'invoice', options: { page: 1, items: 100 } })
+      .then((data) => {
+        const list = data?.result || [];
+        const inProgress = list.filter(isInProgress);
+        setInProgressBills(inProgress);
+      })
+      .catch(() => setInProgressBills([]));
+  }, []);
+
+  // Resume from URL ?resume=id or when user picks a bill
+  useEffect(() => {
+    if (!resumeId) return;
+    setResumeLoading(true);
+    request.read({ entity: 'invoice', id: resumeId })
+      .then((res) => {
+        const inv = res?.result;
+        if (!inv) {
+          setResumeLoading(false);
+          return;
+        }
+        if (!isInProgress(inv)) {
+          message.info('This bill is not in progress. Start a new bill or open it from All Bills.');
+          setResumeLoading(false);
+          return;
+        }
+        const toId = (v) => (v && typeof v === 'object' && v._id ? v._id : v);
+        setDraftInvoice(inv);
+        setCurrentStep(billingStageToStep(inv.billingStage));
+        setProjectId(toId(inv.sourceProjectId) || undefined);
+        setContractorId(toId(inv.sourceContractorId) || undefined);
+        setContractorName(inv.sourceContractorId?.name ?? '');
+        if (inv.billingWeekEnd) setWeekEnd(dayjs(inv.billingWeekEnd));
+        setSearchParams({}, { replace: true });
+      })
+      .catch(() => {})
+      .finally(() => setResumeLoading(false));
+  }, [resumeId]);
+
+  const handleResumeBill = (inv) => {
+    setSearchParams({ resume: inv._id }, { replace: true });
+  };
+
   const handleSendToFinalCheck = (invoice) => {
     setDraftInvoice(invoice);
     setCurrentStep(1);
@@ -91,7 +147,12 @@ export default function BillingFromPlanning() {
     setCurrentStep(2);
   };
 
-  const handleBack = () => {
+  const handleApproved = (updatedInvoice) => {
+    setDraftInvoice(updatedInvoice);
+    setCurrentStep(3);
+  };
+
+  const handlePrevious = () => {
     setCurrentStep((s) => Math.max(0, s - 1));
   };
 
@@ -101,8 +162,34 @@ export default function BillingFromPlanning() {
         <div className="page-content-inner">
           <h1 className="page-title">Create Bill from Planning</h1>
           <p style={{ color: '#8c8c8c', marginBottom: 24 }}>
-            Bill a contractor against their completed work. Draft & Audit → Final Check & Approve → Download PDF & Record Payment (when you pay the contractor).
+            Bill a contractor against their completed work. Draft & Audit Check → Final Check → Approval → Ledger (record payment).
           </p>
+
+          {resumeLoading && (
+            <div style={{ marginBottom: 24, textAlign: 'center' }}>
+              <Spin tip="Loading bill…" />
+            </div>
+          )}
+
+          {!resumeLoading && inProgressBills.length > 0 && (
+            <Card size="small" style={{ marginBottom: 24, background: '#f6ffed', borderColor: '#b7eb8f' }} className="resume-bills-card">
+              <div style={{ marginBottom: 8, fontWeight: 600, color: '#389e0d' }}>
+                <PlayCircleOutlined style={{ marginRight: 6 }} />
+                Resume a bill in progress ({inProgressBills.length})
+              </div>
+              <Space wrap size="small">
+                {inProgressBills.map((inv) => (
+                  <Button
+                    key={inv._id}
+                    size="small"
+                    onClick={() => handleResumeBill(inv)}
+                  >
+                    #{inv.number ?? '-'}/{inv.year ?? '-'} · {inv.contractorDisplayName || inv.sourceContractorId?.name || 'Contractor'}
+                  </Button>
+                ))}
+              </Space>
+            </Card>
+          )}
 
           {/* Filters - always visible */}
           <Card size="small" style={{ marginBottom: 24 }}>
@@ -158,78 +245,81 @@ export default function BillingFromPlanning() {
             </Row>
           </Card>
 
+          {/* Fixed 4-stage progress indicator - always visible from mount */}
           <Steps
             current={currentStep}
-            items={STEPS.map((s, i) => ({ title: s.title, key: s.key }))}
+            items={STEPS.map((s) => ({ title: s.title, key: s.key }))}
             style={{ marginBottom: 24 }}
             className="billing-steps"
           />
 
-          {currentStep > 0 && (
-            <Button onClick={handleBack} style={{ marginBottom: 16 }}>
-              Back
-            </Button>
-          )}
-
-          {/* Step content - ensure dark text for visibility */}
+          {/* Step content */}
           <div style={{ color: '#333' }} className="billing-step-content">
-          {currentStep === 0 && (
-            <AuditCheck
-              projectId={projectId}
-              contractorId={contractorId}
-              weekEnd={weekEnd}
-              lastInvoiceNumber={last_invoice_number}
-              onSendToFinalCheck={handleSendToFinalCheck}
-              disabled={!projectId}
-            />
-          )}
-
-          {currentStep === 1 && draftInvoice && (
-            <FinalCheck
-              invoice={draftInvoice}
-              onFinalized={handleFinalized}
-            />
-          )}
-
-          {currentStep === 2 && draftInvoice && (
-            <>
-              <PrintBill
-                invoice={draftInvoice}
-                projectName={projectName}
-                contractorName={contractorName || draftInvoice?.sourceContractorId?.name}
+            {currentStep === 0 && (
+              <AuditCheck
+                projectId={projectId}
+                contractorId={contractorId}
+                weekEnd={weekEnd}
+                lastInvoiceNumber={last_invoice_number}
+                onSendToFinalCheck={handleSendToFinalCheck}
+                disabled={!projectId}
               />
-              <Card size="small" style={{ marginTop: 24, color: '#333' }} className="billing-step-card">
-                <p style={{ marginBottom: 8, fontWeight: 500 }}>More actions</p>
-                <p style={{ marginBottom: 16, fontSize: 12, color: '#666' }}>
-                  Use <strong>Record Payment</strong> when you pay the contractor so the bill shows as Paid and the amount paid is updated.
-                </p>
-                <Space wrap size="middle">
-                  {canMarkAsPaid && (
-                    <Button
-                      type="primary"
-                      icon={<CreditCardOutlined />}
-                      onClick={() => navigate(`/invoice/pay/${draftInvoice._id}`)}
-                    >
-                      Record Payment
-                    </Button>
-                  )}
-                  <Button
-                    icon={<UnorderedListOutlined />}
-                    onClick={() => navigate(`/invoice/read/${draftInvoice._id}`)}
-                  >
-                    View in All Bills
-                  </Button>
-                </Space>
-              </Card>
-            </>
-          )}
+            )}
 
-          {currentStep === 1 && !draftInvoice && (
-            <Card className="billing-step-card" style={{ color: '#333' }}><p style={{ color: '#333', margin: 0 }}>No draft invoice. Complete step 1 (Draft & Audit Check) first.</p></Card>
-          )}
-          {currentStep === 2 && !draftInvoice && (
-            <Card className="billing-step-card" style={{ color: '#333' }}><p style={{ color: '#333', margin: 0 }}>No bill yet. Complete step 2 (Final Check & Approve) first.</p></Card>
-          )}
+            {currentStep === 1 && draftInvoice && (
+              <FinalCheck
+                invoice={draftInvoice}
+                onFinalized={handleFinalized}
+              />
+            )}
+
+            {currentStep === 1 && !draftInvoice && (
+              <Card className="billing-step-card" style={{ color: '#333' }}>
+                <p style={{ color: '#333', margin: 0 }}>No draft invoice. Complete step 1 (Draft & Audit Check) first.</p>
+              </Card>
+            )}
+
+            {currentStep === 2 && draftInvoice && (
+              <ApprovalStep invoice={draftInvoice} onApproved={handleApproved} />
+            )}
+
+            {currentStep === 3 && !draftInvoice && (
+              <Card className="billing-step-card" style={{ color: '#333' }}>
+                <p style={{ color: '#333', margin: 0 }}>Complete previous steps first.</p>
+              </Card>
+            )}
+
+            {currentStep === 3 && draftInvoice && (
+              <>
+                <PrintBill
+                  invoice={draftInvoice}
+                  projectName={projectName}
+                  contractorName={contractorName || draftInvoice?.sourceContractorId?.name}
+                />
+                <div style={{ marginTop: 24 }}>
+                  <LedgerStep
+                    invoice={draftInvoice}
+                    projectName={projectName}
+                    contractorName={contractorName || draftInvoice?.sourceContractorId?.name}
+                  />
+                </div>
+              </>
+            )}
+
+            {currentStep === 2 && !draftInvoice && (
+              <Card className="billing-step-card" style={{ color: '#333' }}>
+                <p style={{ color: '#333', margin: 0 }}>Complete previous steps first.</p>
+              </Card>
+            )}
+          </div>
+
+          {/* Persistent Previous navigation */}
+          <div style={{ marginTop: 24 }}>
+            {currentStep > 0 && (
+              <Button icon={<ArrowLeftOutlined />} onClick={handlePrevious}>
+                Previous
+              </Button>
+            )}
           </div>
         </div>
       </Content>

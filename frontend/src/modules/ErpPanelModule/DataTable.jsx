@@ -22,7 +22,6 @@ import { useErpContext } from '@/context/erp';
 import { generate as uniqueId } from 'shortid';
 import { useNavigate } from 'react-router-dom';
 import { hasPermission, ENTITY_TO_MODULE } from '@/config/roles';
-import { useGranularPermission } from '@/hooks/usePermission';
 
 import { DOWNLOAD_BASE_URL } from '@/config/serverApiConfig';
 import request from '@/request/request';
@@ -64,34 +63,18 @@ export default function DataTable({ config, extra = [] }) {
   const module = ENTITY_TO_MODULE[entity] || entity;
   const canDelete = hasPermission(role, module, 'delete');
   const canEdit = hasPermission(role, module, 'edit');
-  const canDownloadInvoicePdf = useGranularPermission('billing', 'invoice.generatePdf');
 
-  const items = [
-    {
-      label: translate('Show'),
-      key: 'read',
-      icon: <EyeOutlined />,
-    },
-    canEdit && {
-      label: translate('Edit'),
-      key: 'edit',
-      icon: <EditOutlined />,
-    },
-    ((entity !== 'invoice') || canDownloadInvoicePdf) && {
-      label: translate('Download'),
-      key: 'download',
-      icon: <FilePdfOutlined />,
-    },
-    ...extra,
-    {
-      type: 'divider',
-    },
-    canDelete && {
-      label: translate('Delete'),
-      key: 'delete',
-      icon: <DeleteOutlined />,
-    },
-  ].filter(Boolean);
+  const getMenuItems = (record) => {
+    const extraItems = typeof extra === 'function' ? extra(record) : Array.isArray(extra) ? extra : [];
+    return [
+      { label: translate('Show'), key: 'read', icon: <EyeOutlined /> },
+      canEdit && { label: translate('Edit'), key: 'edit', icon: <EditOutlined /> },
+      { label: translate('Download'), key: 'download', icon: <FilePdfOutlined /> },
+      ...(Array.isArray(extraItems) ? extraItems : []),
+      { type: 'divider' },
+      canDelete && { label: translate('Delete'), key: 'delete', icon: <DeleteOutlined /> },
+    ].filter(Boolean);
+  };
 
   const navigate = useNavigate();
 
@@ -162,6 +145,10 @@ export default function DataTable({ config, extra = [] }) {
     navigate(`/invoice/pay/${record._id}`);
   };
 
+  const handleResumeBill = (record) => {
+    navigate(`/billing/planning?resume=${record._id}`);
+  };
+
   dataTableColumns = [
     ...dataTableColumns,
     {
@@ -174,7 +161,7 @@ export default function DataTable({ config, extra = [] }) {
         <Dropdown
           overlayClassName="erp-actions-dropdown-overlay"
           menu={{
-            items,
+            items: getMenuItems(record),
             onClick: ({ key }) => {
               switch (key) {
                 case 'read':
@@ -191,6 +178,9 @@ export default function DataTable({ config, extra = [] }) {
                   break;
                 case 'recordPayment':
                   handleRecordPayment(record);
+                  break;
+                case 'resume':
+                  handleResumeBill(record);
                   break;
                 default:
                   break;

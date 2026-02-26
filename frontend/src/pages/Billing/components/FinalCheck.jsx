@@ -8,26 +8,19 @@ import {
   Col,
   message,
   Space,
-  Form,
   Select,
 } from 'antd';
 import { CheckOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import request from '@/request/request';
 import ImageUpload from '@/components/ImageUpload';
-
-const REASONS_FOR_HOLD = [
-  { value: 'audit_hold', label: 'Audit hold' },
-  { value: 'quality_hold', label: 'Quality hold' },
-  { value: 'pending', label: 'Pending' },
-];
+import { HOLD_REASONS } from '@/config/workConfig';
 
 /**
- * Final Check: Shows audited items, adjustments panel (advance, penalty, audit hold),
- * reasons for hold dropdown + photos when audit hold > 0, Bill Number/Date, "Finalize & Approve".
+ * Final Check: Shows audited items, adjustments panel (advance, penalty, hold),
+ * hold reason + photos when hold amount > 0, Bill Number/Date, "Finalize & Approve".
  */
 export default function FinalCheck({ invoice, onFinalized }) {
-  const [form] = Form.useForm();
   const [submitting, setSubmitting] = useState(false);
   const [advanceDeduction, setAdvanceDeduction] = useState(0);
   const [penalty, setPenalty] = useState(0);
@@ -66,7 +59,7 @@ export default function FinalCheck({ invoice, onFinalized }) {
 
   const handleFinalize = async () => {
     if (holdAmount > 0 && !holdReason.trim()) {
-      message.warning('Please select Reason for hold when Audit Hold is set.');
+      message.warning('Please select Hold Reason when Audit Hold is set.');
       return;
     }
     setSubmitting(true);
@@ -113,7 +106,7 @@ export default function FinalCheck({ invoice, onFinalized }) {
         items,
         taxRate: invoice?.taxRate ?? 0,
         billType: invoice?.billType,
-        billingStage: 'approved',
+        billingStage: 'final_check',
         billingPeriod: invoice?.billingPeriod,
         billingWeekEnd: invoice?.billingWeekEnd,
         billingWeekStart: invoice?.billingWeekStart,
@@ -133,7 +126,7 @@ export default function FinalCheck({ invoice, onFinalized }) {
         jsonData: payload,
       });
       if (res?.success) {
-        message.success('Bill finalized and approved.');
+        message.success('Bill finalized. Proceed to Approval.');
         onFinalized?.(res.result);
       } else {
         message.error(res?.message || 'Failed to finalize');
@@ -208,14 +201,14 @@ export default function FinalCheck({ invoice, onFinalized }) {
             <>
               <Col span={24}>
                 <Space direction="vertical" size={4} style={{ width: '100%' }}>
-                  <span>Reasons for hold <span style={{ color: '#ff4d4f' }}>*</span></span>
+                  <span>Hold Reason <span style={{ color: '#ff4d4f' }}>*</span></span>
                   <Select
                     style={{ width: '100%' }}
-                    placeholder="Select reason for hold"
-                    value={holdReason || undefined}
-                    onChange={(v) => setHoldReason(v || '')}
-                    options={REASONS_FOR_HOLD}
+                    placeholder="Select a reason"
                     allowClear
+                    options={HOLD_REASONS}
+                    value={holdReason || undefined}
+                    onChange={setHoldReason}
                   />
                 </Space>
               </Col>
@@ -242,7 +235,7 @@ export default function FinalCheck({ invoice, onFinalized }) {
           <Col span={12} style={{ textAlign: 'right' }}><strong>{billNumber}/{year}</strong></Col>
           <Col span={12}>Bill Date</Col>
           <Col span={12} style={{ textAlign: 'right' }}>{billDate.format('DD/MM/YYYY')}</Col>
-          <Col span={12}>Deductions (Advance + Penalty + Audit Hold)</Col>
+          <Col span={12}>Deductions (Advance + Penalty + Hold)</Col>
           <Col span={12} style={{ textAlign: 'right' }}>₹{deductions.toFixed(2)}</Col>
           <Col span={12}><strong>Net Payable</strong></Col>
           <Col span={12} style={{ textAlign: 'right' }}><strong>₹{netPayable.toFixed(2)}</strong></Col>
@@ -257,7 +250,7 @@ export default function FinalCheck({ invoice, onFinalized }) {
           onClick={handleFinalize}
           loading={submitting}
         >
-          Finalize & Approve
+          Finalize
         </Button>
       </div>
     </Card>

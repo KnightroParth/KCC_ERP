@@ -1,3 +1,11 @@
+/** Hold reason options for billing (draft hold & final check audit hold) */
+export const HOLD_REASONS = [
+  { label: 'Audit Hold', value: 'Audit Hold' },
+  { label: 'Quality Hold', value: 'Quality Hold' },
+  { label: 'Improper Work', value: 'Improper Work' },
+  { label: 'Incomplete Work', value: 'Incomplete Work' },
+];
+
 export const WORK_TASK_CONFIG = {
     "Mivan": ["Mivan Centering", "Slab Beam Reinforcement"],
     "Electrical Work-I": ["Slab Piping", "Ziri Cutting + Pipe fitting", "Conselled box fitting", "Block Wiring", "Switch Plate fitting", "Testing Repair & Finish", "Final Testing"],

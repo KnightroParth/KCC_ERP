@@ -1,20 +1,46 @@
 import React, { useState, useEffect } from 'react';
-import { Table, Card, Button, message, Space, Modal, Select } from 'antd';
+import { useNavigate } from 'react-router-dom';
+import { Table, Card, Button, message, Space, Modal, Select, Popconfirm, Image, Descriptions, Tooltip } from 'antd';
 import { ExportOutlined, SendOutlined, PauseCircleOutlined, StopOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import request from '@/request/request';
-import { useGranularPermission } from '@/hooks/usePermission';
+import { HOLD_REASONS } from '@/config/workConfig';
 
-const REASONS_FOR_HOLD = [
-  { value: 'audit_hold', label: 'Audit hold' },
-  { value: 'quality_hold', label: 'Quality hold' },
-  { value: 'pending', label: 'Pending' },
-];
+/**
+ * Flatten a potentially nested checklist data object into [{ label, value, checked }] pairs.
+ * Includes ALL items — both marked (truthy) and unmarked (falsy) — so the
+ * full checklist is visible with ✓ / ✗ indicators.
+ */
+function flattenChecklistData(data, prefix = '') {
+  if (!data || typeof data !== 'object') return [];
+  const entries = [];
+  Object.entries(data).forEach(([key, val]) => {
+    if (key === 'carryForwarded') return; // skip internal flags
+    const label = prefix ? `${prefix} › ${key}` : key;
+    if (val !== null && val !== undefined && typeof val === 'object' && !Array.isArray(val) && val !== '') {
+      entries.push(...flattenChecklistData(val, label));
+    } else {
+      // Determine checked status
+      const isChecked = val === true || (typeof val === 'string' && val.trim() !== '') || (typeof val === 'number' && val !== 0);
+      entries.push({
+        label,
+        value: isChecked
+          ? (typeof val === 'boolean' ? '✓ Yes' : String(val))
+          : '✗ No',
+        checked: isChecked,
+      });
+    }
+  });
+  return entries;
+}
+
+
 
 /**
  * Audit Check: Table of billable lines (from PlannedWork) with bulk checkbox.
  * Columns: Activity Name, Location (Wing/Floor/Unit), Rate, Qty, Amount.
- * Actions: Hold, Suspend (when not up to mark), Export to Excel, Send to Final Check.
+ * Actions: Select All, Export to Excel (CSV), Send to Final Check.
+ * Photos & Checklist are available by clicking the expand (+) button on each row.
  */
 export default function AuditCheck({
   projectId,
@@ -24,15 +50,13 @@ export default function AuditCheck({
   onSendToFinalCheck,
   disabled,
 }) {
-  const canExportAuditExcel = useGranularPermission('billing', 'invoice.auditCheck');
+  const navigate = useNavigate();
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [selectedRowKeys, setSelectedRowKeys] = useState([]);
   const [sending, setSending] = useState(false);
   const [holdModalOpen, setHoldModalOpen] = useState(false);
-  const [holdActionType, setHoldActionType] = useState('hold'); // 'hold' | 'suspend'
-  const [holdReason, setHoldReason] = useState('');
-  const [holdSubmitting, setHoldSubmitting] = useState(false);
+  const [selectedHoldReason, setSelectedHoldReason] = useState('');
 
   useEffect(() => {
     if (!weekEnd) return;
@@ -122,7 +146,69 @@ export default function AuditCheck({
     message.success('Exported to CSV');
   };
 
-  function buildDraftPayload(overrides = {}) {
+  const handleSendToFinalCheck = async () => {
+    if (!canSend) return;
+    setSending(true);
+    try {
+      const we = dayjs(weekEnd);
+      const weekEndDate = we.toISOString();
+      const weekStartDate = we.subtract(6, 'day').toISOString();
+
+      const items = selectedRows.map((r) => {
+        const qty = r.qty ?? 1;
+        const rate = r.rate ?? 0;
+        const itemName = [r.workType || r.category, r.buildingName, r.unitNumber].filter(Boolean).join(' - ');
+        return {
+          itemName,
+          description: r.unitType ? `Unit: ${r.unitType}` : '',
+          quantity: qty,
+          price: rate,
+          total: qty * rate,
+        };
+      });
+
+      const subTotal = items.reduce((s, i) => s + i.total, 0);
+      const billToContractorId = contractorId || selectedRows[0]?.contractorId?._id || selectedRows[0]?.contractorId;
+      const payload = {
+        sourceContractorId: billToContractorId,
+        number: 0,
+        year: new Date().getFullYear(),
+        status: 'draft',
+        date: weekEndDate,
+        expiredDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+        items,
+        taxRate: 0,
+        billType: 'normal',
+        billingStage: 'audit_check',
+        billingPeriod: { start: weekStartDate, end: weekEndDate },
+        billingWeekEnd: weekEndDate,
+        billingWeekStart: weekStartDate,
+        sourceProjectId: projectId || selectedRows[0]?.projectId?._id || selectedRows[0]?.projectId,
+        plannedWorkIds: selectedRows.map((r) => (r._id != null ? String(r._id) : null)).filter(Boolean),
+        auditChecklist: selectedRows.map((r) => ({
+          workAssignId: r._id != null ? String(r._id) : '',
+          isAudited: true,
+          remarks: '',
+        })),
+      };
+
+      payload.number = (lastInvoiceNumber || 0) + 1;
+
+      const res = await request.create({ entity: 'invoice', jsonData: payload });
+      if (res?.success && res?.result) {
+        message.success('Sent to Final Check');
+        onSendToFinalCheck?.(res.result);
+      } else {
+        message.error(res?.message || 'Failed to create draft');
+      }
+    } catch (e) {
+      message.error('Failed to send to Final Check');
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const buildDraftPayload = (overrides = {}) => {
     const we = dayjs(weekEnd);
     const weekEndDate = we.toISOString();
     const weekStartDate = we.subtract(6, 'day').toISOString();
@@ -143,13 +229,11 @@ export default function AuditCheck({
       sourceContractorId: billToContractorId,
       number: (lastInvoiceNumber || 0) + 1,
       year: new Date().getFullYear(),
-      status: 'draft',
       date: weekEndDate,
       expiredDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
       items,
       taxRate: 0,
       billType: 'normal',
-      billingStage: 'audit_check',
       billingPeriod: { start: weekStartDate, end: weekEndDate },
       billingWeekEnd: weekEndDate,
       billingWeekStart: weekStartDate,
@@ -163,145 +247,261 @@ export default function AuditCheck({
       ...overrides,
     };
     return payload;
-  }
+  };
 
-  const handleHoldOrSuspend = (action) => {
-    if (!canSend) {
-      message.warning('Please select at least one line to hold or suspend.');
-      return;
-    }
-    setHoldActionType(action);
-    setHoldReason('');
+  const handlePutOnHold = () => {
+    setSelectedHoldReason('');
     setHoldModalOpen(true);
   };
 
-  const submitHoldOrSuspend = async () => {
-    if (!holdReason.trim()) {
-      message.warning('Please select a reason for hold.');
-      return;
-    }
-    setHoldSubmitting(true);
+  const submitHold = async () => {
+    if (!selectedHoldReason || !canSend) return;
+    setSending(true);
     try {
-      const label = REASONS_FOR_HOLD.find((o) => o.value === holdReason)?.label || holdReason;
       const payload = buildDraftPayload({
-        billingStage: 'on_hold',
         status: 'on hold',
-        onHoldReasons: label,
-        onHoldPhotos: [],
+        billingStage: 'on_hold',
+        holdReason: selectedHoldReason,
+        onHoldReasons: selectedHoldReason,
       });
       const res = await request.create({ entity: 'invoice', jsonData: payload });
       if (res?.success && res?.result) {
-        message.success(holdActionType === 'suspend' ? 'Bill suspended. It will not proceed to Final Check until released. You can view or release it from All Bills.' : 'Bill held. It will not proceed to Final Check until released. You can view or release it from All Bills.');
+        message.success('Bill put on hold');
         setHoldModalOpen(false);
-        setHoldReason('');
+        setSelectedHoldReason('');
+        navigate('/invoice');
       } else {
-        message.error(res?.message || 'Failed to hold/suspend bill');
+        message.error(res?.message || 'Failed to put on hold');
       }
     } catch (e) {
-      message.error('Failed to hold/suspend bill');
-    } finally {
-      setHoldSubmitting(false);
-    }
-  };
-
-  const handleSendToFinalCheck = async () => {
-    if (!canSend) return;
-    setSending(true);
-    try {
-      const payload = buildDraftPayload();
-      const res = await request.create({ entity: 'invoice', jsonData: payload });
-      if (res?.success && res?.result) {
-        message.success('Sent to Final Check');
-        onSendToFinalCheck?.(res.result);
-      } else {
-        message.error(res?.message || 'Failed to create draft');
-      }
-    } catch (e) {
-      message.error('Failed to send to Final Check');
+      message.error('Failed to put on hold');
     } finally {
       setSending(false);
     }
   };
 
+  const handleSuspend = async () => {
+    if (!canSend) return;
+    setSending(true);
+    try {
+      const payload = buildDraftPayload({
+        status: 'suspended',
+        billingStage: 'suspended',
+      });
+      const res = await request.create({ entity: 'invoice', jsonData: payload });
+      if (res?.success && res?.result) {
+        message.success('Bill suspended');
+        navigate('/invoice');
+      } else {
+        message.error(res?.message || 'Failed to suspend');
+      }
+    } catch (e) {
+      message.error('Failed to suspend');
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const expandedRowRender = (record) => {
+    const ad = record.activityData || {};
+    const photos = ad.photos || {};
+    const checklistEntries = flattenChecklistData(ad.data);
+    const hasPhotos = photos.before || photos.after;
+    const hasChecklist = checklistEntries.length > 0;
+
+    if (!hasPhotos && !hasChecklist) {
+      return (
+        <div style={{ padding: '12px 24px', color: '#888', fontStyle: 'italic' }}>
+          No photos or checklist data available for this activity.
+        </div>
+      );
+    }
+
+    return (
+      <div
+        style={{
+          padding: '20px',
+          background: '#fcfcfc',
+          borderRadius: 8,
+          border: '1px solid #f0f0f0',
+          boxShadow: 'inset 0 2px 8px rgba(0,0,0,0.02)',
+        }}
+      >
+        {hasPhotos && (
+          <div style={{ marginBottom: hasChecklist ? 20 : 0 }}>
+            <Image.PreviewGroup>
+              <Space size="large" wrap>
+                {photos.before ? (
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ marginBottom: 6, fontSize: 11, color: '#888', fontWeight: 600, letterSpacing: '0.05em' }}>BEFORE</div>
+                    <Image
+                      src={photos.before}
+                      alt="Before"
+                      width={180}
+                      height={140}
+                      style={{ objectFit: 'cover', borderRadius: 6, border: '2px solid #fadb14', cursor: 'zoom-in' }}
+                      preview={{ mask: <span style={{ fontSize: 12 }}>🔍 View</span> }}
+                    />
+                  </div>
+                ) : (
+                  <div style={{ textAlign: 'center', width: 180 }}>
+                    <div style={{ marginBottom: 6, fontSize: 11, color: '#888', fontWeight: 600, letterSpacing: '0.05em' }}>BEFORE</div>
+                    <div style={{
+                      width: 180, height: 140, background: '#f5f5f5', borderRadius: 6,
+                      border: '1px dashed #d9d9d9', display: 'flex', alignItems: 'center',
+                      justifyContent: 'center', color: '#bbb', fontSize: 11
+                    }}>
+                      No photo
+                    </div>
+                  </div>
+                )}
+                {photos.after ? (
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ marginBottom: 6, fontSize: 11, color: '#888', fontWeight: 600, letterSpacing: '0.05em' }}>AFTER</div>
+                    <Image
+                      src={photos.after}
+                      alt="After"
+                      width={180}
+                      height={140}
+                      style={{ objectFit: 'cover', borderRadius: 6, border: '2px solid #52c41a', cursor: 'zoom-in' }}
+                      preview={{ mask: <span style={{ fontSize: 12 }}>🔍 View</span> }}
+                    />
+                  </div>
+                ) : (
+                  <div style={{ textAlign: 'center', width: 180 }}>
+                    <div style={{ marginBottom: 6, fontSize: 11, color: '#888', fontWeight: 600, letterSpacing: '0.05em' }}>AFTER</div>
+                    <div style={{
+                      width: 180, height: 140, background: '#f5f5f5', borderRadius: 6,
+                      border: '1px dashed #d9d9d9', display: 'flex', alignItems: 'center',
+                      justifyContent: 'center', color: '#bbb', fontSize: 11
+                    }}>
+                      No photo
+                    </div>
+                  </div>
+                )}
+              </Space>
+            </Image.PreviewGroup>
+          </div>
+        )}
+
+        {hasChecklist && (
+          <Descriptions
+            bordered
+            size="small"
+            column={{ xs: 1, sm: 2, md: 3 }}
+            style={{ fontSize: 12, background: '#fff' }}
+          >
+            {checklistEntries.map((entry, i) => (
+              <Descriptions.Item
+                key={i}
+                label={
+                  <Tooltip title={entry.label}>
+                    <span style={{ fontWeight: 500, color: '#555' }}>
+                      {entry.label.length > 35 ? entry.label.slice(0, 35) + '…' : entry.label}
+                    </span>
+                  </Tooltip>
+                }
+              >
+                <span style={{
+                  color: entry.checked ? '#389e0d' : '#cf1322',
+                  fontWeight: 600,
+                }}>
+                  {entry.value}
+                </span>
+              </Descriptions.Item>
+            ))}
+          </Descriptions>
+        )}
+      </div>
+    );
+  };
+
   return (
-    <Card title="Audit Check (Draft bill to contractor)" size="small" style={{ color: '#333' }} className="billing-audit-check-card">
-      <Space style={{ marginBottom: 16 }} wrap>
-        <Button
-          icon={<PauseCircleOutlined />}
-          onClick={() => handleHoldOrSuspend('hold')}
-          disabled={!canSend}
-        >
-          Hold
-        </Button>
-        <Button
-          icon={<StopOutlined />}
-          onClick={() => handleHoldOrSuspend('suspend')}
-          disabled={!canSend}
-        >
-          Suspend
-        </Button>
-        {canExportAuditExcel && (
+
+
+    <div className="billing-audit-container">
+      {/* Billing Audit Table */}
+      <Card title="Audit Check (Draft bill to contractor)" size="small" style={{ color: '#333' }} className="billing-audit-check-card">
+        <Space style={{ marginBottom: 16 }} wrap>
           <Button icon={<ExportOutlined />} onClick={handleExport} disabled={!data.length}>
             Export to Excel (CSV)
           </Button>
-        )}
-        <Button
-          type="primary"
-          icon={<SendOutlined />}
-          onClick={handleSendToFinalCheck}
-          loading={sending}
-          disabled={!canSend}
-        >
-          Send to Final Check
-        </Button>
-      </Space>
-      <Modal
-        title={holdActionType === 'suspend' ? 'Suspend bill' : 'Hold bill'}
-        open={holdModalOpen}
-        onCancel={() => { setHoldModalOpen(false); setHoldReason(''); }}
-        onOk={submitHoldOrSuspend}
-        okText={holdActionType === 'suspend' ? 'Suspend' : 'Hold'}
-        confirmLoading={holdSubmitting}
-        width={400}
-        destroyOnClose
-      >
-        <p style={{ marginBottom: 8, color: '#666' }}>
-          This bill will not be sent to Final Check. Select a reason and release it from All Bills when ready.
-        </p>
-        <Space direction="vertical" size={8} style={{ width: '100%' }}>
-          <span>Reasons for hold <span style={{ color: '#ff4d4f' }}>*</span></span>
-          <Select
-            style={{ width: '100%' }}
-            placeholder="Select reason"
-            value={holdReason || undefined}
-            onChange={(v) => setHoldReason(v || '')}
-            options={REASONS_FOR_HOLD}
-            allowClear
-          />
+          <Button
+            type="primary"
+            icon={<SendOutlined />}
+            onClick={handleSendToFinalCheck}
+            loading={sending}
+            disabled={!canSend}
+          >
+            Next: Final Check
+          </Button>
+          <Button
+            icon={<PauseCircleOutlined />}
+            onClick={handlePutOnHold}
+            loading={sending}
+            disabled={!canSend}
+          >
+            Hold
+          </Button>
+          <Popconfirm
+            title="Are you sure you want to suspend this bill?"
+            onConfirm={handleSuspend}
+            okText="Yes"
+            cancelText="No"
+          >
+            <Button icon={<StopOutlined />} loading={sending} disabled={!canSend}>
+              Suspend
+            </Button>
+          </Popconfirm>
         </Space>
-      </Modal>
-      <Table
-        rowKey="_id"
-        columns={columns}
-        dataSource={data}
-        loading={loading}
-        rowSelection={rowSelection}
-        pagination={{ pageSize: 15 }}
-        size="small"
-        scroll={{ x: 600 }}
-        summary={() =>
-          selectedRows.length > 0 ? (
-            <Table.Summary.Row>
-              <Table.Summary.Cell index={0} colSpan={4} align="right">
-                <strong>Gross Total (selected)</strong>
-              </Table.Summary.Cell>
-              <Table.Summary.Cell index={1} align="right">
-                <strong>₹{grossTotal.toFixed(2)}</strong>
-              </Table.Summary.Cell>
-            </Table.Summary.Row>
-          ) : null
-        }
-      />
-    </Card>
+        <Modal
+          title="Reasons for Hold"
+          open={holdModalOpen}
+          onCancel={() => { setHoldModalOpen(false); setSelectedHoldReason(''); }}
+          onOk={submitHold}
+          okText="Put on Hold"
+          confirmLoading={sending}
+          okButtonProps={{ disabled: !selectedHoldReason }}
+        >
+          <Space direction="vertical" style={{ width: '100%' }} size={8}>
+            <span style={{ fontWeight: 500 }}>Select reason</span>
+            <Select
+              style={{ width: '100%' }}
+              placeholder="Select a reason"
+              allowClear
+              options={HOLD_REASONS}
+              value={selectedHoldReason || undefined}
+              onChange={setSelectedHoldReason}
+            />
+          </Space>
+        </Modal>
+        <Table
+          rowKey="_id"
+          columns={columns}
+          dataSource={data}
+          loading={loading}
+          rowSelection={rowSelection}
+          expandable={{
+            expandedRowRender,
+            defaultExpandAllRows: false,
+          }}
+          pagination={{ pageSize: 15 }}
+          size="small"
+          scroll={{ x: 600 }}
+          summary={() =>
+            selectedRows.length > 0 ? (
+              <Table.Summary.Row>
+                <Table.Summary.Cell index={0} colSpan={4} align="right">
+                  <strong>Gross Total (selected)</strong>
+                </Table.Summary.Cell>
+                <Table.Summary.Cell index={1} align="right">
+                  <strong>₹{grossTotal.toFixed(2)}</strong>
+                </Table.Summary.Cell>
+              </Table.Summary.Row>
+            ) : null
+          }
+        />
+      </Card>
+    </div>
   );
 }

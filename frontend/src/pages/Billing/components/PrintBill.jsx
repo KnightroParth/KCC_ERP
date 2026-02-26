@@ -5,13 +5,11 @@ import request from '@/request/request';
 import dayjs from 'dayjs';
 import { downloadBillPDF } from '../utils/pdfGenerator';
 import logoUrl from '@/style/images/logo-text.png';
-import { useGranularPermission } from '@/hooks/usePermission';
 
 /**
  * Print Bill: Header (KCC, Project, Bill No, Date), Body (grouped by Work Type), Footer (Gross, Deductions, Net, Signatures).
  */
 export default function PrintBill({ invoice, projectName, contractorName: contractorNameProp }) {
-  const canGeneratePdf = useGranularPermission('billing', 'invoice.generatePdf');
   const [fetchedContractorName, setFetchedContractorName] = useState('');
   const contractorId = invoice?.sourceContractorId?._id ?? (typeof invoice?.sourceContractorId === 'string' ? invoice.sourceContractorId : null);
   const displayContractorName =
@@ -85,11 +83,11 @@ export default function PrintBill({ invoice, projectName, contractorName: contra
     <Card
       title="Download PDF"
       size="small"
-      extra={canGeneratePdf ? (
+      extra={
         <Button type="primary" icon={<DownloadOutlined />} onClick={handleDownload}>
           Download PDF
         </Button>
-      ) : null}
+      }
       className="print-bill-card"
     >
       {/* Header */}

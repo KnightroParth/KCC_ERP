@@ -1,22 +1,20 @@
 import dayjs from 'dayjs';
 import { useNavigate } from 'react-router-dom';
-import { Button } from 'antd';
-import { FileTextOutlined, PlusOutlined } from '@ant-design/icons';
+import { Button, Tag } from 'antd';
+import { FileTextOutlined, PlusOutlined, CreditCardOutlined, PlayCircleOutlined } from '@ant-design/icons';
 import useLanguage from '@/locale/useLanguage';
 import { useMoney, useDate } from '@/settings';
-import { useGranularPermission } from '@/hooks/usePermission';
 import InvoiceDataTableModule from '@/modules/InvoiceModule/InvoiceDataTableModule';
+import { getStageLabel, isInProgress } from '@/pages/Billing/utils/billingStage';
 
 export default function Invoice() {
   const navigate = useNavigate();
   const translate = useLanguage();
   const { dateFormat } = useDate();
   const { moneyFormatter } = useMoney();
-  const canCreateFromPlanning = useGranularPermission('billing', 'dashboard.accessCreateBillFromPlanning');
-  const canCreateDirect = useGranularPermission('billing', 'invoice.createDirectBill');
 
   const dataTableColumns = [
-    { title: translate('Number'), dataIndex: 'number' },
+    { title: translate('Number'), dataIndex: 'number', width: 90 },
     {
       title: 'Contractor',
       key: 'contractor',
@@ -29,13 +27,18 @@ export default function Invoice() {
       title: 'Bill Type',
       dataIndex: 'billType',
       key: 'billType',
+      width: 110,
       render: (v) => (v === 'normal' ? 'From Planning' : v === 'direct' ? 'Direct' : '-'),
     },
     {
-      title: 'Stage',
+      title: 'Status',
       dataIndex: 'billingStage',
       key: 'billingStage',
-      render: (v) => (v ? v.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()) : '-'),
+      width: 130,
+      render: (v, record) => {
+        const { label, color } = getStageLabel(v, record?.status);
+        return <Tag color={color}>{label}</Tag>;
+      },
     },
     {
       title: translate('Date'),
@@ -61,9 +64,20 @@ export default function Invoice() {
       title: 'Payment status',
       dataIndex: 'paymentStatus',
       key: 'paymentStatus',
+      width: 110,
       render: (v) => (v ? v.replace(/\b\w/g, (c) => c.toUpperCase()) : '-'),
     },
   ];
+
+  const getExtraActions = (record) => {
+    const actions = [
+      { label: translate('Record Payment'), key: 'recordPayment', icon: <CreditCardOutlined /> },
+    ];
+    if (isInProgress(record)) {
+      actions.unshift({ label: 'Resume', key: 'resume', icon: <PlayCircleOutlined /> });
+    }
+    return actions;
+  };
 
   const config = {
     entity: 'invoice',
@@ -79,30 +93,23 @@ export default function Invoice() {
       searchFields: 'name',
     },
     deleteModalLabels: ['number', 'contractorDisplayName'],
+    getExtraActions,
     headerExtra: [
-      ...(canCreateFromPlanning
-        ? [
-            <Button
-              key="from-planning"
-              onClick={() => navigate('/billing/planning')}
-              icon={<FileTextOutlined />}
-            >
-              Create from Planning
-            </Button>,
-          ]
-        : []),
-      ...(canCreateDirect
-        ? [
-            <Button
-              key="direct"
-              type="primary"
-              onClick={() => navigate('/invoice/create')}
-              icon={<PlusOutlined />}
-            >
-              Direct Bill
-            </Button>,
-          ]
-        : []),
+      <Button
+        key="from-planning"
+        onClick={() => navigate('/billing/planning')}
+        icon={<FileTextOutlined />}
+      >
+        Create from Planning
+      </Button>,
+      <Button
+        key="direct"
+        type="primary"
+        onClick={() => navigate('/invoice/create')}
+        icon={<PlusOutlined />}
+      >
+        Direct Bill
+      </Button>,
     ],
   };
 

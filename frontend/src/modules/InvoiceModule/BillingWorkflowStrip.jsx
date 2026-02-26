@@ -3,26 +3,24 @@ import { Card, Steps, Button, Modal, Input, message } from 'antd';
 import { PauseCircleOutlined, PlayCircleOutlined } from '@ant-design/icons';
 import request from '@/request/request';
 import ImageUpload from '@/components/ImageUpload';
-import { useGranularPermission } from '@/hooks/usePermission';
 
 const STAGES = [
-  { key: 'draft', label: 'Draft' },
-  { key: 'audit', label: 'Audit Check', permission: 'auditCheck' },
-  { key: 'checking', label: 'Final Check', permission: 'finalCheck' },
-  { key: 'approval', label: 'Approval', permission: 'approval' },
+  { key: 'draft_audit', label: 'Draft & Audit Check' },
+  { key: 'checking', label: 'Final Check' },
+  { key: 'approval', label: 'Approval' },
   { key: 'payment', label: 'Ledger / Payment' },
 ];
 
-// Backend may use audit_check / approved; map to strip keys
+// Backend may use audit_check / approved; map to strip keys (draft and audit_check both = first step)
 function normalizeStage(s) {
-  if (s === 'audit_check') return 'audit';
+  if (s === 'draft' || s === 'audit_check') return 'draft_audit';
   if (s === 'final_check') return 'checking';
   if (s === 'approved') return 'approval';
   return s;
 }
 
 function toBackendStage(key) {
-  const map = { audit: 'audit_check', checking: 'final_check', approval: 'approved' };
+  const map = { checking: 'final_check', approval: 'approved' };
   return map[key] || key;
 }
 
@@ -32,24 +30,12 @@ export default function BillingWorkflowStrip({ invoice, onRefresh }) {
   const [holdPhotos, setHoldPhotos] = useState([]);
   const [submitting, setSubmitting] = useState(false);
 
-  const canAuditCheck = useGranularPermission('billing', 'invoice.auditCheck');
-  const canFinalCheck = useGranularPermission('billing', 'invoice.finalCheck');
-  const canApproval = useGranularPermission('billing', 'invoice.approval');
-  const canPutOnHold = useGranularPermission('billing', 'invoice.putOnHold');
-  const canResumeFromHold = useGranularPermission('billing', 'invoice.resumeFromHold');
-
   const rawStage = invoice?.billingStage || 'draft';
   const stage = normalizeStage(rawStage);
   const isOnHold = stage === 'on_hold' || invoice?.status === 'on hold';
   const currentIndex = isOnHold ? -1 : STAGES.findIndex((s) => s.key === stage);
   const canAdvance = currentIndex >= 0 && currentIndex < STAGES.length - 1;
   const nextStage = canAdvance ? STAGES[currentIndex + 1] : null;
-  const canAdvanceToNext =
-    nextStage &&
-    (!nextStage.permission ||
-      (nextStage.permission === 'auditCheck' && canAuditCheck) ||
-      (nextStage.permission === 'finalCheck' && canFinalCheck) ||
-      (nextStage.permission === 'approval' && canApproval));
 
   const handleAdvanceStage = async () => {
     if (!nextStage || !invoice?._id) return;
@@ -144,49 +130,7 @@ export default function BillingWorkflowStrip({ invoice, onRefresh }) {
 
   if (!showWorkflow) return null;
 
-  // For draft/audit bills, show compact status only (no repeat of full 5-step workflow)
-  const isDraftOnly = (rawStage === 'draft' || rawStage === 'audit_check') && !isOnHold;
-  if (isDraftOnly) {
-    return (
-      <>
-        <Card size="small" title="Billing Status" style={{ marginBottom: 24 }}>
-          <div style={{ color: '#666', fontSize: 14 }}>
-            {rawStage === 'audit_check'
-              ? 'Audit done — use Billing → Billing from Planning for Final Check and Print.'
-              : 'Draft — use Billing → Billing from Planning to run Audit Check and Final Check.'}
-          </div>
-        </Card>
-        <Modal
-          title="Put Bill on Hold"
-          open={holdModalOpen}
-          onCancel={() => setHoldModalOpen(false)}
-          onOk={submitHold}
-          okText="Put on Hold"
-          confirmLoading={submitting}
-          width={560}
-        >
-          <div style={{ marginBottom: 16 }}>
-            <label style={{ display: 'block', marginBottom: 4, fontWeight: 500 }}>Reasons</label>
-            <Input.TextArea
-              rows={3}
-              value={holdReasons}
-              onChange={(e) => setHoldReasons(e.target.value)}
-              placeholder="Enter reason(s) for putting this bill on hold"
-            />
-          </div>
-          <div>
-            <label style={{ display: 'block', marginBottom: 4, fontWeight: 500 }}>Photos</label>
-            <ImageUpload
-              label="Add photo (optional)"
-              value={Array.isArray(holdPhotos) ? holdPhotos[0] : holdPhotos}
-              onChange={(v) => setHoldPhotos(v ? [v] : [])}
-            />
-          </div>
-        </Modal>
-      </>
-    );
-  }
-
+  // Always show full 5-stage Steps from the beginning (no conditional hiding of steps 4 and 5)
   return (
     <>
       <Card size="small" title="Billing Status" style={{ marginBottom: 24 }}>
@@ -201,24 +145,22 @@ export default function BillingWorkflowStrip({ invoice, onRefresh }) {
         />
         <div style={{ marginTop: 16, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           {isOnHold ? (
-            canResumeFromHold && (
-              <Button
-                type="primary"
-                icon={<PlayCircleOutlined />}
-                onClick={handleResume}
-                loading={submitting}
-              >
-                Resume from Hold
-              </Button>
-            )
+            <Button
+              type="primary"
+              icon={<PlayCircleOutlined />}
+              onClick={handleResume}
+              loading={submitting}
+            >
+              Resume from Hold
+            </Button>
           ) : (
             <>
-              {canAdvanceToNext && (
+              {nextStage && (
                 <Button type="primary" onClick={handleAdvanceStage} loading={submitting}>
                   Send to {nextStage.label}
                 </Button>
               )}
-              {stage !== 'on_hold' && canPutOnHold && (
+              {stage !== 'on_hold' && (
                 <Button
                   icon={<PauseCircleOutlined />}
                   onClick={handlePutOnHold}

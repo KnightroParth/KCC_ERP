@@ -3,7 +3,6 @@ const multer = require('multer');
 const path = require('path');
 const { catchErrors } = require('@/handlers/errorHandlers');
 const checkPermission = require('@/middlewares/checkPermission');
-const { checkGranularPermission } = require('@/middlewares/checkPermission');
 const { ENTITY_TO_MODULE } = require('@/config/roles');
 const router = express.Router();
 
@@ -22,16 +21,10 @@ const { routesList } = require('@/models/utils');
 const routerApp = (entity, controller) => {
   const module = ENTITY_TO_MODULE[entity];
   const can = (action) => (module ? checkPermission(module, action) : (req, res, next) => next());
-  const invoiceCreate = entity === 'invoice'
-    ? checkGranularPermission('billing', 'invoice.createDraftBill', 'invoice.createDirectBill')
-    : can('create');
 
-  router.route(`/${entity}/create`).post(invoiceCreate, catchErrors(controller['create']));
+  router.route(`/${entity}/create`).post(can('create'), catchErrors(controller['create']));
   router.route(`/${entity}/read/:id`).get(can('view'), catchErrors(controller['read']));
-  router.route(`/${entity}/update/:id`).patch(
-    entity === 'invoice' ? checkGranularPermission('billing', 'invoice.editDraftBill', 'invoice.updateBill') : can('update'),
-    catchErrors(controller['update'])
-  );
+  router.route(`/${entity}/update/:id`).patch(can('update'), catchErrors(controller['update']));
   router.route(`/${entity}/delete/:id`).delete(can('delete'), catchErrors(controller['delete']));
   router.route(`/${entity}/search`).get(can('view'), catchErrors(controller['search']));
   router.route(`/${entity}/list`).get(can('view'), catchErrors(controller['list']));
@@ -46,9 +39,9 @@ const routerApp = (entity, controller) => {
     router.route(`/${entity}/carry-forward`).post(can('update'), catchErrors(controller['carryForward']));
   }
   if (entity === 'invoice') {
-    router.route(`/${entity}/mail`).post(checkGranularPermission('billing', 'invoice.sendMail'), catchErrors(controller['mail']));
-    router.route(`/${entity}/planning-for-billing`).get(checkGranularPermission('billing', 'invoice.getPlanningForBilling'), catchErrors(controller['getPlanningForBilling']));
-    router.route(`/${entity}/mark-paid/:id`).patch(checkGranularPermission('billing', 'invoice.markAsPaid'), catchErrors(controller['markPaid']));
+    router.route(`/${entity}/mail`).post(can('create'), catchErrors(controller['mail']));
+    router.route(`/${entity}/planning-for-billing`).get(can('view'), catchErrors(controller['getPlanningForBilling']));
+    router.route(`/${entity}/mark-paid/:id`).patch(can('approve'), catchErrors(controller['markPaid']));
   }
   if (entity === 'workrate') {
     router.route(`/${entity}/rate-for-activity`).get(can('view'), catchErrors(controller['getRateForActivity']));

@@ -21,12 +21,12 @@ const AdminPassword = require('../src/models/coreModels/AdminPassword');
 
 const PASSWORD = '1970';
 
-// Only roles from roles and authority.xlsx: Master, Admin, PM, Planner/Work Incharge, Site Engineer, Store Incharge, Accounts
+// Only roles from roles and authority.xlsx: Master, Admin, PM, Planner/Site Incharge, Site Engineer, Store Incharge, Accounts
 const USERS = [
   { role: 'master', name: 'KCC Master' },
   { role: 'admin', name: 'KCC Admin' },
   { role: 'pm', name: 'KCC PM' },
-  { role: 'planner', name: 'KCC Planner / Work Incharge' },
+  { role: 'planner', name: 'KCC Planner' },
   { role: 'site_engineer', name: 'KCC Site Engineer' },
   { role: 'store_incharge', name: 'KCC Store Incharge' },
   { role: 'accounts', name: 'KCC Accounts' },

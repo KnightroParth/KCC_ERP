@@ -9,7 +9,6 @@ import { WORK_CATEGORIES, COMPLEX_TASK_COMPONENTS, SUB_CATEGORY_ALIASES, WORK_TY
 import { assignWork } from '@/request/assignWork';
 import request from '@/request/request';
 import { selectCurrentProject, selectShouldLockProject } from '@/redux/erp/selectors';
-import usePermission, { useGranularPermission } from '@/hooks/usePermission';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import './planning_styles.css';
@@ -278,9 +277,6 @@ function generatePDF(data, vendors, staff, groupOption, headerDetails, projectNa
 const FORM_COMPONENTS = {};
 
 export default function Planning() {
-    const canCreatePlanning = usePermission('planning', 'create');
-    const canDeletePlanning = usePermission('planning', 'delete');
-    const canExportPlanningPdf = useGranularPermission('planning', 'report.exportPdf');
     const currentProject = useSelector(selectCurrentProject);
     const shouldLockProject = useSelector(selectShouldLockProject);
     const [projects, setProjects] = useState([]);
@@ -916,16 +912,14 @@ export default function Planning() {
                                 <Option value="Work Type">Work Type</Option>
                             </Select>
                         </div>
-                        {canCreatePlanning && (
-                            <Button
-                                type="primary"
-                                size="large"
-                                onClick={handleAddPlanning}
-                                loading={saving}
-                            >
-                                Add
-                            </Button>
-                        )}
+                        <Button
+                            type="primary"
+                            size="large"
+                            onClick={handleAddPlanning}
+                            loading={saving}
+                        >
+                            Add
+                        </Button>
                     </div>
 
                     <div className="filter-bar">
@@ -1040,7 +1034,7 @@ export default function Planning() {
                                         placeholder="Select Supervisor"
                                         showSearch
                                         optionFilterProp="label"
-                                        options={staff.filter(s => s.role === 'planner' || s.designation === 'Planner / Work Incharge').map(s => ({ label: s.name, value: s._id }))}
+                                        options={staff.filter(s => s.role === 'planner' || s.designation === 'Site Incharge').map(s => ({ label: s.name, value: s._id }))}
                                         value={headerDetails.supervisor}
                                         onChange={(val) => setHeaderDetails(prev => ({ ...prev, supervisor: val }))}
                                     />
@@ -1052,7 +1046,7 @@ export default function Planning() {
                                         placeholder="Select Incharge"
                                         showSearch
                                         optionFilterProp="label"
-                                        options={staff.filter(s => s.role === 'planner' || s.designation === 'Planner / Work Incharge').map(s => ({ label: s.name, value: s._id }))}
+                                        options={staff.filter(s => s.role === 'planner' || s.designation === 'Site Incharge').map(s => ({ label: s.name, value: s._id }))}
                                         value={headerDetails.incharge}
                                         onChange={(val) => setHeaderDetails(prev => ({ ...prev, incharge: val }))}
                                     />
@@ -1113,7 +1107,7 @@ export default function Planning() {
                 width={1200}
                 footer={[
                     <Button key="close" onClick={() => setIsChartModalOpen(false)}>Close</Button>,
-                    ...(canExportPlanningPdf ? [<Button key="print" type="primary" onClick={() => generatePDF(plannedWorks, vendors, staff, chartGroupOption, headerDetails, selectedProject?.name)}>Export PDF</Button>] : []),
+                    <Button key="print" type="primary" onClick={() => generatePDF(plannedWorks, vendors, staff, chartGroupOption, headerDetails, selectedProject?.name)}>Export PDF</Button>
                 ]}
             >
                 <PlanningChart
@@ -1123,14 +1117,13 @@ export default function Planning() {
                     groupOption={chartGroupOption}
                     headerDetails={headerDetails}
                     onDelete={handleDeletePlannedWork}
-                    canDelete={canDeletePlanning}
                 />
             </Modal>
         </Layout>
     );
 }
 
-function PlanningChart({ data, vendors, staff, groupOption, headerDetails, onDelete, canDelete }) {
+function PlanningChart({ data, vendors, staff, groupOption, headerDetails, onDelete }) {
     // Helper to get name
     const getName = (id, list) => {
         if (!id) return '-';
@@ -1272,7 +1265,7 @@ function PlanningChart({ data, vendors, staff, groupOption, headerDetails, onDel
                                     key: 'description',
                                     render: (val) => val || '-'
                                 }] : []),
-                                ...(canDelete ? [{
+                                {
                                     title: 'Action',
                                     key: 'action',
                                     width: 80,
@@ -1287,7 +1280,7 @@ function PlanningChart({ data, vendors, staff, groupOption, headerDetails, onDel
                                             onClick={() => onDelete(record._id)}
                                         />
                                     )
-                                }] : [])
+                                }
                             ];
 
                             return (
@@ -1392,7 +1385,7 @@ function PlanningChart({ data, vendors, staff, groupOption, headerDetails, onDel
                             key: 'description',
                             render: (val) => val || '-'
                         }] : []),
-                        ...(canDelete ? [{
+                        {
                             title: 'Action',
                             key: 'action',
                             width: 80,
@@ -1407,7 +1400,7 @@ function PlanningChart({ data, vendors, staff, groupOption, headerDetails, onDel
                                     onClick={() => onDelete(record._id)}
                                 />
                             )
-                        }] : [])
+                        }
                     ];
 
                     return (

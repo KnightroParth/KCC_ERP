@@ -20,7 +20,6 @@ import { DOWNLOAD_BASE_URL } from '@/config/serverApiConfig';
 import { useMoney } from '@/settings';
 import useMail from '@/hooks/useMail';
 import { useNavigate } from 'react-router-dom';
-import { useGranularPermission } from '@/hooks/usePermission';
 import { downloadBillPDF } from '@/pages/Billing/utils/pdfGenerator';
 import logoUrl from '@/style/images/logo-text.png';
 
@@ -32,8 +31,6 @@ export default function ReadItem({ config, selectedItem }) {
 
   const { moneyFormatter } = useMoney();
   const { send, isLoading: mailInProgress } = useMail({ entity });
-  const canMarkAsPaid = useGranularPermission('billing', 'invoice.markAsPaid');
-  const canGeneratePdf = useGranularPermission('billing', 'invoice.generatePdf');
 
   const { result: currentResult } = useSelector(selectCurrentItem);
 
@@ -128,25 +125,19 @@ export default function ReadItem({ config, selectedItem }) {
           </Button>,
           ...(entity === 'invoice'
             ? [
-                ...(canMarkAsPaid
-                  ? [
-                      <Button
-                        key="record-payment"
-                        icon={<CreditCardOutlined />}
-                        onClick={() => {
-                          dispatch(erp.currentItem({ data: currentErp }));
-                          navigate(`/invoice/pay/${currentErp._id}`);
-                        }}
-                      >
-                        {translate('Record Payment')}
-                      </Button>,
-                    ]
-                  : []),
-                ...(canGeneratePdf
-                  ? [
-                      <Button
-                        key="download-pdf"
-                        loading={downloadingPdf}
+                <Button
+                  key="record-payment"
+                  icon={<CreditCardOutlined />}
+                  onClick={() => {
+                    dispatch(erp.currentItem({ data: currentErp }));
+                    navigate(`/invoice/pay/${currentErp._id}`);
+                  }}
+                >
+                  {translate('Record Payment')}
+                </Button>,
+                <Button
+                  key="download-pdf"
+                  loading={downloadingPdf}
                   onClick={async () => {
                     if (!currentErp) return;
                     setDownloadingPdf(true);
@@ -187,8 +178,6 @@ export default function ReadItem({ config, selectedItem }) {
                 >
                   {translate('Download PDF')}
                 </Button>,
-                  ]
-                : []),
               ]
             : [
                 <Button

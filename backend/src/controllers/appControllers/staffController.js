@@ -7,7 +7,7 @@ const AdminPassword = require('@/models/coreModels/AdminPassword');
 /** Designation (UI) -> backend role */
 const DESIGNATION_TO_ROLE = {
   'Project Manager': 'pm',
-  'Planner / Work Incharge': 'planner',
+  'Site Incharge': 'planner',
   'Site Engineer': 'site_engineer',
   'Store Incharge': 'store_incharge',
   'Accounts': 'accounts',

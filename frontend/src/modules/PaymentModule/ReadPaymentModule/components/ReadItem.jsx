@@ -20,7 +20,6 @@ import { selectCurrentItem } from '@/redux/erp/selectors';
 
 import { DOWNLOAD_BASE_URL } from '@/config/serverApiConfig';
 import { useMoney } from '@/settings';
-import { useGranularPermission } from '@/hooks/usePermission';
 
 import useMail from '@/hooks/useMail';
 import { useNavigate } from 'react-router-dom';
@@ -29,7 +28,6 @@ export default function ReadItem({ config, selectedItem }) {
   const translate = useLanguage();
   const { entity, ENTITY_NAME } = config;
   const dispatch = useDispatch();
-  const canDownloadPdf = useGranularPermission('billing', 'invoice.generatePdf');
 
   const { moneyFormatter } = useMoney();
   const { send, isLoading: mailInProgress } = useMail({ entity });
@@ -91,20 +89,18 @@ export default function ReadItem({ config, selectedItem }) {
           >
             {translate('Close')}
           </Button>,
-          ...(canDownloadPdf ? [
-            <Button
-              key={`${uniqueId()}`}
-              onClick={() => {
-                window.open(
-                  `${DOWNLOAD_BASE_URL}${entity}/${entity}-${currentErp._id}.pdf`,
-                  '_blank'
-                );
-              }}
-              icon={<FilePdfOutlined />}
-            >
-              {translate('Download PDF')}
-            </Button>,
-          ] : []),
+          <Button
+            key={`${uniqueId()}`}
+            onClick={() => {
+              window.open(
+                `${DOWNLOAD_BASE_URL}${entity}/${entity}-${currentErp._id}.pdf`,
+                '_blank'
+              );
+            }}
+            icon={<FilePdfOutlined />}
+          >
+            {translate('Download PDF')}
+          </Button>,
           <Button
             key={`${uniqueId()}`}
             loading={mailInProgress}

@@ -148,32 +148,39 @@ const getPlanningForBilling = async (req, res) => {
   if (contractorId && isValidObjectId(contractorId)) activityQuery.contractorId = new mongoose.Types.ObjectId(contractorId);
 
   const completedActivities = await Activities.find(activityQuery)
-    .select('unitId activityName')
+    .select('unitId activityName data photos')
     .lean()
     .exec();
 
-  const completedKeys = new Set(
-    completedActivities.map((a) => {
-      const uid = (a.unitId && (a.unitId._id || a.unitId)).toString();
-      const name = (a.activityName || '').trim().toLowerCase();
-      return `${uid}|${name}`;
-    })
-  );
+  // Build both a set for filtering and a map for data/photos lookup
+  const completedKeys = new Set();
+  const activityDataByKey = {};
+  completedActivities.forEach((a) => {
+    const uid = (a.unitId && (a.unitId._id || a.unitId)).toString();
+    const name = (a.activityName || '').trim().toLowerCase();
+    const key = `${uid}|${name}`;
+    completedKeys.add(key);
+    activityDataByKey[key] = { data: a.data || {}, photos: a.photos || {} };
+  });
 
-  const result = rawPlanned.filter((pw) => {
+  const result = rawPlanned.reduce((acc, pw) => {
     const pid = (pw.projectId && (pw.projectId._id || pw.projectId)).toString();
     const projectCode = projectIdToCode[pid];
-    if (!projectCode) return false;
+    if (!projectCode) return acc;
     const building = (pw.buildingName || pw.towerOrWing || '').trim();
     const unitNumber = pw.unitNumber;
     const workType = (pw.workType || pw.category || '').trim();
-    if (!workType) return false;
+    if (!workType) return acc;
     const keyStr = JSON.stringify({ projectCode, building, unitNumber });
     const uid = unitIdByKey[keyStr];
-    if (!uid) return false;
+    if (!uid) return acc;
     const activityKey = `${uid}|${workType.toLowerCase()}`;
-    return completedKeys.has(activityKey);
-  });
+    if (!completedKeys.has(activityKey)) return acc;
+    // Attach activity checklist data and photos onto the planned work row
+    const activityMeta = activityDataByKey[activityKey] || {};
+    acc.push({ ...pw, activityData: { data: activityMeta.data || {}, photos: activityMeta.photos || {} } });
+    return acc;
+  }, []);
 
   return res.status(200).json({
     success: true,

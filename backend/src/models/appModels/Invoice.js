@@ -147,7 +147,7 @@ const invoiceSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['draft', 'pending', 'sent', 'refunded', 'cancelled', 'on hold'],
+    enum: ['draft', 'pending', 'sent', 'refunded', 'cancelled', 'on hold', 'suspended'],
     default: 'draft',
   },
   // ----- Billing module: normal (from planning) vs direct -----
@@ -158,7 +158,7 @@ const invoiceSchema = new mongoose.Schema({
   },
   billingStage: {
     type: String,
-    enum: ['draft', 'audit_check', 'final_check', 'approved', 'payment', 'on_hold', 'cancelled'],
+    enum: ['draft', 'audit_check', 'final_check', 'approved', 'payment', 'on_hold', 'suspended', 'cancelled'],
     default: 'draft',
   },
   // Billing period (weekly / Saturday)
