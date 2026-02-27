@@ -10,7 +10,10 @@ const paginatedList = async (req, res) => {
   const limit = Math.min(100, Math.max(1, parseInt(req.query.items, 10) || 10));
   const skip = (page - 1) * limit;
 
-  const { sortBy = 'enabled', sortValue = -1, filter, equal } = req.query;
+  let { sortBy = 'date', sortValue = -1, filter, equal } = req.query;
+  sortBy = String(sortBy || 'date');
+  if (sortBy === 'enabled') sortBy = 'date';
+  sortValue = parseInt(sortValue, 10) === 1 ? 1 : -1;
 
   const rawFields = req.query.fields ? req.query.fields.split(',') : [];
   const fieldsArray = rawFields.map((f) => sanitizeFieldName(f)).filter(Boolean);
@@ -21,9 +24,11 @@ const paginatedList = async (req, res) => {
     fields = { $or: fieldsArray.map((field) => ({ [field]: { $regex: new RegExp(safePattern, 'i') } })) };
   }
 
+  const filterField = sanitizeFieldName(filter || '');
+  const filterValue = equal != null && equal !== '' ? equal : null;
   const findQuery = {
     removed: false,
-    ...(filter && equal != null ? { [sanitizeFieldName(filter)]: equal } : {}),
+    ...(filterField && filterValue ? { [filterField]: filterValue } : {}),
     ...fields,
   };
 
