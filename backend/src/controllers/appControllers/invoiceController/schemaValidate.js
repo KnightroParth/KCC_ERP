@@ -59,6 +59,6 @@ const schema = Joi.object({
   onHoldReasons: Joi.string().allow('').optional(),
   onHoldPhotos: Joi.array().items(Joi.string()).optional(),
   holdReason: Joi.string().valid('Audit Hold', 'Quality Hold', 'Improper Work', 'Incomplete Work', '').optional(),
-});
+}).options({ allowUnknown: true, stripUnknown: true });
 
 module.exports = schema;

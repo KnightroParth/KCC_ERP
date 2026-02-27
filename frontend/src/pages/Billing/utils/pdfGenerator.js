@@ -1,24 +1,10 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import dayjs from 'dayjs';
-
-const KCC_COMPANY = {
-  name: 'Kothari Construction Company',
-  addressLines: [
-    'KCC-A-103, Rami Heritage, Opp. –Old Rto Office, Murtizapur Road, Akola -444001',
-    'Maharashtra, India',
-  ],
-  phone: '+919764999715',
-};
+import { getClubbedBillRows } from './billFormatHelpers';
 
 const LOGO_MAX_MM = { w: 36, h: 18 };
 
-/**
- * Compute logo display size (mm) to fit inside max box while preserving aspect ratio.
- * @param {number} imgW - image width (px)
- * @param {number} imgH - image height (px)
- * @returns {{ w: number, h: number }}
- */
 function logoDisplaySize(imgW, imgH) {
   if (!imgW || !imgH) return { w: LOGO_MAX_MM.w, h: LOGO_MAX_MM.h };
   const aspect = imgW / imgH;
@@ -30,12 +16,9 @@ function logoDisplaySize(imgW, imgH) {
 }
 
 /**
- * Generate RA Bill PDF.
- * @param {Object} invoice - Invoice with items, adjustments, client, etc.
- * @param {string} projectName - Project name for header
- * @param {string} [contractorNameOverride] - Optional contractor name
- * @param {string} [logoBase64] - Optional data URL (data:image/png;base64,...) for logo
- * @param {{ w: number, h: number }} [logoSize] - Optional logo natural size (px) to preserve aspect ratio
+ * Generate Bill PDF in Excel format: KCC logo only at top, then Contractor Wise Billing (Final),
+ * Invoice No, Date, Contractor Name, table (Work Type | Build No | Unit | No. of Flat | Rate | Amount),
+ * then Gross Total, Advance, Penalty, Less Amount, Hold, Tentative Payable.
  */
 export function generateBillPDF(invoice, projectName = '', contractorNameOverride = '', logoBase64 = '', logoSize = null) {
   const doc = new jsPDF();
@@ -46,123 +29,133 @@ export function generateBillPDF(invoice, projectName = '', contractorNameOverrid
   const hold = Number(adjustments.holdAmount) || 0;
   const deductions = advance + penalty + hold;
   const grossTotal = items.reduce((s, i) => s + (Number(i.total) || 0), 0);
-  const netPayable = Math.max(0, grossTotal - deductions);
+  const tentativePayable = Math.max(0, grossTotal - deductions);
 
   const contractorName = contractorNameOverride || invoice?.sourceContractorId?.name || 'Contractor';
   const billNo = invoice?.number ?? '-';
   const year = invoice?.year ?? new Date().getFullYear();
-  const billDate = invoice?.date ? dayjs(invoice.date).format('DD/MM/YYYY') : dayjs().format('DD/MM/YYYY');
+  const billDate = invoice?.date ? dayjs(invoice.date).format('DD-MM-YYYY') : dayjs().format('DD-MM-YYYY');
 
-  // ----- Header: logo (optional) + company details -----
-  let headerBottom = 44;
   const left = 14;
   const pageW = doc.internal.pageSize.getWidth();
+  let yPos = 10;
 
+  // ----- Logo only at top (KCC logo) -----
   if (logoBase64) {
     try {
       const size = logoSize ? logoDisplaySize(logoSize.w, logoSize.h) : { w: LOGO_MAX_MM.w, h: LOGO_MAX_MM.h };
-      doc.addImage(logoBase64, 'PNG', left, 10, size.w, size.h);
-    } catch (_) {}
+      doc.addImage(logoBase64, 'PNG', left, yPos, size.w, size.h);
+      yPos += size.h + 8;
+    } catch (_) {
+      yPos += 10;
+    }
+  } else {
+    yPos += 6;
   }
 
-  // Company block (right-aligned or below logo): Company Name + details
-  doc.setFontSize(8);
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(100, 100, 100);
-  doc.text('Company Name', pageW - 14, 14, { align: 'right' });
-  doc.setFontSize(10);
+  // ----- Title and header (Excel format) -----
+  doc.setFontSize(11);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(0, 0, 0);
-  doc.text(KCC_COMPANY.name.toUpperCase(), pageW - 14, 20, { align: 'right' });
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(9);
-  const lineHeight = 5;
-  KCC_COMPANY.addressLines.forEach((line, i) => {
-    doc.text(line, pageW - 14, 26 + i * lineHeight, { align: 'right' });
-  });
-  const companyBlockBottom = 26 + KCC_COMPANY.addressLines.length * lineHeight + 6;
-  doc.text(KCC_COMPANY.phone, pageW - 14, companyBlockBottom, { align: 'right' });
-  headerBottom = Math.max(44, companyBlockBottom + 14);
+  doc.text('Contractor Wise Billing (Final)', left, yPos);
+  yPos += 8;
 
-  // Bill info row
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(10);
-  doc.setTextColor(0, 0, 0);
-  doc.text(`Project: ${projectName || '-'}`, left, headerBottom - 18);
-  doc.text(`Bill No: ${billNo}/${year}`, left, headerBottom - 12);
-  doc.text(`Date: ${billDate}`, left, headerBottom - 6);
-  doc.text(`Contractor: ${contractorName}`, left, headerBottom);
-  doc.setDrawColor(0, 0, 0);
-  doc.setLineWidth(0.5);
-  doc.line(left, headerBottom + 4, pageW - 14, headerBottom + 4);
-  headerBottom += 10;
+  doc.text(`Invoice No   : ${billNo}`, left, yPos);
+  doc.text(`Invoice Date : ${billDate}`, left + 65, yPos);
+  yPos += 6;
+  doc.text(`Contractor Name :   :   ${contractorName}`, left, yPos);
+  yPos += 10;
 
-  // ----- Body: group items by work type -----
-  const byWorkType = {};
-  items.forEach((item) => {
-    const name = item.itemName || '';
-    const workType = name.split(' - ')[0] || 'Other';
-    if (!byWorkType[workType]) byWorkType[workType] = [];
-    byWorkType[workType].push(item);
-  });
+  // ----- Table: clubbed by (workType, unit, amount) - one line per group -----
+  const tableHead = [['Work Type', 'Build No', 'Unit', 'No. of Flat', 'Rate', 'Amount', 'Audit Check', 'Final Check', 'Remark']];
+  const clubbed = getClubbedBillRows(invoice);
+  const tableBody = clubbed.map((row) => [
+    (row.workType || '-').substring(0, 42),
+    row.buildNo,
+    row.unit,
+    String(row.noOfFlat),
+    Number(row.rate || 0).toFixed(2),
+    Number(row.amount || 0).toFixed(2),
+    '', // drawn in didDrawCell
+    '',
+    (row.remark || '').substring(0, 20),
+  ]);
 
-  let yPos = headerBottom + 8;
-  const tableHead = [['Item', 'Description', 'Qty', 'Rate (₹)', 'Amount (₹)']];
   const kccNavy = [10, 21, 40];
+  const tickGreen = [22, 101, 52];
 
-  Object.entries(byWorkType).forEach(([workType, rows]) => {
-    if (yPos > 240) {
-      doc.addPage();
-      yPos = 20;
-    }
-    doc.setFontSize(11);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(...kccNavy);
-    doc.text(workType, left, yPos);
-    yPos += 6;
+  autoTable(doc, {
+    startY: yPos,
+    head: tableHead,
+    body: tableBody,
+    theme: 'grid',
+    headStyles: { fillColor: kccNavy, textColor: [255, 255, 255], fontSize: 8 },
+    bodyStyles: { fontSize: 7, textColor: [0, 0, 0] },
+    columnStyles: {
+      0: { cellWidth: 42 },
+      1: { cellWidth: 14 },
+      2: { cellWidth: 16 },
+      3: { cellWidth: 16, halign: 'right' },
+      4: { cellWidth: 14, halign: 'right' },
+      5: { cellWidth: 16, halign: 'right' },
+      6: { cellWidth: 14, halign: 'center' },
+      7: { cellWidth: 14, halign: 'center' },
+      8: { cellWidth: 18 },
+    },
+    didDrawCell: (data) => {
+      if (data.section !== 'body') return;
+      const colIdx = data.column && typeof data.column.index === 'number' ? data.column.index : -1;
+      const rowIdx = data.row && typeof data.row.index === 'number' ? data.row.index : -1;
+      if (rowIdx < 0 || rowIdx >= clubbed.length || (colIdx !== 6 && colIdx !== 7)) return;
+      const rowData = clubbed[rowIdx];
+      const showTick = (colIdx === 6 && rowData.isAudited) || (colIdx === 7 && rowData.isFinalized);
+      if (!showTick) return;
 
-    const tableBody = rows.map((r) => [
-      r.itemName || '',
-      r.description || '-',
-      r.quantity ?? 1,
-      Number(r.price || 0).toFixed(2),
-      Number(r.total || 0).toFixed(2),
-    ]);
-    autoTable(doc, {
-      startY: yPos,
-      head: tableHead,
-      body: tableBody,
-      theme: 'grid',
-      headStyles: { fillColor: kccNavy, textColor: [255, 255, 255] },
-      columnStyles: { 2: { halign: 'right' }, 3: { halign: 'right' }, 4: { halign: 'right' } },
-    });
-    yPos = doc.lastAutoTable.finalY + 8;
+      const cell = data.cell;
+      const cx = cell.x + cell.width / 2;
+      const cy = cell.y + cell.height / 2 + 1;
+      doc.setDrawColor(...tickGreen);
+      doc.setLineWidth(0.5);
+      const s = 2.2;
+      doc.line(cx - s, cy, cx - s * 0.35, cy + s * 0.75);
+      doc.line(cx - s * 0.35, cy + s * 0.75, cx + s, cy - s * 1.1);
+      doc.setDrawColor(0, 0, 0);
+    },
   });
+  yPos = doc.lastAutoTable.finalY + 12;
 
-  // ----- Footer: Totals -----
-  if (yPos > 220) {
+  // ----- Totals (Excel labels) -----
+  if (yPos > 235) {
     doc.addPage();
     yPos = 20;
   }
+  doc.setDrawColor(0, 0, 0);
+  doc.setLineWidth(0.3);
+  doc.line(left, yPos - 4, pageW - left, yPos - 4);
   doc.setFont('helvetica', 'normal');
-  doc.setTextColor(0, 0, 0);
   doc.setFontSize(10);
-  doc.text('Gross Total (₹):', 14, yPos);
+  doc.setTextColor(0, 0, 0);
+  doc.text('Gross Total :', left, yPos);
   doc.text(grossTotal.toFixed(2), 196, yPos, { align: 'right' });
   yPos += 7;
-  doc.text('Advance Deduction (₹):', 14, yPos);
+  doc.text('Advance :', left, yPos);
   doc.text(advance.toFixed(2), 196, yPos, { align: 'right' });
   yPos += 7;
-  doc.text('Penalty (₹):', 14, yPos);
+  doc.text('Penalty :', left, yPos);
   doc.text(penalty.toFixed(2), 196, yPos, { align: 'right' });
   yPos += 7;
-  doc.text('Hold (₹):', 14, yPos);
+  doc.text('Less Amount :', left, yPos);
+  doc.text('0.00', 196, yPos, { align: 'right' });
+  yPos += 7;
+  doc.text('Hold :', left, yPos);
   doc.text(hold.toFixed(2), 196, yPos, { align: 'right' });
   yPos += 10;
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(12);
-  doc.text('Net Payable (₹):', 14, yPos);
-  doc.text(netPayable.toFixed(2), 196, yPos, { align: 'right' });
+  doc.setFontSize(11);
+  doc.text('Tentative Payable :', left, yPos);
+  doc.text(tentativePayable.toFixed(2), 196, yPos, { align: 'right' });
   yPos += 15;
 
   doc.setFont('helvetica', 'normal');
@@ -176,5 +169,18 @@ export function generateBillPDF(invoice, projectName = '', contractorNameOverrid
 
 export function downloadBillPDF(invoice, projectName, filename, contractorNameOverride = '', logoBase64 = '', logoSize = null) {
   const doc = generateBillPDF(invoice, projectName, contractorNameOverride, logoBase64, logoSize);
-  doc.save(filename || `KCC-Bill-${invoice?.number ?? 'draft'}.pdf`);
+  const name = filename || `KCC-Bill-${invoice?.number ?? 'draft'}.pdf`;
+  try {
+    const blob = doc.output('blob');
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  } catch (e) {
+    doc.save(name);
+  }
 }

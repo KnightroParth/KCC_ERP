@@ -24,6 +24,33 @@ function toBackendStage(key) {
   return map[key] || key;
 }
 
+/** Normalize invoice for update: strip server-only fields, ensure plannedWorkIds/checklists are strings (backend expects strings). */
+function normalizeInvoicePayload(inv, overrides = {}) {
+  const toId = (v) => (v && typeof v === 'object' && v._id != null ? v._id : v);
+  const { _id, created, updated, removed, __v, ...rest } = inv || {};
+  const plannedWorkIds = Array.isArray(inv?.plannedWorkIds)
+    ? inv.plannedWorkIds.map((v) => String(toId(v) ?? '')).filter(Boolean)
+    : undefined;
+  const auditChecklist = (inv?.auditChecklist || []).map((a) => ({
+    workAssignId: String(toId(a.workAssignId) ?? ''),
+    isAudited: a.isAudited,
+    remarks: a.remarks ?? '',
+  }));
+  const finalChecklist = (inv?.finalChecklist || []).map((f) => ({
+    workAssignId: String(toId(f.workAssignId) ?? ''),
+    isFinalized: f.isFinalized,
+  }));
+  return {
+    ...rest,
+    sourceContractorId: toId(inv?.sourceContractorId),
+    sourceProjectId: toId(inv?.sourceProjectId),
+    ...(plannedWorkIds !== undefined && { plannedWorkIds }),
+    auditChecklist,
+    finalChecklist,
+    ...overrides,
+  };
+}
+
 export default function BillingWorkflowStrip({ invoice, onRefresh }) {
   const [holdModalOpen, setHoldModalOpen] = useState(false);
   const [holdReasons, setHoldReasons] = useState('');
@@ -41,11 +68,10 @@ export default function BillingWorkflowStrip({ invoice, onRefresh }) {
     if (!nextStage || !invoice?._id) return;
     setSubmitting(true);
     try {
-      const payload = {
-        ...invoice,
+      const payload = normalizeInvoicePayload(invoice, {
         billingStage: toBackendStage(nextStage.key),
         status: nextStage.key === 'payment' ? invoice.status : invoice.status,
-      };
+      });
       const res = await request.update({
         entity: 'invoice',
         id: invoice._id,
@@ -72,13 +98,12 @@ export default function BillingWorkflowStrip({ invoice, onRefresh }) {
     if (!invoice?._id) return;
     setSubmitting(true);
     try {
-      const payload = {
-        ...invoice,
+      const payload = normalizeInvoicePayload(invoice, {
         billingStage: 'on_hold',
         status: 'on hold',
         onHoldReasons: holdReasons,
         onHoldPhotos: Array.isArray(holdPhotos) ? holdPhotos : holdPhotos ? [holdPhotos] : [],
-      };
+      });
       const res = await request.update({
         entity: 'invoice',
         id: invoice._id,
@@ -102,13 +127,12 @@ export default function BillingWorkflowStrip({ invoice, onRefresh }) {
     if (!invoice?._id) return;
     setSubmitting(true);
     try {
-      const payload = {
-        ...invoice,
+      const payload = normalizeInvoicePayload(invoice, {
         billingStage: 'draft',
         status: 'draft',
         onHoldReasons: '',
         onHoldPhotos: [],
-      };
+      });
       const res = await request.update({
         entity: 'invoice',
         id: invoice._id,

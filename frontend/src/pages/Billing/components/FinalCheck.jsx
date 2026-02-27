@@ -15,6 +15,7 @@ import dayjs from 'dayjs';
 import request from '@/request/request';
 import ImageUpload from '@/components/ImageUpload';
 import { HOLD_REASONS } from '@/config/workConfig';
+import { getClubbedBillRows } from '../utils/billFormatHelpers';
 
 /**
  * Final Check: Shows audited items, adjustments panel (advance, penalty, hold),
@@ -138,26 +139,52 @@ export default function FinalCheck({ invoice, onFinalized }) {
     }
   };
 
-  const columns = [
-    { title: 'Item', dataIndex: 'itemName', key: 'itemName' },
-    { title: 'Description', dataIndex: 'description', key: 'description', render: (v) => v || '-' },
-    { title: 'Qty', dataIndex: 'quantity', key: 'quantity', width: 80, align: 'right' },
-    { title: 'Rate (₹)', dataIndex: 'price', key: 'price', width: 100, align: 'right', render: (v) => (v != null ? Number(v).toFixed(2) : '-') },
-    { title: 'Amount (₹)', dataIndex: 'total', key: 'total', width: 120, align: 'right', render: (v) => (v != null ? Number(v).toFixed(2) : '-') },
+  const clubbedRows = getClubbedBillRows(invoice);
+  const billColumns = [
+    { title: 'Work Type', dataIndex: 'workType', key: 'workType', ellipsis: true, width: 200 },
+    { title: 'Build No', dataIndex: 'buildNo', key: 'buildNo', width: 72 },
+    { title: 'Unit', dataIndex: 'unit', key: 'unit', width: 72 },
+    { title: 'No. of Flat', dataIndex: 'noOfFlat', key: 'noOfFlat', width: 88, align: 'right' },
+    { title: 'Rate', dataIndex: 'rate', key: 'rate', width: 80, align: 'right', render: (v) => Number(v || 0).toFixed(2) },
+    { title: 'Amount', dataIndex: 'amount', key: 'amount', width: 88, align: 'right', render: (v) => Number(v || 0).toFixed(2) },
+    {
+      title: 'Audit Check',
+      dataIndex: 'isAudited',
+      key: 'auditCheck',
+      width: 88,
+      align: 'center',
+      render: (v) => (v ? <CheckOutlined style={{ color: '#166534', fontSize: 18 }} /> : ''),
+    },
+    {
+      title: 'Final Check',
+      dataIndex: 'isFinalized',
+      key: 'finalCheck',
+      width: 88,
+      align: 'center',
+      render: (v) => (v ? <CheckOutlined style={{ color: '#166534', fontSize: 18 }} /> : ''),
+    },
+    { title: 'Remark', dataIndex: 'remark', key: 'remark', width: 120, ellipsis: true },
   ];
 
   return (
     <Card title="Final Check" size="small" style={{ color: '#333' }} className="billing-final-check-card">
+      <p style={{ marginBottom: 12, color: '#666', fontSize: 13 }}>
+        Bill as it will appear (same Work Type + Unit + Amount clubbed in one line). Review and finalize below.
+      </p>
       <Table
-        rowKey={(r, i) => r._id || i}
-        columns={columns}
-        dataSource={items}
+        rowKey={(r, i) => `clubbed-${i}-${r.workType}-${r.unit}-${r.amount}`}
+        columns={billColumns}
+        dataSource={clubbedRows}
         pagination={false}
         size="small"
+        bordered
+        scroll={{ x: 900 }}
+        className="bill-preview-excel-table"
         summary={() => (
           <Table.Summary.Row>
-            <Table.Summary.Cell index={0} colSpan={4} align="right"><strong>Gross Total</strong></Table.Summary.Cell>
+            <Table.Summary.Cell index={0} colSpan={5} align="right"><strong>Gross Total</strong></Table.Summary.Cell>
             <Table.Summary.Cell index={1} align="right"><strong>₹{grossTotal.toFixed(2)}</strong></Table.Summary.Cell>
+            <Table.Summary.Cell index={2} colSpan={3} />
           </Table.Summary.Row>
         )}
       />

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Table, Card, Button, message, Space, Modal, Select, Popconfirm, Image, Descriptions, Tooltip } from 'antd';
+import { Table, Card, Button, message, Space, Modal, Select, Popconfirm, Image, Descriptions, Tooltip, Input } from 'antd';
 import { ExportOutlined, SendOutlined, PauseCircleOutlined, StopOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import request from '@/request/request';
@@ -57,6 +57,8 @@ export default function AuditCheck({
   const [sending, setSending] = useState(false);
   const [holdModalOpen, setHoldModalOpen] = useState(false);
   const [selectedHoldReason, setSelectedHoldReason] = useState('');
+  /** Per-row remarks (keyed by row _id); shown in bill and PDF/Excel */
+  const [rowRemarks, setRowRemarks] = useState({});
 
   useEffect(() => {
     if (!weekEnd) return;
@@ -116,6 +118,20 @@ export default function AuditCheck({
         const rate = r.rate ?? 0;
         return (qty * rate).toFixed(2);
       },
+    },
+    {
+      title: 'Remark',
+      key: 'remark',
+      width: 160,
+      render: (_, r) => (
+        <Input
+          placeholder="Optional remark for bill"
+          value={rowRemarks[r._id] ?? ''}
+          onChange={(e) => setRowRemarks((prev) => ({ ...prev, [r._id]: e.target.value }))}
+          size="small"
+          allowClear
+        />
+      ),
     },
   ];
 
@@ -188,7 +204,7 @@ export default function AuditCheck({
         auditChecklist: selectedRows.map((r) => ({
           workAssignId: r._id != null ? String(r._id) : '',
           isAudited: true,
-          remarks: '',
+          remarks: rowRemarks[r._id] != null ? String(rowRemarks[r._id]).trim() : '',
         })),
       };
 
@@ -242,7 +258,7 @@ export default function AuditCheck({
       auditChecklist: selectedRows.map((r) => ({
         workAssignId: r._id != null ? String(r._id) : '',
         isAudited: true,
-        remarks: '',
+        remarks: rowRemarks[r._id] != null ? String(rowRemarks[r._id]).trim() : '',
       })),
       ...overrides,
     };
@@ -491,7 +507,7 @@ export default function AuditCheck({
           summary={() =>
             selectedRows.length > 0 ? (
               <Table.Summary.Row>
-                <Table.Summary.Cell index={0} colSpan={4} align="right">
+                <Table.Summary.Cell index={0} colSpan={5} align="right">
                   <strong>Gross Total (selected)</strong>
                 </Table.Summary.Cell>
                 <Table.Summary.Cell index={1} align="right">

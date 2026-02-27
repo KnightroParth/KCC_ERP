@@ -280,7 +280,12 @@ export default function BillingFromPlanning() {
             )}
 
             {currentStep === 2 && draftInvoice && (
-              <ApprovalStep invoice={draftInvoice} onApproved={handleApproved} />
+              <ApprovalStep
+                invoice={draftInvoice}
+                onApproved={handleApproved}
+                projectName={projectName}
+                contractorName={contractorName || draftInvoice?.sourceContractorId?.name}
+              />
             )}
 
             {currentStep === 3 && !draftInvoice && (
@@ -331,6 +336,12 @@ export default function BillingFromPlanning() {
         .billing-step-content .ant-table { color: #333; }
         .billing-step-content .ant-input,
         .billing-step-content .ant-input-number-input { color: #000; background: #fff; border: 1px solid #d9d9d9; }
+        .bill-preview-excel-table .ant-table-thead > tr > th { background: #0a1540 !important; color: #fff !important; font-weight: 600; text-align: center; }
+        .bill-preview-excel-table .ant-table-thead > tr > th:first-child { text-align: left; }
+        .bill-preview-excel-table .ant-table-thead > tr > th:nth-child(4),
+        .bill-preview-excel-table .ant-table-thead > tr > th:nth-child(5),
+        .bill-preview-excel-table .ant-table-thead > tr > th:nth-child(6) { text-align: right; }
+        .bill-preview-excel-table .ant-table-tbody .anticon-check { color: #166534 !important; }
       `}</style>
     </ErpLayout>
   );

@@ -1,28 +1,18 @@
 import React, { useState } from 'react';
-import { Card, Row, Col, Button, message } from 'antd';
+import { Card, Button, message } from 'antd';
 import { CheckOutlined } from '@ant-design/icons';
-import dayjs from 'dayjs';
 import request from '@/request/request';
+import BillPreviewExcelFormat from './BillPreviewExcelFormat';
 
 /**
- * Step 4: Approval — Review the finalized invoice and formally update status to Approved.
+ * Step 3: Approval — Show bill in Excel format (category of work, unit, amount in one line),
+ * with KCC logo at top, Download PDF and Download Excel options; then Approve.
  */
-export default function ApprovalStep({ invoice, onApproved }) {
+export default function ApprovalStep({ invoice, onApproved, projectName = '', contractorName: contractorNameProp }) {
   const [submitting, setSubmitting] = useState(false);
 
-  const items = invoice?.items || [];
-  const adjustments = invoice?.adjustments || {};
-  const advance = Number(adjustments.advanceDeduction) || 0;
-  const penalty = Number(adjustments.penalty) || 0;
-  const hold = Number(adjustments.holdAmount) || 0;
-  const deductions = advance + penalty + hold;
-  const grossTotal = items.reduce((s, i) => s + (Number(i.total) || 0), 0);
-  const netPayable = Math.max(0, grossTotal - deductions);
-
-  const billDate = invoice?.date ? dayjs(invoice.date) : dayjs();
-  const billNumber = invoice?.number ?? '-';
-  const year = invoice?.year ?? new Date().getFullYear();
   const contractorName =
+    contractorNameProp ??
     invoice?.sourceContractorId?.name ??
     (typeof invoice?.sourceContractorId === 'object' ? invoice?.sourceContractorId?.name : '-');
 
@@ -31,12 +21,28 @@ export default function ApprovalStep({ invoice, onApproved }) {
     setSubmitting(true);
     try {
       const toId = (v) => (v && typeof v === 'object' && v._id ? v._id : v);
+      const plannedWorkIds = Array.isArray(invoice?.plannedWorkIds)
+        ? invoice.plannedWorkIds.map((v) => String(toId(v) ?? '')).filter(Boolean)
+        : undefined;
+      const auditChecklist = (invoice?.auditChecklist || []).map((a) => ({
+        workAssignId: String(toId(a.workAssignId) ?? ''),
+        isAudited: a.isAudited,
+        remarks: a.remarks ?? '',
+      }));
+      const finalChecklist = (invoice?.finalChecklist || []).map((f) => ({
+        workAssignId: String(toId(f.workAssignId) ?? ''),
+        isFinalized: f.isFinalized,
+      }));
+      const { _id, created, updated, ...invoiceRest } = invoice;
       const payload = {
-        ...invoice,
+        ...invoiceRest,
         billingStage: 'approved',
-        status: 'approved',
+        status: 'pending',
         sourceContractorId: toId(invoice?.sourceContractorId),
         sourceProjectId: toId(invoice?.sourceProjectId),
+        ...(plannedWorkIds !== undefined && { plannedWorkIds }),
+        auditChecklist,
+        finalChecklist,
       };
       const res = await request.update({
         entity: 'invoice',
@@ -57,37 +63,31 @@ export default function ApprovalStep({ invoice, onApproved }) {
   };
 
   return (
-    <Card title="Approval" size="small" style={{ color: '#333' }} className="billing-approval-step-card">
-      <p style={{ marginBottom: 16, color: '#666' }}>
-        Review the finalized bill below. Click <strong>Approve</strong> to formally set the bill status to Approved so it can be paid and posted to the ledger.
-      </p>
-      <Card size="small" style={{ marginBottom: 24 }}>
-        <Row gutter={[16, 8]}>
-          <Col span={12}>Contractor</Col>
-          <Col span={12} style={{ textAlign: 'right' }}><strong>{contractorName}</strong></Col>
-          <Col span={12}>Bill Number</Col>
-          <Col span={12} style={{ textAlign: 'right' }}><strong>{billNumber}/{year}</strong></Col>
-          <Col span={12}>Bill Date</Col>
-          <Col span={12} style={{ textAlign: 'right' }}>{billDate.format('DD/MM/YYYY')}</Col>
-          <Col span={12}>Gross Total (₹)</Col>
-          <Col span={12} style={{ textAlign: 'right' }}>{grossTotal.toFixed(2)}</Col>
-          <Col span={12}>Deductions (₹)</Col>
-          <Col span={12} style={{ textAlign: 'right' }}>{deductions.toFixed(2)}</Col>
-          <Col span={12}><strong>Net Payable (₹)</strong></Col>
-          <Col span={12} style={{ textAlign: 'right' }}><strong>₹{netPayable.toFixed(2)}</strong></Col>
-        </Row>
+    <>
+      {/* Bill view in Excel format: KCC logo at top, Work Type | Build No | Unit | No. of Flat | Rate | Amount, then PDF & Excel download */}
+      <BillPreviewExcelFormat
+        invoice={invoice}
+        projectName={projectName}
+        contractorName={contractorName}
+        showDownloadButtons
+      />
+
+      <Card title="Approval" size="small" style={{ color: '#333' }} className="billing-approval-step-card">
+        <p style={{ marginBottom: 16, color: '#666' }}>
+          Review the bill above. Use <strong>Download PDF</strong> or <strong>Download Excel</strong> if needed. Click <strong>Approve</strong> to formally set the bill status to Approved so it can be paid and posted to the ledger.
+        </p>
+        <div>
+          <Button
+            type="primary"
+            size="large"
+            icon={<CheckOutlined />}
+            onClick={handleApprove}
+            loading={submitting}
+          >
+            Approve
+          </Button>
+        </div>
       </Card>
-      <div>
-        <Button
-          type="primary"
-          size="large"
-          icon={<CheckOutlined />}
-          onClick={handleApprove}
-          loading={submitting}
-        >
-          Approve
-        </Button>
-      </div>
-    </Card>
+    </>
   );
 }
