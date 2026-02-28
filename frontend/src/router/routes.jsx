@@ -1,5 +1,6 @@
-import { lazy } from 'react';
+import { lazy, Suspense } from 'react';
 import { Navigate } from 'react-router-dom';
+import { Spin } from 'antd';
 
 const Logout = lazy(() => import('@/pages/Logout.jsx'));
 const NotFound = lazy(() => import('@/pages/NotFound.jsx'));
@@ -73,7 +74,7 @@ let routes = {
     { path: '/billing/direct', element: <DirectBilling /> },
 
     // Invoice / Bills list & CRUD
-    { path: '/invoice', element: <Invoice /> },
+    { path: '/invoice', element: <Suspense fallback={<div style={{ padding: 48, textAlign: 'center' }}><Spin size="large" tip="Loading All Bills…" /></div>}><Invoice /></Suspense> },
     { path: '/invoice/create', element: <InvoiceCreate /> },
     { path: '/invoice/create-from-planning', element: <Navigate to="/billing/planning" replace /> },
     { path: '/invoice/read/:id', element: <InvoiceRead /> },

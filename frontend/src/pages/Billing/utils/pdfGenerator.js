@@ -73,7 +73,7 @@ export function generateBillPDF(invoice, projectName = '', contractorNameOverrid
   const clubbed = getClubbedBillRows(invoice);
   const tableBody = clubbed.map((row) => [
     (row.workType || '-').substring(0, 42),
-    row.buildNo,
+    (row.buildNo || row.buildingAndFlatsDisplay || '-').substring(0, 36),
     row.unit,
     String(row.noOfFlat),
     Number(row.rate || 0).toFixed(2),
@@ -95,7 +95,7 @@ export function generateBillPDF(invoice, projectName = '', contractorNameOverrid
     bodyStyles: { fontSize: 7, textColor: [0, 0, 0] },
     columnStyles: {
       0: { cellWidth: 42 },
-      1: { cellWidth: 14 },
+      1: { cellWidth: 36 },
       2: { cellWidth: 16 },
       3: { cellWidth: 16, halign: 'right' },
       4: { cellWidth: 14, halign: 'right' },

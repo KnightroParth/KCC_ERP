@@ -220,7 +220,8 @@ export default function DataTable({ config, extra = [] }) {
   }, []);
 
   const filterTable = (value) => {
-    const options = { equal: value, filter: searchConfig?.entity };
+    const filterField = searchConfig?.filterField || searchConfig?.entity;
+    const options = { equal: value, filter: filterField };
     dispatch(erp.list({ entity, options }));
   };
 

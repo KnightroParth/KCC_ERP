@@ -142,7 +142,7 @@ export default function FinalCheck({ invoice, onFinalized }) {
   const clubbedRows = getClubbedBillRows(invoice);
   const billColumns = [
     { title: 'Work Type', dataIndex: 'workType', key: 'workType', ellipsis: true, width: 200 },
-    { title: 'Build No', dataIndex: 'buildNo', key: 'buildNo', width: 72 },
+    { title: 'Build No / Flats', dataIndex: 'buildNo', key: 'buildNo', width: 160, ellipsis: true, render: (v) => v || '-' },
     { title: 'Unit', dataIndex: 'unit', key: 'unit', width: 72 },
     { title: 'No. of Flat', dataIndex: 'noOfFlat', key: 'noOfFlat', width: 88, align: 'right' },
     { title: 'Rate', dataIndex: 'rate', key: 'rate', width: 80, align: 'right', render: (v) => Number(v || 0).toFixed(2) },
@@ -178,7 +178,7 @@ export default function FinalCheck({ invoice, onFinalized }) {
         pagination={false}
         size="small"
         bordered
-        scroll={{ x: 900 }}
+        scroll={{ x: 1000 }}
         className="bill-preview-excel-table"
         summary={() => (
           <Table.Summary.Row>
