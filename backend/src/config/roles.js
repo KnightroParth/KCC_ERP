@@ -146,6 +146,7 @@ const ENTITY_TO_MODULE = {
   checklist: 'billing',
   billingchecklist: 'billing',
   billingmethod: 'billing',
+  report: 'planning',
 };
 
 module.exports = {

@@ -36,6 +36,7 @@ import FinalCheck from './components/FinalCheck';
 import PrintBill from './components/PrintBill';
 import ApprovalStep from './components/ApprovalStep';
 import LedgerStep from './components/LedgerStep';
+import BillingStepErrorBoundary from './components/BillingStepErrorBoundary';
 
 const { Content } = Layout;
 
@@ -67,6 +68,7 @@ export default function BillingFromPlanning() {
   const [weekEnd, setWeekEnd] = useState(getLastSaturday());
   const [currentStep, setCurrentStep] = useState(0);
   const [draftInvoice, setDraftInvoice] = useState(null);
+  const [ledgerLoading, setLedgerLoading] = useState(false);
   const [inProgressBills, setInProgressBills] = useState([]);
   const [resumeLoading, setResumeLoading] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
@@ -147,10 +149,38 @@ export default function BillingFromPlanning() {
     setCurrentStep(2);
   };
 
-  const handleApproved = (updatedInvoice) => {
-    setDraftInvoice(updatedInvoice);
+  const handleApproved = (invoiceFromApprove) => {
     setCurrentStep(3);
+    const id = invoiceFromApprove?._id ?? draftInvoice?._id;
+    if (!id) {
+      setDraftInvoice(invoiceFromApprove ?? draftInvoice);
+      return;
+    }
+    setLedgerLoading(true);
+    setDraftInvoice(invoiceFromApprove ?? draftInvoice);
+    request
+      .read({ entity: 'invoice', id })
+      .then((res) => {
+        if (res?.result) setDraftInvoice(res.result);
+      })
+      .catch(() => {})
+      .finally(() => setLedgerLoading(false));
   };
+
+  // When on Ledger step with resume, ensure we have full invoice (refetch if items missing)
+  useEffect(() => {
+    if (currentStep !== 3 || ledgerLoading || !draftInvoice?._id) return;
+    const hasItems = Array.isArray(draftInvoice.items) && draftInvoice.items.length > 0;
+    if (hasItems) return;
+    setLedgerLoading(true);
+    request
+      .read({ entity: 'invoice', id: draftInvoice._id })
+      .then((res) => {
+        if (res?.result) setDraftInvoice(res.result);
+      })
+      .catch(() => {})
+      .finally(() => setLedgerLoading(false));
+  }, [currentStep, ledgerLoading, draftInvoice?._id, draftInvoice?.items?.length]);
 
   const handlePrevious = () => {
     setCurrentStep((s) => Math.max(0, s - 1));
@@ -294,21 +324,27 @@ export default function BillingFromPlanning() {
               </Card>
             )}
 
-            {currentStep === 3 && draftInvoice && (
-              <>
+            {currentStep === 3 && draftInvoice && ledgerLoading && (
+              <Card className="billing-step-card" style={{ color: '#333', textAlign: 'center', padding: 48 }}>
+                <Spin tip="Loading bill…" />
+              </Card>
+            )}
+
+            {currentStep === 3 && draftInvoice && !ledgerLoading && (
+              <BillingStepErrorBoundary onGoBack={handlePrevious}>
                 <PrintBill
-                  invoice={draftInvoice}
-                  projectName={projectName}
-                  contractorName={contractorName || draftInvoice?.sourceContractorId?.name}
+                  invoice={{ ...draftInvoice, items: Array.isArray(draftInvoice.items) ? draftInvoice.items : [] }}
+                  projectName={projectName || ''}
+                  contractorName={contractorName || draftInvoice?.sourceContractorId?.name || ''}
                 />
                 <div style={{ marginTop: 24 }}>
                   <LedgerStep
-                    invoice={draftInvoice}
-                    projectName={projectName}
-                    contractorName={contractorName || draftInvoice?.sourceContractorId?.name}
+                    invoice={{ ...draftInvoice, items: Array.isArray(draftInvoice.items) ? draftInvoice.items : [] }}
+                    projectName={projectName || ''}
+                    contractorName={contractorName || draftInvoice?.sourceContractorId?.name || ''}
                   />
                 </div>
-              </>
+              </BillingStepErrorBoundary>
             )}
 
             {currentStep === 2 && !draftInvoice && (

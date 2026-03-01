@@ -51,7 +51,14 @@ export default function ApprovalStep({ invoice, onApproved, projectName = '', co
       });
       if (res?.success) {
         message.success('Bill approved.');
-        onApproved?.(res.result);
+        // Refetch so Ledger step gets same shape as All Bills (avoids white screen after approve)
+        try {
+          const readRes = await request.read({ entity: 'invoice', id: invoice._id });
+          const fullInvoice = readRes?.result ?? res?.result ?? invoice;
+          onApproved?.(fullInvoice);
+        } catch (_) {
+          onApproved?.(res?.result ?? invoice);
+        }
       } else {
         message.error(res?.message || 'Failed to approve');
       }

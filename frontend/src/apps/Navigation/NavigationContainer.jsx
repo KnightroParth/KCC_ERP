@@ -73,6 +73,8 @@ function Sidebar({ collapsible, isMobile = false }) {
     currentPath === 'work/wip' ||
     currentPath.startsWith('work/');
 
+
+
   const isBillingActive =
     currentPath === 'billing' ||
     currentPath.startsWith('billing/') ||
@@ -88,6 +90,7 @@ function Sidebar({ collapsible, isMobile = false }) {
     if (isBillingActive) keys.push('billing-module');
     setOpenKeys(keys);
   }, [isInventoryActive, isAttendanceActive, isWorkActive, isBillingActive]);
+
 
   // Styles
   const parentLabelStyle = { fontSize: '15px', fontWeight: '600' };
@@ -110,6 +113,7 @@ function Sidebar({ collapsible, isMobile = false }) {
         { key: 'work/wip', label: <Link to="/work/wip" style={{ ...subLinkStyle, color: currentPath === 'work/wip' ? '#ffffff' : '#1677ff' }}>Work in Progress</Link> },
         { key: 'work/balance-work', label: <Link to="/work/balance-work" style={{ ...subLinkStyle, color: currentPath === 'work/balance-work' ? '#ffffff' : '#1677ff' }}>Balance Work</Link> },
         { key: 'work/set-rate', label: <Link to="/work/set-rate" style={{ ...subLinkStyle, color: currentPath === 'work/set-rate' ? '#ffffff' : '#1677ff' }}>Set Rate</Link> },
+        { key: 'work/reports', label: <Link to="/work/reports" style={{ ...subLinkStyle, color: currentPath.startsWith('work/reports') ? '#ffffff' : '#1677ff' }}>Reports</Link> },
       ],
     },
 

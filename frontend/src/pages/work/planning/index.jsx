@@ -257,8 +257,8 @@ function generatePDF(data, vendors, staff, groupOption, headerDetails, projectNa
         });
     }
 
-    // Grand Total (Restored)
-    const grandTotal = data.reduce((sum, item) => sum + (item.rate || 0), 0);
+    // Grand Total — use filteredData so only the selected date range is summed
+    const grandTotal = filteredData.reduce((sum, item) => sum + (item.rate || 0), 0);
     doc.setFontSize(12);
     doc.setTextColor(255, 255, 255);
     doc.setFillColor(22, 119, 255);

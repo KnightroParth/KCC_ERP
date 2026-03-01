@@ -1,7 +1,7 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import dayjs from 'dayjs';
-import { getClubbedBillRows } from './billFormatHelpers';
+import { getClubbedBillRows, getInvoiceAdjustments } from './billFormatHelpers';
 
 const LOGO_MAX_MM = { w: 36, h: 18 };
 
@@ -23,11 +23,8 @@ function logoDisplaySize(imgW, imgH) {
 export function generateBillPDF(invoice, projectName = '', contractorNameOverride = '', logoBase64 = '', logoSize = null) {
   const doc = new jsPDF();
   const items = invoice?.items || [];
-  const adjustments = invoice?.adjustments || {};
-  const advance = Number(adjustments.advanceDeduction) || 0;
-  const penalty = Number(adjustments.penalty) || 0;
-  const hold = Number(adjustments.holdAmount) || 0;
-  const deductions = advance + penalty + hold;
+  const { advanceDeduction: advance, penalty, holdAmount: hold, securityHoldAmount: securityHold } = getInvoiceAdjustments(invoice);
+  const deductions = advance + penalty + hold + securityHold;
   const grossTotal = items.reduce((s, i) => s + (Number(i.total) || 0), 0);
   const tentativePayable = Math.max(0, grossTotal - deductions);
 
@@ -40,33 +37,23 @@ export function generateBillPDF(invoice, projectName = '', contractorNameOverrid
   const pageW = doc.internal.pageSize.getWidth();
   let yPos = 10;
 
-  // ----- Logo only at top (KCC logo) -----
+  // ----- Compact header: logo left, title + Invoice + Date + Contractor on same row(s) -----
+  let logoH = 6;
   if (logoBase64) {
     try {
       const size = logoSize ? logoDisplaySize(logoSize.w, logoSize.h) : { w: LOGO_MAX_MM.w, h: LOGO_MAX_MM.h };
       doc.addImage(logoBase64, 'PNG', left, yPos, size.w, size.h);
-      yPos += size.h + 8;
-    } catch (_) {
-      yPos += 10;
-    }
-  } else {
-    yPos += 6;
+      logoH = size.h;
+    } catch (_) {}
   }
-
-  // ----- Title and header (Excel format) -----
-  doc.setFontSize(11);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(0, 0, 0);
-  doc.text('Contractor Wise Billing (Final)', left, yPos);
-  yPos += 8;
-
-  doc.setFont('helvetica', 'normal');
+  const headerY = yPos + logoH / 2 - 2;
   doc.setFontSize(10);
-  doc.text(`Invoice No   : ${billNo}`, left, yPos);
-  doc.text(`Invoice Date : ${billDate}`, left + 65, yPos);
-  yPos += 6;
-  doc.text(`Contractor Name :   :   ${contractorName}`, left, yPos);
-  yPos += 10;
+  doc.setFont('helvetica', 'bold');
+  doc.text('Contractor Wise Billing (Final)', left + (logoBase64 ? 42 : 0), headerY);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
+  doc.text(`Invoice : ${billNo}  |  Date : ${billDate}  |  Contractor : ${contractorName}`, left + (logoBase64 ? 42 : 0), headerY + 5);
+  yPos += (logoBase64 ? logoH : 6) + 6;
 
   // ----- Table: clubbed by (workType, unit, amount) - one line per group -----
   const tableHead = [['Work Type', 'Build No', 'Unit', 'No. of Flat', 'Rate', 'Amount', 'Audit Check', 'Final Check', 'Remark']];
@@ -151,6 +138,9 @@ export function generateBillPDF(invoice, projectName = '', contractorNameOverrid
   yPos += 7;
   doc.text('Hold :', left, yPos);
   doc.text(hold.toFixed(2), 196, yPos, { align: 'right' });
+  yPos += 7;
+  doc.text('Security Hold :', left, yPos);
+  doc.text(securityHold.toFixed(2), 196, yPos, { align: 'right' });
   yPos += 10;
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(11);

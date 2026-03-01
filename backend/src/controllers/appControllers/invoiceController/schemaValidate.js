@@ -53,6 +53,8 @@ const schema = Joi.object({
     advanceDeduction: Joi.number().optional(),
     penalty: Joi.number().optional(),
     holdAmount: Joi.number().optional(),
+    securityHoldPercent: Joi.number().optional(),
+    securityHoldAmount: Joi.number().optional(),
     holdReason: Joi.string().allow('').optional(),
     holdPhotos: Joi.array().items(Joi.string()).optional(),
   }).optional(),

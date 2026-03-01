@@ -4,6 +4,7 @@ import { DownloadOutlined } from '@ant-design/icons';
 import request from '@/request/request';
 import dayjs from 'dayjs';
 import { downloadBillPDF } from '../utils/pdfGenerator';
+import { getInvoiceAdjustments } from '../utils/billFormatHelpers';
 import logoUrl from '@/style/images/logo-text.png';
 
 /**
@@ -23,11 +24,8 @@ export default function PrintBill({ invoice, projectName, contractorName: contra
   }, [contractorId, displayContractorName]);
 
   const items = invoice?.items || [];
-  const adjustments = invoice?.adjustments || {};
-  const advance = Number(adjustments.advanceDeduction) || 0;
-  const penalty = Number(adjustments.penalty) || 0;
-  const hold = Number(adjustments.holdAmount) || 0;
-  const deductions = advance + penalty + hold;
+  const { advanceDeduction: advance, penalty, holdAmount: hold, securityHoldAmount: securityHold } = getInvoiceAdjustments(invoice);
+  const deductions = advance + penalty + hold + securityHold;
   const grossTotal = items.reduce((s, i) => s + (Number(i.total) || 0), 0);
   const netPayable = Math.max(0, grossTotal - deductions);
 
@@ -90,15 +88,16 @@ export default function PrintBill({ invoice, projectName, contractorName: contra
       }
       className="print-bill-card"
     >
-      {/* Header */}
-      <div className="no-print" style={{ marginBottom: 24 }}>
-        <Typography.Title level={5} style={{ marginBottom: 4 }}>KOTHARI CONSTRUCTION COMPANY</Typography.Title>
-        <Row gutter={[16, 4]}>
-          <Col span={12}>Project: <strong>{projectName || '-'}</strong></Col>
-          <Col span={12}>Bill No: <strong>{invoice?.number ?? '-'}/{invoice?.year ?? '-'}</strong></Col>
-          <Col span={12}>Date: <strong>{invoice?.date ? dayjs(invoice.date).format('DD/MM/YYYY') : '-'}</strong></Col>
-          <Col span={12}>Contractor: <strong>{displayContractorName}</strong></Col>
-        </Row>
+      {/* Compact header: logo + Contractor Wise Billing, Invoice, Date, Contractor inline */}
+      <div className="no-print" style={{ marginBottom: 16, display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
+        <img src={logoUrl} alt="KCC" style={{ maxHeight: 44, objectFit: 'contain' }} />
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '12px 24px', fontSize: 13 }}>
+          <span><strong>Contractor Wise Billing (Final)</strong></span>
+          <span>Invoice: <strong>{invoice?.number ?? '-'}/{invoice?.year ?? '-'}</strong></span>
+          <span>Date: <strong>{invoice?.date ? dayjs(invoice.date).format('DD/MM/YYYY') : '-'}</strong></span>
+          <span>Contractor: <strong>{displayContractorName}</strong></span>
+          <span>Project: <strong>{projectName || '-'}</strong></span>
+        </div>
       </div>
 
       {/* Body grouped by work type */}
@@ -127,6 +126,8 @@ export default function PrintBill({ invoice, projectName, contractorName: contra
           <Col span={12} style={{ textAlign: 'right' }}>{penalty.toFixed(2)}</Col>
           <Col span={12}>Hold (₹)</Col>
           <Col span={12} style={{ textAlign: 'right' }}>{hold.toFixed(2)}</Col>
+          <Col span={12}>Security Hold (₹)</Col>
+          <Col span={12} style={{ textAlign: 'right' }}>{securityHold.toFixed(2)}</Col>
           <Col span={12}><strong>Net Payable (₹)</strong></Col>
           <Col span={12} style={{ textAlign: 'right' }}><strong>{netPayable.toFixed(2)}</strong></Col>
         </Row>

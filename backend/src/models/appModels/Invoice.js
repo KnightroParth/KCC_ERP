@@ -186,11 +186,13 @@ const invoiceSchema = new mongoose.Schema({
       isFinalized: { type: Boolean, default: false },
     },
   ],
-  // Adjustments (advance, penalty, hold)
+  // Adjustments (advance, penalty, hold, security hold)
   adjustments: {
     advanceDeduction: { type: Number, default: 0 },
     penalty: { type: Number, default: 0 },
     holdAmount: { type: Number, default: 0 },
+    securityHoldPercent: { type: Number, default: 0 },
+    securityHoldAmount: { type: Number, default: 0 },
     holdReason: { type: String },
     holdPhotos: [{ type: String }],
   },

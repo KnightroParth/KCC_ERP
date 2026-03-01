@@ -53,12 +53,12 @@ export default function Invoice() {
     {
       title: translate('Total'),
       dataIndex: 'total',
-      render: (total, record) => moneyFormatter({ amount: total, currency_code: record.currency }),
+      render: (total, record) => moneyFormatter({ amount: total ?? 0, currency_code: record?.currency }),
     },
     {
       title: translate('Paid'),
       dataIndex: 'credit',
-      render: (total, record) => moneyFormatter({ amount: total, currency_code: record.currency }),
+      render: (credit, record) => moneyFormatter({ amount: credit ?? 0, currency_code: record?.currency }),
     },
     {
       title: 'Payment status',

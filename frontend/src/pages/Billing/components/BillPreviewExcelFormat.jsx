@@ -5,7 +5,7 @@ import dayjs from 'dayjs';
 import logoUrl from '@/style/images/logo-text.png';
 import { downloadBillPDF } from '../utils/pdfGenerator';
 import { downloadBillExcel } from '../utils/billExcelExport';
-import { getClubbedBillRows } from '../utils/billFormatHelpers';
+import { getClubbedBillRows, getInvoiceAdjustments } from '../utils/billFormatHelpers';
 
 /**
  * Bill preview in exact Excel format: KCC logo at top, Contractor Wise Billing (Final),
@@ -22,11 +22,8 @@ export default function BillPreviewExcelFormat({
   showDownloadButtons = true,
 }) {
   const items = invoice?.items || [];
-  const adjustments = invoice?.adjustments || {};
-  const advance = Number(adjustments.advanceDeduction) || 0;
-  const penalty = Number(adjustments.penalty) || 0;
-  const hold = Number(adjustments.holdAmount) || 0;
-  const deductions = advance + penalty + hold;
+  const { advanceDeduction: advance, penalty, holdAmount: hold, securityHoldAmount: securityHold } = getInvoiceAdjustments(invoice);
+  const deductions = advance + penalty + hold + securityHold;
   const grossTotal = items.reduce((s, i) => s + (Number(i.total) || 0), 0);
   const tentativePayable = Math.max(0, grossTotal - deductions);
 
@@ -129,19 +126,15 @@ export default function BillPreviewExcelFormat({
 
   return (
     <Card size="small" style={{ marginBottom: 24 }} className="bill-preview-excel-format">
-      {/* KCC Logo at top */}
-      <div style={{ marginBottom: 16, textAlign: 'left' }}>
-        <img src={logoUrl} alt="KCC" style={{ maxHeight: 48, objectFit: 'contain' }} />
-      </div>
-
-      {/* Title and header rows matching Excel */}
-      <div style={{ marginBottom: 12, fontSize: 14 }}>
-        <div style={{ fontWeight: 700, marginBottom: 8 }}>Contractor Wise Billing (Final)</div>
-        <Row gutter={[24, 4]}>
-          <Col span={12}>Invoice No &nbsp;&nbsp;: {billNumber}</Col>
-          <Col span={12}>Invoice Date : {billDate}</Col>
-          <Col span={24}>Contractor Name : &nbsp;&nbsp;: &nbsp;&nbsp;{contractorName}</Col>
-        </Row>
+      {/* Compact header: logo + Contractor Wise Billing, Invoice, Date, Contractor inline */}
+      <div style={{ marginBottom: 12, display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
+        <img src={logoUrl} alt="KCC" style={{ maxHeight: 44, objectFit: 'contain' }} />
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px 20px', fontSize: 13 }}>
+          <span style={{ fontWeight: 700 }}>Contractor Wise Billing (Final)</span>
+          <span>Invoice : {billNumber}</span>
+          <span>Date : {billDate}</span>
+          <span>Contractor : {contractorName}</span>
+        </div>
       </div>
 
       {/* Table: exact Excel columns including Audit Check & Final Check ticks */}
@@ -169,6 +162,8 @@ export default function BillPreviewExcelFormat({
           <Col span={12} style={{ textAlign: 'right', padding: '2px 0' }}>0.00</Col>
           <Col span={12} style={{ padding: '2px 0' }}>Hold :</Col>
           <Col span={12} style={{ textAlign: 'right', padding: '2px 0' }}>{hold.toFixed(2)}</Col>
+          <Col span={12} style={{ padding: '2px 0' }}>Security Hold :</Col>
+          <Col span={12} style={{ textAlign: 'right', padding: '2px 0' }}>{securityHold.toFixed(2)}</Col>
           <Col span={12} style={{ fontWeight: 600, padding: '4px 0 2px' }}>Tentative Payable :</Col>
           <Col span={12} style={{ textAlign: 'right', fontWeight: 600, padding: '4px 0 2px' }}>{tentativePayable.toFixed(2)}</Col>
         </Row>

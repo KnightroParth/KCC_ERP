@@ -26,12 +26,14 @@ export default function FinalCheck({ invoice, onFinalized }) {
   const [advanceDeduction, setAdvanceDeduction] = useState(0);
   const [penalty, setPenalty] = useState(0);
   const [holdAmount, setHoldAmount] = useState(0);
+  const [securityHoldPercent, setSecurityHoldPercent] = useState(0);
   const [holdReason, setHoldReason] = useState('');
   const [holdPhotos, setHoldPhotos] = useState([]);
 
   const items = invoice?.items || [];
   const grossTotal = items.reduce((s, i) => s + (i.total || 0), 0);
-  const deductions = advanceDeduction + penalty + holdAmount;
+  const securityHoldAmount = (grossTotal * (securityHoldPercent || 0)) / 100;
+  const deductions = advanceDeduction + penalty + holdAmount + securityHoldAmount;
   const netPayable = Math.max(0, grossTotal - deductions);
 
   const billDate = invoice?.date
@@ -53,6 +55,7 @@ export default function FinalCheck({ invoice, onFinalized }) {
       setAdvanceDeduction(a.advanceDeduction ?? 0);
       setPenalty(a.penalty ?? 0);
       setHoldAmount(a.holdAmount ?? 0);
+      setSecurityHoldPercent(a.securityHoldPercent ?? 0);
       setHoldReason(a.holdReason ?? '');
       setHoldPhotos(Array.isArray(a.holdPhotos) ? a.holdPhotos : []);
     }
@@ -69,6 +72,8 @@ export default function FinalCheck({ invoice, onFinalized }) {
         advanceDeduction,
         penalty,
         holdAmount,
+        securityHoldPercent: securityHoldPercent || 0,
+        securityHoldAmount: (grossTotal * (securityHoldPercent || 0)) / 100,
         holdReason: holdAmount > 0 ? holdReason : '',
         holdPhotos: holdAmount > 0 ? (Array.isArray(holdPhotos) ? holdPhotos : [holdPhotos]) : [],
       };
@@ -224,6 +229,21 @@ export default function FinalCheck({ invoice, onFinalized }) {
               />
             </Space>
           </Col>
+          <Col xs={24} sm={8}>
+            <Space direction="vertical" size={4} style={{ width: '100%' }}>
+              <span>Security Hold (% of billed amount)</span>
+              <Select
+                style={{ width: '100%' }}
+                value={securityHoldPercent}
+                onChange={(v) => setSecurityHoldPercent(Number(v) ?? 0)}
+                options={[
+                  { value: 0, label: '0%' },
+                  { value: 5, label: '5%' },
+                  { value: 10, label: '10%' },
+                ]}
+              />
+            </Space>
+          </Col>
           {holdAmount > 0 && (
             <>
               <Col span={24}>
@@ -262,7 +282,9 @@ export default function FinalCheck({ invoice, onFinalized }) {
           <Col span={12} style={{ textAlign: 'right' }}><strong>{billNumber}/{year}</strong></Col>
           <Col span={12}>Bill Date</Col>
           <Col span={12} style={{ textAlign: 'right' }}>{billDate.format('DD/MM/YYYY')}</Col>
-          <Col span={12}>Deductions (Advance + Penalty + Hold)</Col>
+          <Col span={12}>Security Hold ({securityHoldPercent}%)</Col>
+          <Col span={12} style={{ textAlign: 'right' }}>₹{securityHoldAmount.toFixed(2)}</Col>
+          <Col span={12}>Deductions (Advance + Penalty + Hold + Security Hold)</Col>
           <Col span={12} style={{ textAlign: 'right' }}>₹{deductions.toFixed(2)}</Col>
           <Col span={12}><strong>Net Payable</strong></Col>
           <Col span={12} style={{ textAlign: 'right' }}><strong>₹{netPayable.toFixed(2)}</strong></Col>

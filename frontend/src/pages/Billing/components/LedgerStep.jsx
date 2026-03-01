@@ -8,6 +8,7 @@ import { erp } from '@/redux/erp/actions';
 import { selectRecordPaymentItem } from '@/redux/erp/selectors';
 import PaymentForm from '@/forms/PaymentForm';
 import calculate from '@/utils/calculate';
+import { getInvoiceAdjustments } from '../utils/billFormatHelpers';
 
 /**
  * Step 5: Ledger — Record payment against the approved bill (reuses InvoiceRecordPayment logic).
@@ -19,20 +20,25 @@ export default function LedgerStep({ invoice, projectName, contractorName: contr
   const [form] = Form.useForm();
   const [maxAmount, setMaxAmount] = useState(0);
 
-  const { isLoading, isSuccess } = useSelector(selectRecordPaymentItem);
+  const recordPaymentState = useSelector(selectRecordPaymentItem) || {};
+  const { isLoading = false, isSuccess = false } = recordPaymentState;
   const displayInvoice = invoice;
 
   useEffect(() => {
-    if (displayInvoice) {
-      const grossTotal = displayInvoice.items?.reduce((s, i) => s + (Number(i.total) || 0), 0) ?? 0;
-      const adj = displayInvoice.adjustments || {};
-      const deductions = (Number(adj.advanceDeduction) || 0) + (Number(adj.penalty) || 0) + (Number(adj.holdAmount) || 0);
+    if (!displayInvoice) return;
+    try {
+      const items = displayInvoice.items ?? [];
+      const grossTotal = items.reduce((s, i) => s + (Number(i.total) || 0), 0);
+      const adj = getInvoiceAdjustments(displayInvoice);
+      const deductions = adj.advanceDeduction + adj.penalty + adj.holdAmount + adj.securityHoldAmount;
       const netPayable = Math.max(0, grossTotal - deductions);
       const total = displayInvoice.total ?? netPayable;
-      const credit = displayInvoice.credit ?? 0;
-      const discount = displayInvoice.discount ?? 0;
-      const max = total != null ? calculate.sub(calculate.sub(total, discount), credit) : netPayable - credit;
-      setMaxAmount(Math.max(0, max));
+      const credit = Number(displayInvoice.credit) || 0;
+      const discount = Number(displayInvoice.discount) || 0;
+      const max = total != null ? Number(calculate.sub(calculate.sub(total, discount), credit)) : netPayable - credit;
+      setMaxAmount(Math.max(0, Number.isFinite(max) ? max : netPayable));
+    } catch (_) {
+      setMaxAmount(0);
     }
   }, [displayInvoice]);
 
@@ -84,7 +90,7 @@ export default function LedgerStep({ invoice, projectName, contractorName: contr
       <Card size="small" style={{ marginBottom: 24, color: '#333' }} className="billing-ledger-step-card">
         <p style={{ marginBottom: 16, fontWeight: 500 }}>Record payment against this approved bill (posts to ledger).</p>
         <Form form={form} layout="vertical" onFinish={handleSubmit}>
-          <PaymentForm maxAmount={maxAmount} />
+          <PaymentForm maxAmount={Number.isFinite(maxAmount) ? maxAmount : 0} />
           <Form.Item>
             <Button type="primary" htmlType="submit" icon={<CreditCardOutlined />} loading={isLoading}>
               Record Payment

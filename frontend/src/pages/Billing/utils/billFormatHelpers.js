@@ -7,6 +7,23 @@ function toId(v) {
   return v && typeof v === 'object' && v._id != null ? v._id : v;
 }
 
+/**
+ * Safe getter for invoice adjustments. Use everywhere we read adjustments so All Bills,
+ * PDF download, and read views don't crash on old invoices missing securityHoldAmount.
+ */
+export function getInvoiceAdjustments(invoice) {
+  const adj = invoice?.adjustments;
+  if (!adj || typeof adj !== 'object') {
+    return { advanceDeduction: 0, penalty: 0, holdAmount: 0, securityHoldAmount: 0 };
+  }
+  return {
+    advanceDeduction: Number(adj.advanceDeduction) || 0,
+    penalty: Number(adj.penalty) || 0,
+    holdAmount: Number(adj.holdAmount) || 0,
+    securityHoldAmount: Number(adj.securityHoldAmount) || 0,
+  };
+}
+
 export function getUnit(description) {
   if (!description || typeof description !== 'string') return '-';
   const m = description.match(/Unit:\s*(.+)/i);

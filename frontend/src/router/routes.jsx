@@ -1,6 +1,5 @@
-import { lazy, Suspense } from 'react';
+import { lazy } from 'react';
 import { Navigate } from 'react-router-dom';
-import { Spin } from 'antd';
 
 const Logout = lazy(() => import('@/pages/Logout.jsx'));
 const NotFound = lazy(() => import('@/pages/NotFound.jsx'));
@@ -35,6 +34,7 @@ const WorkInProgress = lazy(() => import('@/pages/work/WorkInProgress'));
 const Planning = lazy(() => import('@/pages/work/planning'));
 const BalanceWork = lazy(() => import('@/pages/work/BalanceWork'));
 const SetRate = lazy(() => import('@/pages/work/SetRate'));
+const Reports = lazy(() => import('@/pages/work/Reports/index'));
 
 const Attendance = lazy(() => import('@/pages/Attendance'));
 const Labour = lazy(() => import('@/pages/Labour'));
@@ -74,7 +74,7 @@ let routes = {
     { path: '/billing/direct', element: <DirectBilling /> },
 
     // Invoice / Bills list & CRUD
-    { path: '/invoice', element: <Suspense fallback={<div style={{ padding: 48, textAlign: 'center' }}><Spin size="large" tip="Loading All Bills…" /></div>}><Invoice /></Suspense> },
+    { path: '/invoice', element: <Invoice /> },
     { path: '/invoice/create', element: <InvoiceCreate /> },
     { path: '/invoice/create-from-planning', element: <Navigate to="/billing/planning" replace /> },
     { path: '/invoice/read/:id', element: <InvoiceRead /> },
@@ -87,6 +87,7 @@ let routes = {
     { path: '/work/wip', element: <WorkInProgress /> },
     { path: '/work/balance-work', element: <BalanceWork /> },
     { path: '/work/set-rate', element: <SetRate /> },
+    { path: '/work/reports', element: <Reports /> },
 
     { path: '/attendance', element: <Attendance /> },
     { path: '/labour', element: <Labour /> },

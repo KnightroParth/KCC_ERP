@@ -1,6 +1,6 @@
 import * as XLSX from 'xlsx';
 import dayjs from 'dayjs';
-import { getClubbedBillRows, TICK } from './billFormatHelpers';
+import { getClubbedBillRows, TICK, getInvoiceAdjustments } from './billFormatHelpers';
 
 /**
  * Build bill data in exact Excel format: Contractor Wise Billing (Final).
@@ -8,11 +8,8 @@ import { getClubbedBillRows, TICK } from './billFormatHelpers';
  */
 export function buildBillSheetData(invoice, projectName = '', contractorNameOverride = '') {
   const items = invoice?.items || [];
-  const adjustments = invoice?.adjustments || {};
-  const advance = Number(adjustments.advanceDeduction) || 0;
-  const penalty = Number(adjustments.penalty) || 0;
-  const hold = Number(adjustments.holdAmount) || 0;
-  const deductions = advance + penalty + hold;
+  const { advanceDeduction: advance, penalty, holdAmount: hold, securityHoldAmount: securityHold } = getInvoiceAdjustments(invoice);
+  const deductions = advance + penalty + hold + securityHold;
   const grossTotal = items.reduce((s, i) => s + (Number(i.total) || 0), 0);
   const tentativePayable = Math.max(0, grossTotal - deductions);
 
@@ -25,16 +22,10 @@ export function buildBillSheetData(invoice, projectName = '', contractorNameOver
 
   const rows = [];
 
-  // Row 1: Title (merged in Excel as A1:I1)
-  rows.push(['Contractor Wise Billing (Final)']);
-
-  // Row 2: Invoice No, Invoice Date, Contractor Name
-  rows.push([`Invoice No  : ${billNumber}`, '', '', '', '', '', 'Invoice Date', `: ${billDate}`, `Contractor Name :  :   ${contractorName}`]);
-
-  // Row 3: empty
+  // Row 1: Compact header - Contractor Wise Billing (Final) | Invoice | Date | Contractor
+  rows.push([`Contractor Wise Billing (Final)  |  Invoice : ${billNumber}  |  Date : ${billDate}  |  Contractor : ${contractorName}`]);
   rows.push([]);
-
-  // Row 4: Header
+  // Row 3: Column header
   rows.push(['Work Type', 'Build No', 'Unit', 'No. of Flat', 'Rate', 'Amount', 'Audit Check', 'Final Check', 'Remark']);
 
   // Data rows: clubbed by (workType, unit, amount)
@@ -60,6 +51,7 @@ export function buildBillSheetData(invoice, projectName = '', contractorNameOver
   rows.push(['Penalty :', '', '', '', '', penalty, '', '', '']);
   rows.push(['Less Amount :', '', '', '', '', 0, '', '', '']);
   rows.push(['Hold :', '', '', '', '', hold, '', '', '']);
+  rows.push(['Security Hold :', '', '', '', '', securityHold, '', '', '']);
   rows.push(['Tentative Payable :', '', '', '', '', tentativePayable, '', '', '']);
 
   return rows;

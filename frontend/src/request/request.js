@@ -226,10 +226,17 @@ const request = {
       return errorHandler(error);
     }
   },
-  get: async ({ entity }) => {
+  get: async ({ entity, query = {} }) => {
     try {
       includeToken();
-      const response = await axios.get(entity);
+      let queryString = '';
+      const queryEntries = Object.entries(query);
+      if (queryEntries.length > 0) {
+        queryString = '?' + queryEntries
+          .map(([key, val]) => `${encodeURIComponent(key)}=${encodeURIComponent(val)}`)
+          .join('&');
+      }
+      const response = await axios.get(entity + queryString);
       return response.data;
     } catch (error) {
       return errorHandler(error);
