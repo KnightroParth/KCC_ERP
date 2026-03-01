@@ -28,7 +28,7 @@ const { Sider } = Layout;
 
 export default function Navigation() {
   const { isMobile } = useResponsive();
-  return isMobile ? <MobileSidebar /> : <Sidebar collapsible={false} />;
+  return isMobile ? <MobileSidebar /> : <Sidebar collapsible />;
 }
 
 function canView(role, key) {
@@ -41,6 +41,7 @@ function Sidebar({ collapsible, isMobile = false }) {
   const location = useLocation();
   const { state: stateApp, appContextAction } = useAppContext();
   const { isNavMenuClose } = stateApp;
+  const isCollapsed = collapsible && isNavMenuClose;
   const { navMenu } = appContextAction;
   const currentAdmin = useSelector(selectCurrentAdmin);
   const role = currentAdmin?.role;
@@ -92,9 +93,8 @@ function Sidebar({ collapsible, isMobile = false }) {
   }, [isInventoryActive, isAttendanceActive, isWorkActive, isBillingActive]);
 
 
-  // Styles
+  // Styles (plain string labels for parent items so Ant Design can center icons when collapsed)
   const parentLabelStyle = { fontSize: '15px', fontWeight: '600' };
-  const parentModuleLabelStyle = { fontSize: '15px', fontWeight: '600', color: '#ffffff' };
   const subLinkStyle = { fontSize: '13px', fontWeight: '400' };
   const iconStyle = { fontSize: '18px' };
 
@@ -107,7 +107,7 @@ function Sidebar({ collapsible, isMobile = false }) {
       key: 'work-module',
       className: 'work-submenu',
       icon: <ToolOutlined style={iconStyle} />,
-      label: <span style={parentModuleLabelStyle}>Work</span>,
+      label: 'Work',
       children: [
         { key: 'work/planning', label: <Link to="/work/planning" style={{ ...subLinkStyle, color: currentPath === 'work/planning' ? '#ffffff' : '#1677ff' }}>Planning</Link> },
         { key: 'work/wip', label: <Link to="/work/wip" style={{ ...subLinkStyle, color: currentPath === 'work/wip' ? '#ffffff' : '#1677ff' }}>Work in Progress</Link> },
@@ -121,7 +121,7 @@ function Sidebar({ collapsible, isMobile = false }) {
       key: 'attendance-module',
       className: 'attendance-submenu',
       icon: <UserOutlined style={iconStyle} />,
-      label: <span style={parentModuleLabelStyle}>Attendance</span>,
+      label: 'Attendance',
       children: [
         { key: 'attendance', label: <Link to="/attendance" style={{ ...subLinkStyle, color: currentPath === 'attendance' ? '#ffffff' : '#1677ff' }}>Mark Attendance</Link> },
         { key: 'labour', label: <Link to="/labour" style={{ ...subLinkStyle, color: currentPath === 'labour' ? '#ffffff' : '#1677ff' }}>Manage Company Labour</Link> },
@@ -133,8 +133,8 @@ function Sidebar({ collapsible, isMobile = false }) {
     {
       key: 'inventory-module',
       className: 'inventory-submenu',
-      icon: <AppstoreAddOutlined style={{ fontSize: '20px', color: '#ffffff' }} />,
-      label: <span style={parentModuleLabelStyle}>Inventory</span>,
+      icon: <AppstoreAddOutlined style={iconStyle} />,
+      label: 'Inventory',
       children: [
         { key: 'inventory', label: <Link to="/inventory" style={{ ...subLinkStyle, color: currentPath === 'inventory' ? '#ffffff' : '#1677ff' }}>Stock Overview</Link> },
         { key: 'inventory/materials', label: <Link to="/inventory/materials" style={{ ...subLinkStyle, color: currentPath === 'inventory/materials' ? '#ffffff' : '#1677ff' }}>Material Library</Link> },
@@ -150,7 +150,7 @@ function Sidebar({ collapsible, isMobile = false }) {
     {
       key: 'billing-module',
       icon: <FileSyncOutlined style={iconStyle} />,
-      label: <Link to="/billing" style={parentModuleLabelStyle}>Billing</Link>,
+      label: 'Billing',
       children: [
         { key: 'billing', label: <Link to="/billing" style={{ ...subLinkStyle, color: currentPath === 'billing' ? '#ffffff' : '#1677ff' }}>Billing Dashboard</Link> },
         { key: 'billing/planning', label: <Link to="/billing/planning" style={{ ...subLinkStyle, color: currentPath === 'billing/planning' ? '#ffffff' : '#1677ff' }}>Create from Planning</Link> },
@@ -179,14 +179,16 @@ function Sidebar({ collapsible, isMobile = false }) {
   return (
     <Sider
       collapsible={collapsible}
-      collapsed={collapsible ? isNavMenuClose : collapsible}
+      collapsed={collapsible ? isNavMenuClose : false}
       onCollapse={navMenu.collapse}
       className="kcc-sidebar"
       width={256}
+      collapsedWidth={96}
       theme="dark"
       style={{
         height: '100vh',
-        overflowY: 'auto',
+        overflow: isCollapsed ? 'visible' : 'auto',
+        overflowY: isCollapsed ? 'visible' : 'auto',
         backgroundColor: '#001529',
         borderRight: '1px solid #f0f0f0'
       }}
@@ -198,11 +200,12 @@ function Sidebar({ collapsible, isMobile = false }) {
       <Menu
         items={items}
         mode="inline"
+        inlineCollapsed={isCollapsed}
         theme="dark"
         selectedKeys={[currentPath]}
         openKeys={openKeys}
         onOpenChange={setOpenKeys}
-        style={{ width: 256, borderRight: 0, backgroundColor: '#001529' }}
+        style={{ width: '100%', borderRight: 0, backgroundColor: '#001529' }}
       />
     </Sider>
   );

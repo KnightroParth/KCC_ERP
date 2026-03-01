@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Avatar, Dropdown, Layout, Tag, Typography } from 'antd';
 import { LogoutOutlined, UserOutlined, ProjectOutlined } from '@ant-design/icons';
 
+import useResponsive from '@/hooks/useResponsive';
 import { selectCurrentAdmin } from '@/redux/auth/selectors';
 import { selectCurrentProject } from '@/redux/erp/selectors';
 import { FILE_BASE_URL } from '@/config/serverApiConfig';
@@ -13,6 +14,7 @@ const { Text } = Typography;
 export default function HeaderContent() {
   const currentAdmin = useSelector(selectCurrentAdmin);
   const currentProject = useSelector(selectCurrentProject);
+  const { isMobile } = useResponsive();
   const { Header } = Layout;
   const translate = useLanguage();
 
@@ -98,6 +100,7 @@ export default function HeaderContent() {
           </div>
         )}
       </div>
+      <div className="erp-header-spacer" />
       <Dropdown menu={{ items }} trigger={['click']} placement="bottomRight">
         <Avatar
           className="last erp-header-avatar"
