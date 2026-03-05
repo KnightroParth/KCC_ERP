@@ -22,23 +22,47 @@ if (!fs.existsSync(EXCEL_PATH)) {
     process.exit(1);
 }
 
-// Generate D-1 to D-42 array
+// Use first-floor rates only: only rows whose floor range includes floor 1
+const FIRST_FLOOR_ONLY = true;
+const APPLY_RATE_TO_ALL_FLOORS = true; // store as minFloor 0, maxFloor 100 so rate applies everywhere
+
 const DUPLEX_UNITS = Array.from({ length: 42 }, (_, i) => `D-${i + 1}`);
-const TARGET_BUILDINGS = ['C1', 'C2', 'C3', 'C4', 'C5'];
+const META_COLS = ['Project Name', 'Building', 'Unit Type', 'From Floor', 'To Floor', '__EMPTY'];
+
+/** Parse Building column into list of building codes (A1, A2, C1, etc.). Handles "C1,C2,C3,C4,C5 = DUPLEX(..." */
+function parseBuildings(rawBuilding) {
+    if (!rawBuilding || typeof rawBuilding !== 'string') return [];
+    const parts = String(rawBuilding).split(/,\s*/).map(s => s.trim()).filter(Boolean);
+    const out = [];
+    for (const p of parts) {
+        let code = p;
+        if (code.includes('=')) code = code.split('=')[0].trim();
+        if (code.includes('(')) code = code.split('(')[0].trim();
+        code = code.trim();
+        if (!code) continue;
+        if (/^(GROUND|FIRST|DUPLEX|example|D-)/i.test(code)) continue;
+        if (/^[A-Za-z0-9]+$/.test(code)) out.push(code);
+    }
+    return [...new Set(out)];
+}
+
+/** Row applies to first floor if fromFloor <= 1 && toFloor >= 1, or Duplex FIRST FLOOR */
+function rowIncludesFirstFloor(fromFloor, toFloor, rawBuilding, isDuplexRow) {
+    if (isDuplexRow && rawBuilding && String(rawBuilding).toUpperCase().includes('FIRST')) return true;
+    return fromFloor <= 1 && toFloor >= 1;
+}
 
 async function runImport() {
     try {
         await mongoose.connect(DATABASE);
         console.log('✅ Connected to MongoDB');
 
-        // Explicitly load models
         require(path.join(backendDir, 'src/models/appModels/Project'));
         require(path.join(backendDir, 'src/models/appModels/WorkRate'));
 
         const Project = mongoose.model('Project');
         const WorkRate = mongoose.model('WorkRate');
 
-        // Identify target projects first
         const targetProjects = await Project.find({
             name: { $in: [/Lotus Park/i, /Lotus Green/i] },
             removed: false
@@ -46,7 +70,6 @@ async function runImport() {
 
         const projectMap = {};
         const projectIdentities = [];
-
         targetProjects.forEach(p => {
             const nameKey = p.name.toLowerCase().trim();
             projectMap[nameKey] = p;
@@ -55,57 +78,41 @@ async function runImport() {
             if (p.projectCode) projectIdentities.push(p.projectCode);
         });
 
-        console.log('✅ Target Projects found in DB:', targetProjects.map(p => p.name));
+        console.log('✅ Target Projects:', targetProjects.map(p => p.name));
 
-        // SELECTIVE CLEAR: remove rates for C1-C5 buildings (Lotus Park duplex block)
-        let deleteResult = await WorkRate.deleteMany({
-            projectId: { $in: projectIdentities },
-            buildingName: { $in: TARGET_BUILDINGS }
+        // Clear ALL existing rates for Lotus Park and Lotus Green (so we fill everywhere from template)
+        const deleteResult = await WorkRate.deleteMany({
+            projectId: { $in: projectIdentities }
         });
-        console.log(`🧹 Cleared ${deleteResult.deletedCount} existing rates for buildings: ${TARGET_BUILDINGS.join(', ')}`);
-
-        // Also remove generic Duplex unit rates (D-1 to D-42)
-        let deleteResultDuplex = await WorkRate.deleteMany({
-            projectId: { $in: projectIdentities },
-            unitNumber: { $in: DUPLEX_UNITS }
-        });
-        console.log(`🧹 Cleared ${deleteResultDuplex.deletedCount} existing rates for Duplex units: D-1 to D-42`);
+        console.log(`🧹 Cleared ${deleteResult.deletedCount} existing rates for Lotus Park & Lotus Green`);
 
         const workbook = XLSX.readFile(EXCEL_PATH);
-        const sheetNames = workbook.SheetNames;
+        const sheetNames = workbook.SheetNames.filter(n => n !== 'Instructions' && n !== 'Sheet1');
 
-        let totalImported = 0;
+        const bulkPayloads = [];
 
         for (const sheetName of sheetNames) {
-            if (sheetName === 'Instructions') continue;
-
             const sheet = workbook.Sheets[sheetName];
-            // Use header: 1 to handle sub-headers manually in Civil Work
             const data = XLSX.utils.sheet_to_json(sheet, { header: 1 });
             const headers = data[0] || [];
-
-            console.log(`📄 Processing Sheet: ${sheetName}`);
-
             let currentCategory = sheetName.trim();
 
-            // Start from row 1 (skipping header)
             for (let i = 1; i < data.length; i++) {
                 const rowArr = data[i];
                 if (!rowArr || rowArr.length === 0) continue;
 
-                // Sub-header detection for Civil Work
                 if (sheetName.trim() === 'Civil Work') {
                     const firstCell = String(rowArr[0] || '').trim();
                     if (firstCell.includes('Loft Centering')) {
                         currentCategory = 'Civil Work (Loft Centering)';
                         continue;
-                    } else if (firstCell.includes('Loft Casting')) {
+                    }
+                    if (firstCell.includes('Loft Casting')) {
                         currentCategory = 'Civil Work (Loft Casting)';
                         continue;
                     }
                 }
 
-                // Standard row processing
                 const row = {};
                 headers.forEach((h, idx) => { if (h) row[h] = rowArr[idx]; });
 
@@ -114,12 +121,12 @@ async function runImport() {
 
                 const projectNameKey = String(rawProjectName).toLowerCase().trim();
                 let currentProject = projectMap[projectNameKey];
-
                 if (!currentProject) {
-                    const partialMatch = targetProjects.find(p => p.name.toLowerCase().includes(projectNameKey) || projectNameKey.includes(p.name.toLowerCase()));
-                    if (partialMatch) currentProject = partialMatch;
-                    else continue;
+                    currentProject = targetProjects.find(p =>
+                        p.name.toLowerCase().includes(projectNameKey) || projectNameKey.includes(p.name.toLowerCase())
+                    );
                 }
+                if (!currentProject) continue;
 
                 const rawBuilding = row['Building'];
                 const rawUnitType = row['Unit Type'];
@@ -127,19 +134,20 @@ async function runImport() {
                     ? String(rawUnitType).trim()
                     : 'All';
 
-                let fromFloor = parseInt(row['From Floor']);
+                let fromFloor = parseInt(row['From Floor'], 10);
                 if (isNaN(fromFloor)) fromFloor = 0;
-                let toFloor = parseInt(row['To Floor']);
+                let toFloor = parseInt(row['To Floor'], 10);
                 if (isNaN(toFloor)) toFloor = 1000;
 
-                const metaCols = ['Project Name', 'Building', 'Unit Type', 'From Floor', 'To Floor', '__EMPTY'];
-                const taskKeys = (headers || []).filter(h => h && !metaCols.includes(String(h).trim()));
+                const isDuplexRow = rawBuilding && String(rawBuilding).toUpperCase().includes('DUPLEX');
+                if (FIRST_FLOOR_ONLY && !rowIncludesFirstFloor(fromFloor, toFloor, rawBuilding, isDuplexRow)) continue;
+
+                const taskKeys = (headers || []).filter(h => h && !META_COLS.includes(String(h).trim()));
 
                 let buildingsToProcess = [];
                 let unitsToProcess = [];
 
-                if (rawBuilding && String(rawBuilding).toUpperCase().includes('DUPLEX')) {
-                    // This is a Duplex row!
+                if (isDuplexRow) {
                     if (String(rawBuilding).toUpperCase().includes('GROUND')) {
                         fromFloor = 0;
                         toFloor = 0;
@@ -147,24 +155,16 @@ async function runImport() {
                         fromFloor = 1;
                         toFloor = 1;
                     }
-
                     unitsToProcess = DUPLEX_UNITS;
                     unitType = 'Duplex';
+                    buildingsToProcess = [];
                 } else {
-                    const allBuildings = rawBuilding ? String(rawBuilding).split(/,\s*/).map(b => b.trim()).filter(Boolean) : [null];
-                    const matchedBuildings = allBuildings.filter(b => b && TARGET_BUILDINGS.map(t => t.toLowerCase()).includes(b.toLowerCase()));
-
-                    if (matchedBuildings.length === 0) continue;
-
-                    // Expand C1,C2 to include all C1-C5
-                    if (matchedBuildings.includes('C1') || matchedBuildings.includes('C2')) {
-                        buildingsToProcess = [...TARGET_BUILDINGS];
-                    } else {
-                        buildingsToProcess = matchedBuildings;
-                    }
+                    buildingsToProcess = parseBuildings(rawBuilding);
+                    if (buildingsToProcess.length === 0) continue;
                 }
 
-                if (buildingsToProcess.length === 0 && unitsToProcess.length === 0) continue;
+                const minF = APPLY_RATE_TO_ALL_FLOORS ? 0 : fromFloor;
+                const maxF = APPLY_RATE_TO_ALL_FLOORS ? 100 : toFloor;
 
                 for (const task of taskKeys) {
                     const rateValue = row[task];
@@ -174,54 +174,54 @@ async function runImport() {
                         rate = isNaN(parsed) ? 0 : parsed;
                     }
 
-                    // Process Building-wide rates
                     for (const bName of buildingsToProcess) {
-                        const payload = {
-                            projectId: currentProject._id.toString(), // Fix: Store as strong
+                        bulkPayloads.push({
+                            projectId: currentProject._id.toString(),
                             category: currentCategory,
                             subCategory: (task || '').trim(),
                             buildingName: bName,
-                            unitType: unitType,
-                            minFloor: fromFloor,
-                            maxFloor: toFloor,
+                            unitType,
+                            minFloor: minF,
+                            maxFloor: maxF,
                             unitNumber: null,
-                            rate: rate,
-                            updated: new Date(),
+                            rate,
                             removed: false,
                             enabled: true,
                             isConsolidated: false,
                             componentActivities: []
-                        };
-                        await new WorkRate(payload).save();
-                        totalImported++;
+                        });
                     }
 
-                    // Process Unit-specific rates (Duplex)
                     for (const uName of unitsToProcess) {
-                        const payload = {
-                            projectId: currentProject._id.toString(), // Fix: Store as string
+                        bulkPayloads.push({
+                            projectId: currentProject._id.toString(),
                             category: currentCategory,
                             subCategory: (task || '').trim(),
                             buildingName: null,
-                            unitType: unitType,
-                            minFloor: fromFloor,
-                            maxFloor: toFloor,
+                            unitType,
+                            minFloor: APPLY_RATE_TO_ALL_FLOORS ? 0 : fromFloor,
+                            maxFloor: APPLY_RATE_TO_ALL_FLOORS ? 100 : toFloor,
                             unitNumber: uName,
-                            rate: rate,
-                            updated: new Date(),
+                            rate,
                             removed: false,
                             enabled: true,
                             isConsolidated: false,
                             componentActivities: []
-                        };
-                        await new WorkRate(payload).save();
-                        totalImported++;
+                        });
                     }
                 }
             }
         }
 
-        console.log(`\n✅ Import Complete! Total: ${totalImported}`);
+        const BATCH = 500;
+        let totalImported = 0;
+        for (let i = 0; i < bulkPayloads.length; i += BATCH) {
+            const chunk = bulkPayloads.slice(i, i + BATCH);
+            await WorkRate.insertMany(chunk);
+            totalImported += chunk.length;
+        }
+
+        console.log(`\n✅ Import complete. Total rates imported: ${totalImported}`);
         process.exit(0);
     } catch (error) {
         console.error('🔥 Fatal Error:', error);

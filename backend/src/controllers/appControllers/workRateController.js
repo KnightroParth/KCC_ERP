@@ -30,7 +30,7 @@ const workRateController = {
     listAll: async (req, res) => {
         try {
             const Model = mongoose.model('WorkRate');
-            const { projectId, category } = req.query;
+            const { projectId, category, contractorId } = req.query;
             const rawProjectId = typeof projectId === 'string' ? projectId.trim() : (projectId ?? '');
             let query = { removed: false };
 
@@ -62,6 +62,11 @@ const workRateController = {
             }
 
             if (category) query.category = category;
+            if (contractorId) {
+                const cid = contractorId.toString().trim();
+                if (mongoose.Types.ObjectId.isValid(cid)) query.contractorId = new mongoose.Types.ObjectId(cid);
+                else query.contractorId = cid;
+            }
             const docs = await Model.find(query).sort({ category: 1, subCategory: 1 }).lean().exec();
             return res.status(200).json({ success: true, result: docs, message: 'Successfully found all documents' });
         } catch (error) {
@@ -159,6 +164,7 @@ const workRateController = {
                             subCategory: match.subCategory,
                             isConsolidated: true,
                             note: match.activityNote || `Includes bundled activities: ${(match.componentActivities || []).filter((c) => c !== actName).join(', ')}`,
+                            incrementRule: match.incrementRule || { isActive: false, percentageIncrement: 0 },
                         },
                         message: 'Rate found from consolidated bundle',
                     });
@@ -187,6 +193,7 @@ const workRateController = {
                             subCategory: match.subCategory,
                             isConsolidated: true,
                             note: match.activityNote || `Part of bundled rate: ${match.subCategory}`,
+                            incrementRule: match.incrementRule || { isActive: false, percentageIncrement: 0 },
                         },
                         message: 'Rate found from consolidated bundle',
                     });
@@ -196,7 +203,7 @@ const workRateController = {
             if (!match) {
                 return res.status(200).json({
                     success: true,
-                    result: { rate: 0, subCategory: null, isConsolidated: false, note: null },
+                    result: { rate: 0, subCategory: null, isConsolidated: false, note: null, incrementRule: { isActive: false, percentageIncrement: 0 } },
                     message: 'No rate found for this activity',
                 });
             }
@@ -208,6 +215,7 @@ const workRateController = {
                     subCategory: match.subCategory,
                     isConsolidated: !!match.isConsolidated,
                     note: match.isConsolidated ? match.activityNote : null,
+                    incrementRule: match.incrementRule || { isActive: false, percentageIncrement: 0 },
                 },
                 message: 'Rate found',
             });

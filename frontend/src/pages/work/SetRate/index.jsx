@@ -1,7 +1,7 @@
 // frontend/src/pages/work/SetRate/index.jsx
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { Layout, Select, Card, Table, InputNumber, Row, Col, message, Typography, Button, Space, Upload } from 'antd';
+import { Layout, Select, Card, Table, InputNumber, Row, Col, message, Typography, Button, Space, Upload, Switch, Tag } from 'antd';
 import { useSelector } from 'react-redux';
 import { selectCurrentProject, selectShouldLockProject } from '@/redux/erp/selectors';
 import request from '@/request/request';
@@ -11,11 +11,14 @@ import { SaveOutlined, UploadOutlined } from '@ant-design/icons';
 import axios from 'axios';
 import storePersist from '@/redux/storePersist';
 import { API_BASE_URL } from '@/config/serverApiConfig';
+import { calculateDynamicRate, parseFloorStringToInt } from '@/utils/calculate';
 import './setrate_styles.css';
 
 const { Content } = Layout;
 const { Option } = Select;
 const { Title, Text } = Typography;
+const INCREMENT_MIN = 1;
+const INCREMENT_MAX = 30;
 
 const subCategoryMatches = (wrSub, task) => {
     if (wrSub === task) return true;
@@ -35,10 +38,16 @@ export default function SetRate() {
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
 
+    const [contractors, setContractors] = useState([]);
     const [selectedProject, setSelectedProject] = useState(null);
     const [selectedBuilding, setSelectedBuilding] = useState(null);
     const [selectedCategory, setSelectedCategory] = useState(null);
     const [selectedFloor, setSelectedFloor] = useState(null);
+    const [selectedContractor, setSelectedContractor] = useState(null);
+
+    /** Category-level floor increment: applies to all activities under this Work Type for the selected contractor */
+    const [floorIncrementEnabled, setFloorIncrementEnabled] = useState(false);
+    const [floorIncrementPercent, setFloorIncrementPercent] = useState(5);
 
     const [tableData, setTableData] = useState([]);
     const [importing, setImporting] = useState(false);
@@ -53,6 +62,9 @@ export default function SetRate() {
 
                 const unitsResult = await assignWork.fetchUnits();
                 if (unitsResult.success) setUnitsList(unitsResult.result || []);
+
+                const vendorRes = await request.listAll({ entity: 'vendor', options: { enabled: true } });
+                if (vendorRes?.result) setContractors(vendorRes.result);
 
                 if (shouldLockProject && currentProject) {
                     setSelectedProject(currentProject);
@@ -108,14 +120,12 @@ export default function SetRate() {
         if (selectedProject) {
             setLoading(true);
             try {
-                console.log('Fetching rates for project:', selectedProject.name, selectedProject._id);
                 const projectIdParam = (selectedProject._id ?? selectedProject.id)?.toString?.() ?? selectedProject._id ?? selectedProject.id ?? selectedProject.projectCode ?? '';
                 const res = await request.listAll({
                     entity: 'workrate',
                     options: { projectId: projectIdParam }
                 });
                 if (res.success) {
-                    console.log(`Successfully fetched ${res.result?.length || 0} work rates.`);
                     setWorkRates(res.result || []);
                 } else {
                     console.error('Failed to fetch work rates:', res.message);
@@ -130,7 +140,20 @@ export default function SetRate() {
 
     useEffect(() => {
         fetchRates();
-    }, [selectedProject]);
+    }, [selectedProject, selectedContractor]);
+
+    // When category or work rates change, sync category-level increment from first matching rate
+    useEffect(() => {
+        if (!selectedCategory || workRates.length === 0) return;
+        const normalizeCat = (s) => (s ? String(s).replace(/\s+/g, ' ').trim().toLowerCase() : '');
+        const catNorm = normalizeCat(selectedCategory.label);
+        const match = workRates.find((wr) => normalizeCat(wr.category) === catNorm && wr.incrementRule);
+        if (match?.incrementRule) {
+            setFloorIncrementEnabled(!!match.incrementRule.isActive);
+            const pct = match.incrementRule.percentageIncrement;
+            setFloorIncrementPercent(typeof pct === 'number' && pct >= INCREMENT_MIN && pct <= INCREMENT_MAX ? pct : 5);
+        }
+    }, [selectedCategory?.label, workRates]);
 
     // Prepare table data
     useEffect(() => {
@@ -168,9 +191,16 @@ export default function SetRate() {
                 const normalizeCat = (s) => (s ? String(s).replace(/\s+/g, ' ').trim().toLowerCase() : '');
                 const selCatNorm = normalizeCat(selectedCategory.label);
 
+                const expectedCid = selectedContractor ? (selectedContractor._id ?? selectedContractor) : null;
                 selectedCategory.fields.forEach(task => {
                     const taskNorm = normalizeCat(task);
                     const candidates = workRates.filter((wr) => {
+                        const wrCid = wr.contractorId?._id ?? wr.contractorId;
+                        if (expectedCid != null) {
+                            if (wrCid != null && String(wrCid) !== String(expectedCid)) return false;
+                        } else {
+                            if (wrCid != null) return false;
+                        }
                         const wrSub = normalizeCat(wr.subCategory);
                         let isTaskMatch = wrSub === taskNorm;
                         if (!isTaskMatch) {
@@ -195,6 +225,18 @@ export default function SetRate() {
                         return true;
                     });
 
+                    if (expectedCid != null && candidates.length > 1) {
+                        candidates.sort((a, b) => {
+                            const aC = a.contractorId?._id ?? a.contractorId;
+                            const bC = b.contractorId?._id ?? b.contractorId;
+                            const aMatch = aC != null && String(aC) === String(expectedCid);
+                            const bMatch = bC != null && String(bC) === String(expectedCid);
+                            if (aMatch && !bMatch) return -1;
+                            if (!aMatch && bMatch) return 1;
+                            return 0;
+                        });
+                    }
+
                     const wrNorm = (w) => normalizeUnitType(w?.unitType);
                     const hasRate = (wr) => typeof wr.rate === 'number' && !Number.isNaN(wr.rate) && wr.rate > 0;
                     const exactUnitType = candidates.find((wr) => unitTypeNorm && wrNorm(wr) === unitTypeNorm);
@@ -216,7 +258,7 @@ export default function SetRate() {
         } else {
             setTableData([]);
         }
-    }, [selectedProject, selectedBuilding, selectedCategory, selectedFloor, unitsList, workRates]);
+    }, [selectedProject, selectedBuilding, selectedCategory, selectedFloor, unitsList, workRates, selectedContractor]);
 
     const handleImportExcel = async (file) => {
         setImporting(true);
@@ -263,17 +305,26 @@ export default function SetRate() {
         if (!selectedProject || !selectedCategory) return;
         setSaving(true);
         try {
+            const contractorIdVal = selectedContractor ? (selectedContractor._id ?? selectedContractor) : null;
+            const incrementRule = {
+                isActive: floorIncrementEnabled,
+                percentageIncrement: floorIncrementEnabled ? Math.min(INCREMENT_MAX, Math.max(INCREMENT_MIN, floorIncrementPercent)) : 0,
+            };
             const promises = [];
             for (const row of tableData) {
                 for (const task of selectedCategory.fields) {
                     const currentRate = row[task];
 
-                    // Check if rate already exists for this exact unit and task (incl. alias match)
                     const pidMatch = (id) => id === selectedProject._id || id === selectedProject.projectCode;
+                    const cidMatch = (wr) => {
+                        const wc = wr.contractorId?._id ?? wr.contractorId;
+                        return (wc == null && contractorIdVal == null) || (wc != null && String(wc) === String(contractorIdVal));
+                    };
                     const existing = workRates.find(wr =>
                         subCategoryMatches(wr.subCategory, task) &&
                         wr.unitNumber === row.unitNumber &&
-                        pidMatch(wr.projectId)
+                        pidMatch(wr.projectId) &&
+                        cidMatch(wr)
                     );
 
                     const payload = {
@@ -284,11 +335,16 @@ export default function SetRate() {
                         buildingName: selectedBuilding,
                         unitType: row.unitType,
                         floor: row.floor,
-                        rate: currentRate || 0
+                        rate: currentRate || 0,
+                        ...(contractorIdVal ? { contractorId: contractorIdVal } : {}),
+                        incrementRule,
                     };
 
                     if (existing) {
-                        if (existing.rate !== currentRate) {
+                        const rateChanged = existing.rate !== currentRate;
+                        const incChanged = (existing.incrementRule?.isActive !== incrementRule.isActive) ||
+                            (existing.incrementRule?.percentageIncrement !== incrementRule.percentageIncrement);
+                        if (rateChanged || incChanged) {
                             promises.push(request.update({ entity: 'workrate', id: existing._id, jsonData: payload }));
                         }
                     } else if (currentRate > 0) {
@@ -319,42 +375,64 @@ export default function SetRate() {
                 dataIndex: 'unitNumber',
                 key: 'unitNumber',
                 fixed: 'left',
-                width: 120,
+                width: 72,
                 sorter: (a, b) => a.unitNumber.localeCompare(b.unitNumber, undefined, { numeric: true }),
             }
         ];
 
         if (selectedCategory) {
+            const incrementRule = floorIncrementEnabled && floorIncrementPercent > 0
+                ? { isActive: true, percentageIncrement: floorIncrementPercent }
+                : null;
             selectedCategory.fields.forEach(task => {
                 baseCols.push({
                     title: task,
                     key: task,
-                    render: (_, record) => (
-                        <InputNumber
-                            min={0}
-                            step={0.01}
-                            value={record[task]}
-                            onChange={(val) => handleRateChange(record.unitNumber, task, val)}
-                            style={{ width: '100%' }}
-                        />
-                    ),
-                    width: 150
+                    render: (_, record) => {
+                        const baseRate = record[task] ?? 0;
+                        const floorNum = parseFloorStringToInt(record.floor);
+                        const effectiveRate = incrementRule && floorNum > 0
+                            ? calculateDynamicRate(baseRate, record.floor, incrementRule)
+                            : baseRate;
+                        const pctApplied = incrementRule && floorNum > 0 ? floorNum * floorIncrementPercent : 0;
+                        if (incrementRule && floorNum > 0) {
+                            return (
+                                <div>
+                                    <Text strong style={{ fontSize: 12 }}>₹{Number(effectiveRate).toFixed(2)}</Text>
+                                    <div style={{ fontSize: 10, color: '#666', marginTop: 2 }}>
+                                        Base ₹{Number(baseRate).toFixed(0)} +{pctApplied}% (Flr {floorNum})
+                                    </div>
+                                </div>
+                            );
+                        }
+                        return (
+                            <InputNumber
+                                size="small"
+                                min={0}
+                                step={0.01}
+                                value={baseRate}
+                                onChange={(val) => handleRateChange(record.unitNumber, task, val)}
+                                style={{ width: '100%' }}
+                            />
+                        );
+                    },
+                    width: 100
                 });
             });
         }
 
         return baseCols;
-    }, [selectedCategory, tableData]);
+    }, [selectedCategory, tableData, floorIncrementEnabled, floorIncrementPercent]);
 
     return (
         <Layout className="setrate-layout">
             <Content className="setrate-content">
-                <div style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
+                <div className="setrate-header">
                     <div>
-                        <Title level={2} style={{ margin: 0 }}>Set Rate</Title>
-                        <Text type="secondary">Define base checklist rates for units</Text>
+                        <Title level={5} className="setrate-title">Set Rate</Title>
+                        <Text className="setrate-subtitle">Define base checklist rates for units</Text>
                     </div>
-                    <Space>
+                    <Space size="small">
                         <Upload
                             accept=".xlsx,.xls,.csv"
                             showUploadList={false}
@@ -370,8 +448,8 @@ export default function SetRate() {
                                 return false;
                             }}
                         >
-                            <Button icon={<UploadOutlined />} loading={importing} size="large">
-                                Import from Excel
+                            <Button icon={<UploadOutlined />} loading={importing} size="small">
+                                Import
                             </Button>
                         </Upload>
                         <Button
@@ -380,34 +458,37 @@ export default function SetRate() {
                             onClick={handleSave}
                             loading={saving}
                             disabled={tableData.length === 0}
-                            size="large"
+                            size="small"
                         >
-                            Save All Rates
+                            Save
                         </Button>
                     </Space>
                 </div>
 
                 <Card className="filter-card" bordered={false}>
-                    <Row gutter={[16, 16]}>
-                        <Col xs={24} sm={12} md={6}>
-                            <Text strong>Project</Text>
+                    <Row gutter={[8, 6]} align="middle">
+                        <Col xs={12} sm={8} md={6} lg={4}>
+                            <span className="filter-label">Project</span>
                             <Select
-                                style={{ width: '100%', marginTop: 8 }}
-                                placeholder="Select Project"
+                                size="small"
+                                style={{ width: '100%' }}
+                                placeholder="Project"
                                 value={selectedProject?._id}
                                 onChange={(val) => setSelectedProject(projects.find(p => p._id === val))}
                                 disabled={shouldLockProject}
+                                allowClear={false}
                             >
                                 {projects.map(p => (
                                     <Option key={p._id} value={p._id}>{p.name}</Option>
                                 ))}
                             </Select>
                         </Col>
-                        <Col xs={24} sm={12} md={6}>
-                            <Text strong>Building</Text>
+                        <Col xs={12} sm={8} md={6} lg={4}>
+                            <span className="filter-label">Building</span>
                             <Select
-                                style={{ width: '100%', marginTop: 8 }}
-                                placeholder="Select Building"
+                                size="small"
+                                style={{ width: '100%' }}
+                                placeholder="Building"
                                 value={selectedBuilding}
                                 onChange={setSelectedBuilding}
                                 allowClear
@@ -417,11 +498,27 @@ export default function SetRate() {
                                 ))}
                             </Select>
                         </Col>
-                        <Col xs={24} sm={12} md={6}>
-                            <Text strong>Work Type</Text>
+                        <Col xs={12} sm={8} md={6} lg={4}>
+                            <span className="filter-label">Contractor</span>
                             <Select
-                                style={{ width: '100%', marginTop: 8 }}
-                                placeholder="Select Work Type"
+                                size="small"
+                                style={{ width: '100%' }}
+                                placeholder="All"
+                                value={selectedContractor?._id}
+                                onChange={(val) => setSelectedContractor(val ? contractors.find(c => (c._id ?? c.id) === val) : null)}
+                                allowClear
+                            >
+                                {contractors.map(c => (
+                                    <Option key={c._id ?? c.id} value={c._id ?? c.id}>{c.name}</Option>
+                                ))}
+                            </Select>
+                        </Col>
+                        <Col xs={12} sm={8} md={6} lg={4}>
+                            <span className="filter-label">Work Type</span>
+                            <Select
+                                size="small"
+                                style={{ width: '100%' }}
+                                placeholder="Work Type"
                                 value={selectedCategory?.id}
                                 onChange={(val) => setSelectedCategory(WORK_CATEGORIES.find(c => c.id === val))}
                             >
@@ -430,11 +527,12 @@ export default function SetRate() {
                                 ))}
                             </Select>
                         </Col>
-                        <Col xs={24} sm={12} md={6}>
-                            <Text strong>Floor</Text>
+                        <Col xs={12} sm={8} md={6} lg={3}>
+                            <span className="filter-label">Floor</span>
                             <Select
-                                style={{ width: '100%', marginTop: 8 }}
-                                placeholder="All Floors"
+                                size="small"
+                                style={{ width: '100%' }}
+                                placeholder="All"
                                 value={selectedFloor}
                                 onChange={setSelectedFloor}
                                 allowClear
@@ -447,15 +545,46 @@ export default function SetRate() {
                     </Row>
                 </Card>
 
+                {selectedCategory && (
+                    <Card size="small" bordered={false} className="increment-rule-card">
+                        <Row gutter={[8, 0]} align="middle" wrap={false}>
+                            <Col flex="none">
+                                <Text strong style={{ fontSize: 12 }}>Floor increment for {selectedCategory.label}</Text>
+                            </Col>
+                            <Col>
+                                <Switch
+                                    size="small"
+                                    checked={floorIncrementEnabled}
+                                    onChange={setFloorIncrementEnabled}
+                                />
+                            </Col>
+                            {floorIncrementEnabled && (
+                                <Col>
+                                    <InputNumber
+                                        size="small"
+                                        min={INCREMENT_MIN}
+                                        max={INCREMENT_MAX}
+                                        step={0.5}
+                                        value={floorIncrementPercent}
+                                        onChange={(v) => setFloorIncrementPercent(v != null ? v : 5)}
+                                        style={{ width: 64 }}
+                                    />
+                                    <Text type="secondary" style={{ marginLeft: 4, fontSize: 11 }}>% (Flr 1+)</Text>
+                                </Col>
+                            )}
+                        </Row>
+                    </Card>
+                )}
+
                 <Card className="table-card" bordered={false}>
                     <Table
                         columns={columns}
                         dataSource={tableData}
                         loading={loading}
-                        pagination={{ pageSize: 50 }}
-                        scroll={{ x: 'max-content', y: 600 }}
+                        pagination={{ pageSize: 50, size: 'small' }}
+                        scroll={{ x: 'max-content', y: 'calc(100vh - 280px)' }}
                         bordered
-                        size="middle"
+                        size="small"
                     />
                 </Card>
             </Content>

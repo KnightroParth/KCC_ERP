@@ -41,6 +41,13 @@ const WorkRateSchema = new mongoose.Schema(
             trim: true,
             index: true,
         },
+        /** Optional: when set, this rate and increment apply to this contractor only */
+        contractorId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'Vendor',
+            default: null,
+            index: true,
+        },
         unitNumber: {
             type: String,
             trim: true,
@@ -72,6 +79,11 @@ const WorkRateSchema = new mongoose.Schema(
         activityNote: {
             type: String,
             trim: true,
+        },
+        /** Floor-based percentage increment: applies from First floor upward (contractor-specific) */
+        incrementRule: {
+            isActive: { type: Boolean, default: false },
+            percentageIncrement: { type: Number, default: 0, min: 0, max: 30 },
         },
         created: {
             type: Date,

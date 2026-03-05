@@ -5,6 +5,7 @@ import { ExportOutlined, SendOutlined, PauseCircleOutlined, StopOutlined } from 
 import dayjs from 'dayjs';
 import request from '@/request/request';
 import { HOLD_REASONS } from '@/config/workConfig';
+import { calculateDynamicRate, parseFloorStringToInt } from '@/utils/calculate';
 
 /**
  * Flatten a potentially nested checklist data object into [{ label, value, checked }] pairs.
@@ -92,6 +93,21 @@ export default function AuditCheck({
       .finally(() => setLoading(false));
   }, [weekEnd, projectId, contractorId]);
 
+  const getEffectiveRate = (r) => {
+    const base = r?.rate ?? 0;
+    return calculateDynamicRate(base, r?.floor, r?.incrementRule);
+  };
+
+  /** For UI: cumulative tier label e.g. "(Base) + 10%" for floor 2 with 5% per floor */
+  const getIncrementTierLabel = (r) => {
+    const rule = r?.incrementRule;
+    if (!rule?.isActive || !rule?.percentageIncrement) return null;
+    const floor = parseFloorStringToInt(r?.floor);
+    if (floor <= 0) return null;
+    const pct = floor * rule.percentageIncrement;
+    return `(Base) + ${pct}% (Flr ${floor})`;
+  };
+
   const columns = [
     {
       title: 'Activity Name',
@@ -112,7 +128,18 @@ export default function AuditCheck({
       key: 'rate',
       width: 100,
       align: 'right',
-      render: (v) => (v != null ? Number(v).toFixed(2) : '-'),
+      render: (_, r) => {
+        const rate = getEffectiveRate(r);
+        const tierLabel = getIncrementTierLabel(r);
+        const cell = rate != null ? Number(rate).toFixed(2) : '-';
+        return tierLabel ? (
+          <Tooltip title={tierLabel}>
+            <span>{cell}</span>
+          </Tooltip>
+        ) : (
+          cell
+        );
+      },
     },
     {
       title: 'Qty',
@@ -129,7 +156,7 @@ export default function AuditCheck({
       align: 'right',
       render: (_, r) => {
         const qty = r.qty ?? 1;
-        const rate = r.rate ?? 0;
+        const rate = getEffectiveRate(r);
         return (qty * rate).toFixed(2);
       },
     },
@@ -155,7 +182,7 @@ export default function AuditCheck({
   };
 
   const selectedRows = data.filter((r) => selectedRowKeys.includes(r._id));
-  const grossTotal = selectedRows.reduce((sum, r) => sum + ((r.qty ?? 1) * (r.rate ?? 0)), 0);
+  const grossTotal = selectedRows.reduce((sum, r) => sum + (r.qty ?? 1) * getEffectiveRate(r), 0);
   const canSend = selectedRows.length > 0 && !disabled;
 
   const handleExport = () => {
@@ -163,8 +190,9 @@ export default function AuditCheck({
     const rows = data.map((r) => {
       const loc = [r.buildingName, r.floor, r.unitNumber].filter(Boolean).join(' / ');
       const qty = r.qty ?? 1;
-      const amount = (qty * (r.rate ?? 0)).toFixed(2);
-      return [r.workType || r.category || '', loc, r.rate ?? '', qty, amount];
+      const rate = getEffectiveRate(r);
+      const amount = (qty * rate).toFixed(2);
+      return [r.workType || r.category || '', loc, rate.toFixed(2), qty, amount];
     });
     const csv = [headers.join(','), ...rows.map((row) => row.join(','))].join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -186,7 +214,7 @@ export default function AuditCheck({
 
       const items = selectedRows.map((r) => {
         const qty = r.qty ?? 1;
-        const rate = r.rate ?? 0;
+        const rate = getEffectiveRate(r);
         const itemName = [r.workType || r.category, r.buildingName, r.unitNumber].filter(Boolean).join(' - ');
         return {
           itemName,
@@ -244,7 +272,7 @@ export default function AuditCheck({
     const weekStartDate = we.subtract(6, 'day').toISOString();
     const items = selectedRows.map((r) => {
       const qty = r.qty ?? 1;
-      const rate = r.rate ?? 0;
+      const rate = getEffectiveRate(r);
       const itemName = [r.workType || r.category, r.buildingName, r.unitNumber].filter(Boolean).join(' - ');
       return {
         itemName,

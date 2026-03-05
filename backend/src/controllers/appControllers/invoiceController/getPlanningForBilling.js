@@ -5,6 +5,7 @@ const Invoice = mongoose.model('Invoice');
 const Activities = mongoose.model('Activities');
 const Units = mongoose.model('Units');
 const Project = mongoose.model('Project');
+const WorkRate = mongoose.model('WorkRate');
 
 /**
  * GET /invoice/planning-for-billing
@@ -108,6 +109,10 @@ const getPlanningForBilling = async (req, res) => {
   projectIdsOrCodes.forEach((id) => {
     if (!projectIdToCode[id] && !isValidObjectId(id)) projectIdToCode[id] = id; // already a projectCode
   });
+  const codeToPid = {};
+  Object.entries(projectIdToCode).forEach(([pid, code]) => {
+    codeToPid[code] = pid;
+  });
 
   // Build (projectIdOrCode, buildingName, unitNumber) -> unitId so we match the correct unit per building
   const unitKeys = new Set();
@@ -181,6 +186,44 @@ const getPlanningForBilling = async (req, res) => {
     acc.push({ ...pw, activityData: { data: activityMeta.data || {}, photos: activityMeta.photos || {} } });
     return acc;
   }, []);
+
+  // Attach incrementRule per row from WorkRate (projectId, category = workType, contractorId)
+  const uniqueCategories = [...new Set(result.map((r) => (r.workType || r.category || '').trim()).filter(Boolean))];
+  const incrementRuleByKey = {};
+  if (uniqueCategories.length > 0) {
+    const projectIdsForQuery = [...new Set(result.map((r) => (r.projectId && (r.projectId._id || r.projectId)).toString()).filter(Boolean))];
+    const contractorIds = [...new Set(result.map((r) => (r.contractorId && (r.contractorId._id || r.contractorId)).toString()).filter(Boolean))];
+    const wrQuery = {
+      removed: false,
+      projectId: { $in: projectIdsForQuery },
+      category: { $in: uniqueCategories },
+    };
+    const validCids = contractorIds.filter(isValidObjectId);
+    if (validCids.length > 0) {
+      wrQuery.$or = [
+        { contractorId: { $in: validCids.map((id) => new mongoose.Types.ObjectId(id)) } },
+        { contractorId: null },
+        { contractorId: { $exists: false } },
+      ];
+    }
+    const workRates = await WorkRate.find(wrQuery).select('projectId category contractorId incrementRule').lean().exec();
+    for (const wr of workRates) {
+      const wrPid = (wr.projectId && (wr.projectId.toString && wr.projectId.toString()) || String(wr.projectId));
+      const pid = isValidObjectId(wrPid) ? wrPid : (codeToPid[wrPid] || wrPid);
+      const cid = (wr.contractorId && (wr.contractorId.toString && wr.contractorId.toString()) || String(wr.contractorId || ''));
+      const cat = (wr.category || '').trim();
+      const key = `${pid}|${cid}|${cat}`;
+      incrementRuleByKey[key] = wr.incrementRule || { isActive: false, percentageIncrement: 0 };
+    }
+  }
+  for (const row of result) {
+    const pid = (row.projectId && (row.projectId._id || row.projectId)).toString();
+    const cid = (row.contractorId && (row.contractorId._id || row.contractorId)).toString();
+    const cat = (row.workType || row.category || '').trim();
+    const key = `${pid}|${cid}|${cat}`;
+    const keyProjectLevel = `${pid}||${cat}`;
+    row.incrementRule = incrementRuleByKey[key] || incrementRuleByKey[keyProjectLevel] || { isActive: false, percentageIncrement: 0 };
+  }
 
   return res.status(200).json({
     success: true,
