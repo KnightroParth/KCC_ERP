@@ -35,6 +35,11 @@ export default function UnitsTable({ data, onRefresh }) {
             basePrice: record.basePrice,
             status: record.status,
             buyerName: record.ownerName,
+            constructionUnitType: record.constructionUnitType,
+            chatursimaEast: record.chatursima?.east,
+            chatursimaWest: record.chatursima?.west,
+            chatursimaNorth: record.chatursima?.north,
+            chatursimaSouth: record.chatursima?.south,
         });
         setIsEditModalOpen(true);
     };
@@ -42,10 +47,23 @@ export default function UnitsTable({ data, onRefresh }) {
     const handleEditSubmit = async (values) => {
         try {
             setSubmitting(true);
+            const payload = {
+                ...values,
+                chatursima: {
+                    east: values.chatursimaEast,
+                    west: values.chatursimaWest,
+                    north: values.chatursimaNorth,
+                    south: values.chatursimaSouth,
+                },
+            };
+            delete payload.chatursimaEast;
+            delete payload.chatursimaWest;
+            delete payload.chatursimaNorth;
+            delete payload.chatursimaSouth;
             const result = await request.update({
                 entity: 'unit',
                 id: editingUnit._id,
-                jsonData: values
+                jsonData: payload
             });
 
             if (result.success) {
@@ -115,6 +133,13 @@ export default function UnitsTable({ data, onRefresh }) {
             key: 'areaSqft',
             width: 130,
             render: (text) => text ? text.toLocaleString('en-IN') : '-',
+        },
+        {
+            title: 'Construction Unit Type',
+            dataIndex: 'constructionUnitType',
+            key: 'constructionUnitType',
+            width: 180,
+            render: (text, record) => (record?.constructionUnitType ?? text ?? '-') || '-',
         },
         {
             title: 'Base Price',
@@ -204,6 +229,32 @@ export default function UnitsTable({ data, onRefresh }) {
         },
     ];
 
+    const expandedRowRender = (record) => {
+        const c = record.chatursima || {};
+        const east = c.east ?? '';
+        const west = c.west ?? '';
+        const north = c.north ?? '';
+        const south = c.south ?? '';
+        const hasAny = east || west || north || south;
+        return (
+            <div style={{ padding: '12px 16px', background: '#fafafa', maxWidth: 560 }}>
+                <div style={{ fontWeight: 600, marginBottom: 8 }}>Chatursima (boundaries)</div>
+                {hasAny ? (
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                        <tbody>
+                            <tr><td style={{ padding: '4px 12px 4px 0', color: '#666', width: 72 }}>East</td><td style={{ padding: 4 }}>{east || '–'}</td></tr>
+                            <tr><td style={{ padding: '4px 12px 4px 0', color: '#666' }}>West</td><td style={{ padding: 4 }}>{west || '–'}</td></tr>
+                            <tr><td style={{ padding: '4px 12px 4px 0', color: '#666' }}>North</td><td style={{ padding: 4 }}>{north || '–'}</td></tr>
+                            <tr><td style={{ padding: '4px 12px 4px 0', color: '#666' }}>South</td><td style={{ padding: 4 }}>{south || '–'}</td></tr>
+                        </tbody>
+                    </table>
+                ) : (
+                    <span style={{ color: '#8c8c8c' }}>No chatursima details.</span>
+                )}
+            </div>
+        );
+    };
+
     return (
         <>
             <Table
@@ -213,6 +264,7 @@ export default function UnitsTable({ data, onRefresh }) {
                 style={{ marginTop: 20 }}
                 pagination={{ pageSize: 20 }}
                 scroll={{ x: 'max-content', y: 600 }}
+                expandable={{ expandedRowRender }}
                 footer={() => (
                     <div style={{ textAlign: 'right', fontWeight: 600, paddingRight: 12 }}>
                         Total Units: {Array.isArray(data) ? data.length : 0}
@@ -307,6 +359,30 @@ export default function UnitsTable({ data, onRefresh }) {
                         label="Buyer Name (Optional)"
                     >
                         <Input placeholder="Buyer name if sold" />
+                    </Form.Item>
+
+                    <Form.Item
+                        name="constructionUnitType"
+                        label="Construction Unit Type"
+                    >
+                        <Input placeholder="e.g., Flat, Duplex" />
+                    </Form.Item>
+
+                    <Form.Item label="Chatursima (Boundaries)">
+                        <Input.Group compact>
+                            <Form.Item name="chatursimaEast" noStyle>
+                                <Input placeholder="East" style={{ width: '25%' }} />
+                            </Form.Item>
+                            <Form.Item name="chatursimaWest" noStyle>
+                                <Input placeholder="West" style={{ width: '25%' }} />
+                            </Form.Item>
+                            <Form.Item name="chatursimaNorth" noStyle>
+                                <Input placeholder="North" style={{ width: '25%' }} />
+                            </Form.Item>
+                            <Form.Item name="chatursimaSouth" noStyle>
+                                <Input placeholder="South" style={{ width: '25%' }} />
+                            </Form.Item>
+                        </Input.Group>
                     </Form.Item>
 
                     <Form.Item style={{ marginBottom: 0, textAlign: 'right' }}>

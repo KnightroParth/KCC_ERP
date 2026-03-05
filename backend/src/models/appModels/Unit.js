@@ -42,6 +42,16 @@ const UnitSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
+    constructionUnitType: {
+      type: String,
+      trim: true,
+    },
+    chatursima: {
+      east: { type: String, trim: true },
+      west: { type: String, trim: true },
+      north: { type: String, trim: true },
+      south: { type: String, trim: true },
+    },
     areaSqft: {
       type: Number,
       required: true,

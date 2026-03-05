@@ -16,6 +16,16 @@ const UnitsSchema = new mongoose.Schema(
     floorNumber: { type: Number }, // For frontend compatibility
 
     unitType: { type: String },
+    constructionUnitType: {
+      type: String,
+      trim: true,
+    },
+    chatursima: {
+      east: { type: String, trim: true },
+      west: { type: String, trim: true },
+      north: { type: String, trim: true },
+      south: { type: String, trim: true },
+    },
     carpetArea: { type: Number },
     saleableArea: { type: Number },
     areaSqft: { type: Number }, // For frontend compatibility

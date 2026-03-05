@@ -178,6 +178,15 @@ export default function Units() {
         basePrice: values.ratePerSqft,
         status: values.status,
         ownerName: values.ownerName,
+        constructionUnitType: values.constructionUnitType,
+        chatursima: values.chatursimaEast || values.chatursimaWest || values.chatursimaNorth || values.chatursimaSouth
+          ? {
+              east: values.chatursimaEast,
+              west: values.chatursimaWest,
+              north: values.chatursimaNorth,
+              south: values.chatursimaSouth,
+            }
+          : undefined,
       };
 
       const result = await request.create({ entity: "unit", jsonData: unitData });
@@ -536,6 +545,30 @@ export default function Units() {
             rules={[{ required: true, message: 'Please enter area' }]}
           >
             <InputNumber min={0} step={0.01} placeholder="e.g., 1220" />
+          </Form.Item>
+
+          <Form.Item
+            name="constructionUnitType"
+            label="Construction Unit Type"
+          >
+            <Input placeholder="e.g., Flat, Duplex" />
+          </Form.Item>
+
+          <Form.Item label="Chatursima (Boundaries)">
+            <Input.Group compact>
+              <Form.Item name="chatursimaEast" noStyle>
+                <Input placeholder="East" style={{ width: '25%' }} />
+              </Form.Item>
+              <Form.Item name="chatursimaWest" noStyle>
+                <Input placeholder="West" style={{ width: '25%' }} />
+              </Form.Item>
+              <Form.Item name="chatursimaNorth" noStyle>
+                <Input placeholder="North" style={{ width: '25%' }} />
+              </Form.Item>
+              <Form.Item name="chatursimaSouth" noStyle>
+                <Input placeholder="South" style={{ width: '25%' }} />
+              </Form.Item>
+            </Input.Group>
           </Form.Item>
 
           <Form.Item

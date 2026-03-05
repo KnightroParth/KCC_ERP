@@ -10,13 +10,14 @@ const isValidAuthToken = require("../../controllers/middlewaresControllers/creat
 // Protect ALL units routes
 router.use(isValidAuthToken);
 
-// List all units
+// List all units (full documents including constructionUnitType, chatursima)
 router.get("/listAll", async (req, res) => {
   try {
-    const units = await Units.find().populate("projectId", "name projectCode");
-    res.json(units);
+    const units = await Units.find({ removed: { $ne: true } })
+      .lean();
+    res.status(200).json({ success: true, result: units });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ success: false, result: null, message: error.message });
   }
 });
 

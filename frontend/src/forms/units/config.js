@@ -58,6 +58,17 @@ export const fields = {
     required: false,
   },
 
+  constructionUnitType: {
+    type: "text",
+    label: "Construction Unit Type",
+    required: false,
+  },
+
+  chatursimaEast: { type: "text", label: "Chatursima East", required: false },
+  chatursimaWest: { type: "text", label: "Chatursima West", required: false },
+  chatursimaNorth: { type: "text", label: "Chatursima North", required: false },
+  chatursimaSouth: { type: "text", label: "Chatursima South", required: false },
+
   ratePerSqft: {
     type: "number",
     label: "Base Price",
