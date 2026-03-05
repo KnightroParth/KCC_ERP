@@ -55,6 +55,20 @@ const MivanCenteringForm = ({ data, setData }) => {
         setData({ ...data, rows: updatedRows });
     };
 
+    const handleSelectAllColumn = (colKey, checked) => {
+        const updatedRows = { ...rowData };
+        CHECK_POINTS.forEach(point => {
+            updatedRows[point] = { ...(updatedRows[point] || {}), [colKey]: checked };
+        });
+        setData({ ...data, rows: updatedRows });
+    };
+
+    const isColAllChecked = (colKey) =>
+        CHECK_POINTS.length > 0 && CHECK_POINTS.every(p => rowData[p]?.[colKey]);
+
+    const isColSomeChecked = (colKey) =>
+        !isColAllChecked(colKey) && CHECK_POINTS.some(p => rowData[p]?.[colKey]);
+
     const dataSource = CHECK_POINTS.map((point, index) => ({
         key: point,
         srNo: index + 1,
@@ -76,16 +90,27 @@ const MivanCenteringForm = ({ data, setData }) => {
         },
         ...ROOMS.map(room => ({
             title: room.name,
-            children: room.keys.map(k => ({
-                title: k,
-                width: 70,
-                render: (_, record) => (
-                    <Checkbox
-                        checked={rowData[record.key]?.[`${room.name}_${k}`]}
-                        onChange={e => handleCheck(record.key, `${room.name}_${k}`, e.target.checked)}
-                    />
-                )
-            }))
+            children: room.keys.map(k => {
+                const colKey = `${room.name}_${k}`;
+                return {
+                    title: (
+                        <Checkbox
+                            checked={isColAllChecked(colKey)}
+                            indeterminate={isColSomeChecked(colKey)}
+                            onChange={e => handleSelectAllColumn(colKey, e.target.checked)}
+                        >
+                            {k}
+                        </Checkbox>
+                    ),
+                    width: 80,
+                    render: (_, record) => (
+                        <Checkbox
+                            checked={rowData[record.key]?.[colKey]}
+                            onChange={e => handleCheck(record.key, colKey, e.target.checked)}
+                        />
+                    )
+                };
+            })
         }))
     ];
 

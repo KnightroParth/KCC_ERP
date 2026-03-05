@@ -42,6 +42,17 @@ const ElectricalWorkIForm = ({ data, setData, currentTask }) => {
         setData({ ...data, rows: updatedRows });
     };
 
+    const allChecked = checkPoints.length > 0 && checkPoints.every(p => rowData[p]?.status);
+    const someChecked = !allChecked && checkPoints.some(p => rowData[p]?.status);
+
+    const handleSelectAll = (checked) => {
+        const updatedRows = { ...rowData };
+        checkPoints.forEach(p => {
+            updatedRows[p] = { ...(updatedRows[p] || { status: false, remark: '', checkDate: null }), status: checked };
+        });
+        setData({ ...data, rows: updatedRows });
+    };
+
     const dataSource = checkPoints.map((point, index) => ({
         key: point,
         srNo: index + 1,
@@ -64,7 +75,15 @@ const ElectricalWorkIForm = ({ data, setData, currentTask }) => {
             width: 400,
         },
         {
-            title: 'Status',
+            title: (
+                <Checkbox
+                    checked={allChecked}
+                    indeterminate={someChecked}
+                    onChange={e => handleSelectAll(e.target.checked)}
+                >
+                    Status
+                </Checkbox>
+            ),
             dataIndex: 'status',
             width: 100,
             align: 'center',

@@ -22,6 +22,17 @@ const TilesForm = ({ data, setData }) => {
         setData({ ...data, rows: updatedRows });
     };
 
+    const allChecked = CHECK_POINTS.length > 0 && CHECK_POINTS.every(p => rowData[p]?.verified);
+    const someChecked = !allChecked && CHECK_POINTS.some(p => rowData[p]?.verified);
+
+    const handleSelectAll = (checked) => {
+        const updatedRows = { ...rowData };
+        CHECK_POINTS.forEach(p => {
+            updatedRows[p] = { ...(updatedRows[p] || {}), verified: checked };
+        });
+        setData({ ...data, rows: updatedRows });
+    };
+
     const handleRemark = (point, value) => {
         const currentPointData = rowData[point] || {};
         const updatedPointData = { ...currentPointData, remark: value };
@@ -32,7 +43,15 @@ const TilesForm = ({ data, setData }) => {
     const columns = [
         { title: 'Check Point', dataIndex: 'point', key: 'point', width: 250 },
         {
-            title: 'Verified',
+            title: (
+                <Checkbox
+                    checked={allChecked}
+                    indeterminate={someChecked}
+                    onChange={e => handleSelectAll(e.target.checked)}
+                >
+                    Verified
+                </Checkbox>
+            ),
             dataIndex: 'verified',
             key: 'verified',
             width: 100,

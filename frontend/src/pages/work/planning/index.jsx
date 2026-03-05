@@ -391,9 +391,10 @@ export default function Planning() {
     }, [selectedProject]);
 
     // Handle Checkbox Change (Strict Contractor Check)
-    const handleCheckboxChange = async (record, taskName, checked) => {
+    // silent = true suppresses per-row toasts (used for bulk select-all)
+    const handleCheckboxChange = async (record, taskName, checked, silent = false) => {
         if (!selectedProject || !headerDetails.contractor) {
-            message.warning('Please select a project and contractor first');
+            if (!silent) message.warning('Please select a project and contractor first');
             return;
         }
 
@@ -413,7 +414,7 @@ export default function Planning() {
                 }
             });
 
-            // STRICT SEARCH: We only show/toggle OURE record for the unit/task/period
+            // STRICT SEARCH: We only show/toggle OUR record for the unit/task/period
             const existingRecord = res.result?.find(r => {
                 const rContractorId = r.personnel?.contractor?._id || r.personnel?.contractor;
                 const sameDates = dayjs(r.startDate).isSame(headerDetails.startDate, 'day') &&
@@ -451,13 +452,43 @@ export default function Planning() {
                     }
                     return row;
                 }));
-                message.success(`${taskName} updated`);
+                if (!silent) message.success(`${taskName} updated`);
             } else {
-                message.error('Update Failed');
+                if (!silent) message.error('Update Failed');
             }
         } catch (e) {
             console.error(e);
-            message.error('An error occurred');
+            if (!silent) message.error('An error occurred');
+        }
+    };
+
+    // Handle Select-All for a column (only toggles rows that are free / not billed or planned)
+    const handleSelectAllColumn = async (taskName, checked) => {
+        if (!selectedProject || !headerDetails.contractor) {
+            message.warning('Please select a project and contractor first');
+            return;
+        }
+        // Only act on rows that are neither billed nor planned (i.e. user-editable rows)
+        const editableRows = tableData.filter(row => !row[`${taskName}_isBilled`] && !row[`${taskName}_isPlanned`]);
+        if (editableRows.length === 0) return;
+
+        // Optimistically update UI first
+        setTableData(prev => prev.map(row => {
+            if (!row[`${taskName}_isBilled`] && !row[`${taskName}_isPlanned`]) {
+                return { ...row, [taskName]: checked };
+            }
+            return row;
+        }));
+
+        // Fire all API calls silently in parallel — one summary toast at the end
+        const results = await Promise.allSettled(
+            editableRows.map(row => handleCheckboxChange(row, taskName, checked, true))
+        );
+        const failed = results.filter(r => r.status === 'rejected').length;
+        if (failed > 0) {
+            message.warning(`${taskName}: ${failed} unit(s) failed to update`);
+        } else {
+            message.success(`${taskName} ${checked ? 'selected' : 'cleared'} for ${editableRows.length} unit(s)`);
         }
     };
 
@@ -1090,6 +1121,7 @@ export default function Planning() {
                                 category={selectedCategory}
                                 onCheckChange={handleCheckboxChange}
                                 onRateChange={handleRateChange}
+                                onSelectAllColumn={handleSelectAllColumn}
                                 disabled={!headerDetails.contractor}
                             />
                         </Card>
@@ -1434,7 +1466,7 @@ function PlanningChart({ data, vendors, staff, groupOption, headerDetails, onDel
     );
 }
 
-function PlanningTable({ data, category, onCheckChange, onRateChange, disabled }) {
+function PlanningTable({ data, category, onCheckChange, onRateChange, onSelectAllColumn, disabled }) {
     const checklist = category?.fields || [];
 
     const columns = [
@@ -1468,69 +1500,86 @@ function PlanningTable({ data, category, onCheckChange, onRateChange, disabled }
             sorter: (a, b) => (a.unitType || '').localeCompare(b.unitType || ''),
         },
 
-        ...checklist.flatMap((taskName, index) => [
-            {
-                title: taskName,
-                dataIndex: taskName,
-                key: `item-${index}`,
-                width: 100,
-                align: 'center',
-                render: (checked, record) => {
-                    const isBilled = record[`${taskName}_isBilled`];
-                    const isPlanned = record[`${taskName}_isPlanned`];
+        ...checklist.flatMap((taskName, index) => {
+            // Editable rows for this task = not billed, not planned
+            const editableRows = data.filter(row => !row[`${taskName}_isBilled`] && !row[`${taskName}_isPlanned`]);
+            const allEditable = editableRows.length > 0 && editableRows.every(row => row[taskName]);
+            const someEditable = !allEditable && editableRows.some(row => row[taskName]);
 
-                    if (isBilled) {
-                        return (
-                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                                <Checkbox checked={true} disabled style={{ color: '#FF0000' }} className="billed-checkbox" />
-                            </div>
-                        );
-                    }
-                    if (isPlanned) {
+            return [
+                {
+                    title: (
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+                            <Checkbox
+                                checked={allEditable}
+                                indeterminate={someEditable}
+                                disabled={disabled || editableRows.length === 0}
+                                onChange={e => onSelectAllColumn && onSelectAllColumn(taskName, e.target.checked)}
+                            />
+                            <span style={{ fontSize: 11, textAlign: 'center', lineHeight: '1.2' }}>{taskName}</span>
+                        </div>
+                    ),
+                    dataIndex: taskName,
+                    key: `item-${index}`,
+                    width: 100,
+                    align: 'center',
+                    render: (checked, record) => {
+                        const isBilled = record[`${taskName}_isBilled`];
+                        const isPlanned = record[`${taskName}_isPlanned`];
+
+                        if (isBilled) {
+                            return (
+                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                                    <Checkbox checked={true} disabled style={{ color: '#FF0000' }} className="billed-checkbox" />
+                                </div>
+                            );
+                        }
+                        if (isPlanned) {
+                            return (
+                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+                                    <Checkbox checked={true} disabled style={{ color: '#008000' }} className="planned-checkbox" />
+                                    {record[`${taskName}_isCarryForwarded`] && (
+                                        <span style={{ fontSize: '10px', color: '#fa8c16', lineHeight: 1, textAlign: 'center' }}>Carry<br />Forwarded</span>
+                                    )}
+                                </div>
+                            );
+                        }
+
                         return (
                             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-                                <Checkbox checked={true} disabled style={{ color: '#008000' }} className="planned-checkbox" />
+                                <Checkbox
+                                    checked={checked || false}
+                                    onChange={(e) => onCheckChange(record, taskName, e.target.checked)}
+                                    disabled={disabled}
+                                />
                                 {record[`${taskName}_isCarryForwarded`] && (
                                     <span style={{ fontSize: '10px', color: '#fa8c16', lineHeight: 1, textAlign: 'center' }}>Carry<br />Forwarded</span>
                                 )}
                             </div>
                         );
-                    }
-
-                    return (
-                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-                            <Checkbox
-                                checked={checked || false}
-                                onChange={(e) => onCheckChange(record, taskName, e.target.checked)}
-                                disabled={disabled}
-                            />
-                            {record[`${taskName}_isCarryForwarded`] && (
-                                <span style={{ fontSize: '10px', color: '#fa8c16', lineHeight: 1, textAlign: 'center' }}>Carry<br />Forwarded</span>
-                            )}
-                        </div>
-                    );
+                    },
                 },
-            },
-            {
-                title: 'Rate',
-                key: `rate-${index}`,
-                width: 100,
-                align: 'right',
-                render: (_, record) => (
-                    <Input
-                        placeholder="0"
-                        style={{ width: '100%', textAlign: 'right' }}
-                        size="small"
-                        value={record[`${taskName}_rate`]}
-                        onChange={(e) => {
-                            if (onRateChange) {
-                                onRateChange(record._id, taskName, e.target.value);
-                            }
-                        }}
-                    />
-                ),
-            }
-        ]),
+                {
+                    title: 'Rate',
+                    key: `rate-${index}`,
+                    width: 100,
+                    align: 'right',
+                    render: (_, record) => (
+                        <Input
+                            placeholder="0"
+                            style={{ width: '100%', textAlign: 'right' }}
+                            size="small"
+                            value={record[`${taskName}_rate`]}
+                            onChange={(e) => {
+                                if (onRateChange) {
+                                    onRateChange(record._id, taskName, e.target.value);
+                                }
+                            }}
+                        />
+                    ),
+                }
+            ];
+        }),
     ];
 
 

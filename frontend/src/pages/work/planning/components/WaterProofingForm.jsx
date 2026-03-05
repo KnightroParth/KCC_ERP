@@ -25,6 +25,17 @@ const WaterProofingForm = ({ data, setData }) => {
         setData({ ...data, rows: { ...rowData, [point]: { ...curr, verified: checked } } });
     };
 
+    const allChecked = CHECK_POINTS.length > 0 && CHECK_POINTS.every(p => rowData[p]?.verified);
+    const someChecked = !allChecked && CHECK_POINTS.some(p => rowData[p]?.verified);
+
+    const handleSelectAll = (checked) => {
+        const updatedRows = { ...rowData };
+        CHECK_POINTS.forEach(p => {
+            updatedRows[p] = { ...(updatedRows[p] || {}), verified: checked };
+        });
+        setData({ ...data, rows: updatedRows });
+    };
+
     const handleRemark = (point, value) => {
         const curr = rowData[point] || {};
         setData({ ...data, rows: { ...rowData, [point]: { ...curr, remark: value } } });
@@ -34,7 +45,16 @@ const WaterProofingForm = ({ data, setData }) => {
         { title: '#', dataIndex: 'index', width: 50, render: (_, __, i) => i + 1 },
         { title: 'Check Point', dataIndex: 'point', width: 320 },
         {
-            title: 'Verified', width: 90, align: 'center',
+            title: (
+                <Checkbox
+                    checked={allChecked}
+                    indeterminate={someChecked}
+                    onChange={e => handleSelectAll(e.target.checked)}
+                >
+                    Verified
+                </Checkbox>
+            ),
+            width: 90, align: 'center',
             render: (_, record) => (
                 <Checkbox
                     checked={rowData[record.point]?.verified || false}

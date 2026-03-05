@@ -11,16 +11,30 @@ import { HOLD_REASONS } from '@/config/workConfig';
  * Includes ALL items — both marked (truthy) and unmarked (falsy) — so the
  * full checklist is visible with ✓ / ✗ indicators.
  */
+/** Keys to always exclude entirely (internal flags, not quality-check items). */
+const ALWAYS_SKIP_KEYS = new Set(['carryForwarded', 'planned']);
+
+/**
+ * Keys that are just structural wrappers — recurse into them transparently
+ * so their children appear without the wrapper name in the label.
+ * e.g. "rows › Start Level › Hall_N"  →  "Start Level › Hall_N"
+ */
+const TRANSPARENT_KEYS = new Set(['rows']);
+
 function flattenChecklistData(data, prefix = '') {
   if (!data || typeof data !== 'object') return [];
   const entries = [];
   Object.entries(data).forEach(([key, val]) => {
-    if (key === 'carryForwarded') return; // skip internal flags
+    if (ALWAYS_SKIP_KEYS.has(key)) return; // drop entirely
+    // Transparent wrapper: recurse without appending key to the label
+    if (TRANSPARENT_KEYS.has(key) && val && typeof val === 'object' && !Array.isArray(val)) {
+      entries.push(...flattenChecklistData(val, prefix));
+      return;
+    }
     const label = prefix ? `${prefix} › ${key}` : key;
     if (val !== null && val !== undefined && typeof val === 'object' && !Array.isArray(val) && val !== '') {
       entries.push(...flattenChecklistData(val, label));
     } else {
-      // Determine checked status
       const isChecked = val === true || (typeof val === 'string' && val.trim() !== '') || (typeof val === 'number' && val !== 0);
       entries.push({
         label,
