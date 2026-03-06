@@ -1659,7 +1659,7 @@ function PlanningTable({ data, category, onCheckChange, onRateChange, onSelectAl
             dataSource={data}
             rowKey="_id"
             pagination={{ pageSize: 12 }}
-            scroll={{ x: 'max-content' }}
+            scroll={{ x: 'max-content', y: 'calc(100vh - 320px)' }}
             sticky
         />
     );
