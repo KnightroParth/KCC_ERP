@@ -99,7 +99,7 @@ export default function BillPreviewExcelFormat({
         img.onerror = () => resolve(null);
         img.src = logoBase64;
       });
-    } catch (_) {}
+    } catch (_) { }
     try {
       downloadBillPDF(
         invoice,
@@ -145,6 +145,7 @@ export default function BillPreviewExcelFormat({
         size="small"
         bordered
         scroll={{ x: 900 }}
+        sticky
         style={{ marginBottom: 16 }}
         className="bill-preview-excel-table"
       />

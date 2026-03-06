@@ -40,18 +40,18 @@ function IndentRequestForm({ isUpdateForm = false }) {
         if (formattedData.projectId && typeof formattedData.projectId === 'object') {
           formattedData.projectId = formattedData.projectId._id;
         }
-        
+
         // Pass objects if available, else IDs. AutoCompleteAsync will now fetch missing names.
         if (Array.isArray(formattedData.items)) {
           formattedData.items = formattedData.items.map(item => ({
-             ...item,
-             material: item.material 
+            ...item,
+            material: item.material
           }));
         } else {
           formattedData.items = [];
         }
 
-        form.resetFields(); 
+        form.resetFields();
         form.setFieldsValue(formattedData);
       } catch (error) {
         console.error("Error populating form:", error);
@@ -121,8 +121,9 @@ function IndentRequestForm({ isUpdateForm = false }) {
               }))}
               pagination={false}
               size="small"
-              rowKey="key" 
+              rowKey="key"
               scroll={{ x: 'max-content' }}
+              sticky
               columns={[
                 {
                   title: 'Material',
@@ -135,19 +136,19 @@ function IndentRequestForm({ isUpdateForm = false }) {
                     return (
                       <Form.Item
                         {...field}
-                        name={[field.name, 'material']} 
+                        name={[field.name, 'material']}
                         rules={[{ required: true, message: 'Required' }]}
                         style={{ margin: 0 }}
                       >
                         <AutoCompleteAsync
-                          key={key} 
+                          key={key}
                           entity="material"
                           displayLabels={['name', 'category']}
                           searchFields="name,category"
                           outputValue="_id"
                           placeholder="Search Material"
                           onChange={(id, fullOption) => {
-                             form.setFieldValue(['items', field.name, 'material'], fullOption || id);
+                            form.setFieldValue(['items', field.name, 'material'], fullOption || id);
                           }}
                           value={currentMaterial}
                         />
@@ -199,10 +200,10 @@ function IndentRequestForm({ isUpdateForm = false }) {
                 },
               ]}
               footer={() => (
-                <Button 
-                  type="dashed" 
-                  onClick={() => add({ quantity: 1, estimatedRate: 0 })} 
-                  block 
+                <Button
+                  type="dashed"
+                  onClick={() => add({ quantity: 1, estimatedRate: 0 })}
+                  block
                   icon={<PlusOutlined />}
                 >
                   Add Material
@@ -226,7 +227,7 @@ function IndentRequestForm({ isUpdateForm = false }) {
           )}
         </div>
       )}
-      
+
       <Form.Item label="Notes" name="notes" style={{ marginTop: 20 }}>
         <Input.TextArea rows={3} placeholder="Additional notes..." />
       </Form.Item>
@@ -243,21 +244,21 @@ export default function IndentRequest() {
     ENTITY_NAME: 'Indent Request',
     fields: {},
     searchConfig: {
-        displayLabels: ['priority'],
-        searchFields: 'notes',
+      displayLabels: ['priority'],
+      searchFields: 'notes',
     },
     deleteModalLabels: ['priority'],
     tableActions: { showEdit: true, showDelete: true },
     dataTableColumns: [
-        {
-          title: 'Project',
-          dataIndex: ['projectId', 'name'],
-          render: (text, record) => record.projectId?.name || 'N/A'
-        },
-        { title: 'Date', dataIndex: 'requiredDate', render: (d) => d ? dayjs(d).format('DD/MM/YYYY') : '-' },
-        { title: 'Priority', dataIndex: 'priority', render: (val) => <Tag color={val === 'Urgent' ? 'red' : 'blue'}>{val}</Tag> },
-        { title: 'Status', dataIndex: 'status', render: (val) => <Tag>{val}</Tag> },
-        { title: 'Items', render: (_, r) => r.items?.length || 0 }
+      {
+        title: 'Project',
+        dataIndex: ['projectId', 'name'],
+        render: (text, record) => record.projectId?.name || 'N/A'
+      },
+      { title: 'Date', dataIndex: 'requiredDate', render: (d) => d ? dayjs(d).format('DD/MM/YYYY') : '-' },
+      { title: 'Priority', dataIndex: 'priority', render: (val) => <Tag color={val === 'Urgent' ? 'red' : 'blue'}>{val}</Tag> },
+      { title: 'Status', dataIndex: 'status', render: (val) => <Tag>{val}</Tag> },
+      { title: 'Items', render: (_, r) => r.items?.length || 0 }
     ]
   };
 

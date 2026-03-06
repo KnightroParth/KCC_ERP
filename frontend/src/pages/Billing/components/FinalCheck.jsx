@@ -184,6 +184,7 @@ export default function FinalCheck({ invoice, onFinalized }) {
         size="small"
         bordered
         scroll={{ x: 1000 }}
+        sticky
         className="bill-preview-excel-table"
         summary={() => (
           <Table.Summary.Row>

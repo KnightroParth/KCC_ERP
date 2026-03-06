@@ -274,31 +274,32 @@ export default function CreateFromPlanning() {
 
           <Spin spinning={loading}>
             <div style={{ color: '#333' }} className="create-from-planning-content">
-            {planningData.length === 0 && !loading ? (
-              <Empty description="No planning data for this week. Select a different week or add planning first." />
-            ) : (
-              <>
-                <Table
-                  rowKey="_id"
-                  columns={columns}
-                  dataSource={planningData}
-                  rowSelection={rowSelection}
-                  pagination={{ pageSize: 15 }}
-                  size="small"
-                  scroll={{ x: 700 }}
-                  summary={() => (
-                    <Table.Summary.Row>
-                      <Table.Summary.Cell index={0} colSpan={6} align="right">
-                        <strong>Subtotal (selected)</strong>
-                      </Table.Summary.Cell>
-                      <Table.Summary.Cell index={1} align="right">
-                        <strong>₹{subtotal.toFixed(2)}</strong>
-                      </Table.Summary.Cell>
-                    </Table.Summary.Row>
-                  )}
-                />
-              </>
-            )}
+              {planningData.length === 0 && !loading ? (
+                <Empty description="No planning data for this week. Select a different week or add planning first." />
+              ) : (
+                <>
+                  <Table
+                    rowKey="_id"
+                    columns={columns}
+                    dataSource={planningData}
+                    rowSelection={rowSelection}
+                    pagination={{ pageSize: 15 }}
+                    size="small"
+                    scroll={{ x: 700 }}
+                    sticky
+                    summary={() => (
+                      <Table.Summary.Row>
+                        <Table.Summary.Cell index={0} colSpan={6} align="right">
+                          <strong>Subtotal (selected)</strong>
+                        </Table.Summary.Cell>
+                        <Table.Summary.Cell index={1} align="right">
+                          <strong>₹{subtotal.toFixed(2)}</strong>
+                        </Table.Summary.Cell>
+                      </Table.Summary.Row>
+                    )}
+                  />
+                </>
+              )}
             </div>
           </Spin>
         </Card>

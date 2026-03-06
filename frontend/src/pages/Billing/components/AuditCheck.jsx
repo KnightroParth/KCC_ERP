@@ -546,6 +546,7 @@ export default function AuditCheck({
           pagination={{ pageSize: 15 }}
           size="small"
           scroll={{ x: 600 }}
+          sticky
           summary={() =>
             selectedRows.length > 0 ? (
               <Table.Summary.Row>

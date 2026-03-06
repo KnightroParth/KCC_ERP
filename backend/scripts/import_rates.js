@@ -90,6 +90,8 @@ async function runImport() {
         const sheetNames = workbook.SheetNames.filter(n => n !== 'Instructions' && n !== 'Sheet1');
 
         const bulkPayloads = [];
+        /** One row per (project, building, category): first valid "first floor" row wins (avoids wrong/duplicate rates e.g. Water Proofing) */
+        const usedKeys = new Set();
 
         for (const sheetName of sheetNames) {
             const sheet = workbook.Sheets[sheetName];
@@ -144,6 +146,20 @@ async function runImport() {
 
                 const taskKeys = (headers || []).filter(h => h && !META_COLS.includes(String(h).trim()));
 
+                const rowRates = {};
+                let hasAnyNonZero = false;
+                for (const task of taskKeys) {
+                    const rateValue = row[task];
+                    let rate = 0;
+                    if (rateValue != null && rateValue !== '') {
+                        const parsed = typeof rateValue === 'number' ? rateValue : parseFloat(String(rateValue).trim());
+                        rate = isNaN(parsed) ? 0 : parsed;
+                    }
+                    rowRates[task] = rate;
+                    if (rate > 0) hasAnyNonZero = true;
+                }
+                if (!hasAnyNonZero) continue;
+
                 let buildingsToProcess = [];
                 let unitsToProcess = [];
 
@@ -163,20 +179,23 @@ async function runImport() {
                     if (buildingsToProcess.length === 0) continue;
                 }
 
+                const pid = currentProject._id.toString();
+                const keysForRow = [];
+                for (const bName of buildingsToProcess) keysForRow.push(`${pid}|${bName}|${currentCategory}`);
+                if (unitsToProcess.length > 0) keysForRow.push(`${pid}|Duplex|${currentCategory}`);
+                const alreadyUsed = keysForRow.some(k => usedKeys.has(k));
+                if (keysForRow.length > 0 && alreadyUsed) continue;
+                keysForRow.forEach(k => usedKeys.add(k));
+
                 const minF = APPLY_RATE_TO_ALL_FLOORS ? 0 : fromFloor;
                 const maxF = APPLY_RATE_TO_ALL_FLOORS ? 100 : toFloor;
 
                 for (const task of taskKeys) {
-                    const rateValue = row[task];
-                    let rate = 0;
-                    if (rateValue != null && rateValue !== '') {
-                        const parsed = typeof rateValue === 'number' ? rateValue : parseFloat(String(rateValue).trim());
-                        rate = isNaN(parsed) ? 0 : parsed;
-                    }
+                    const rate = rowRates[task] || 0;
 
                     for (const bName of buildingsToProcess) {
                         bulkPayloads.push({
-                            projectId: currentProject._id.toString(),
+                            projectId: pid,
                             category: currentCategory,
                             subCategory: (task || '').trim(),
                             buildingName: bName,
@@ -194,7 +213,7 @@ async function runImport() {
 
                     for (const uName of unitsToProcess) {
                         bulkPayloads.push({
-                            projectId: currentProject._id.toString(),
+                            projectId: pid,
                             category: currentCategory,
                             subCategory: (task || '').trim(),
                             buildingName: null,

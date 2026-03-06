@@ -272,6 +272,7 @@ export default function UnitsTable({ data, onRefresh }) {
                 )}
                 size="middle"
                 bordered
+                sticky
             />
 
             {/* Edit Unit Modal */}

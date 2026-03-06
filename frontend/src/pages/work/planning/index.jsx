@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { Layout, Select, Card, Empty, Typography, Table, Checkbox, Button, Modal, Form, DatePicker, Row, Col, message, Input } from 'antd';
-const { TextArea } = Input;
 import { EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import { useSelector } from 'react-redux';
 import dayjs from 'dayjs';
@@ -8,6 +7,7 @@ import dayjs from 'dayjs';
 import { WORK_CATEGORIES, COMPLEX_TASK_COMPONENTS, SUB_CATEGORY_ALIASES, WORK_TYPE_TO_CONTRACTOR_TYPES } from '@/config/workConfig';
 import { assignWork } from '@/request/assignWork';
 import request from '@/request/request';
+import { calculateDynamicRate } from '@/utils/calculate';
 import { selectCurrentProject, selectShouldLockProject } from '@/redux/erp/selectors';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -305,7 +305,7 @@ export default function Planning() {
     const [chartGroupOption, setChartGroupOption] = useState('Contractors');
     const [saving, setSaving] = useState(false);
     const [selectedFloor, setSelectedFloor] = useState(null);
-    const [extraWorkDescription, setExtraWorkDescription] = useState('');
+    const [extraWorkSubType, setExtraWorkSubType] = useState(null);
 
     const [form] = Form.useForm();
 
@@ -561,11 +561,16 @@ export default function Planning() {
                     if (userRate !== undefined && userRate !== null && userRate !== '') {
                         finalRate = parseFloat(userRate);
                     } else {
-                        const material = materials.find(m =>
-                            m.name.toLowerCase().includes(taskName.toLowerCase()) ||
-                            m.category?.toLowerCase() === selectedCategory.label.toLowerCase()
-                        );
-                        finalRate = material ? material.price || 0 : 0;
+                        const baseRateForSave = unit[`${taskName}_baseRate`];
+                        if (baseRateForSave !== undefined && baseRateForSave !== null && baseRateForSave !== '') {
+                            finalRate = parseFloat(baseRateForSave);
+                        } else {
+                            const material = materials.find(m =>
+                                m.name.toLowerCase().includes(taskName.toLowerCase()) ||
+                                m.category?.toLowerCase() === selectedCategory.label.toLowerCase()
+                            );
+                            finalRate = material ? material.price || 0 : 0;
+                        }
                     }
 
                     if (isCheckedOnScreen) {
@@ -579,7 +584,7 @@ export default function Planning() {
                                 incharge: headerDetails.incharge,
                                 floor: unit.floor,
                                 unitType: unit.unitType,
-                                description: isExtraWork ? extraWorkDescription : undefined,
+                                description: isExtraWork ? (unit._extraDesc || '') : undefined,
                                 rateSourceNote: unit[`${taskName}_rateNote`] || undefined
                             };
                             promises.push(request.update({ entity: 'plannedwork', id: existing._id, jsonData: updateData }));
@@ -600,7 +605,7 @@ export default function Planning() {
                                 floor: unit.floor,
                                 unitType: unit.unitType,
                                 rate: finalRate,
-                                description: isExtraWork ? extraWorkDescription : undefined,
+                                description: isExtraWork ? (unit._extraDesc || '') : undefined,
                                 rateSourceNote: unit[`${taskName}_rateNote`] || undefined
                             };
                             promises.push(request.create({ entity: 'plannedwork', jsonData: payload }));
@@ -742,6 +747,24 @@ export default function Planning() {
 
                 const existingChecklists = res.result || [];
 
+                const projectIdStr = (selectedProject._id || selectedProject.id || '').toString();
+                const incRuleContractorId = headerDetails.contractor ? (headerDetails.contractor._id ?? headerDetails.contractor) : null;
+                const categoryIncrementRule = (() => {
+                    const matchesIncContractor = (wr) => {
+                        const cid = wr.contractorId?._id ?? wr.contractorId;
+                        if (incRuleContractorId == null) return cid == null;
+                        return cid == null || String(cid) === String(incRuleContractorId);
+                    };
+                    const withRule = workRates.filter(wr => {
+                        const pid = (wr.projectId && (wr.projectId.toString && wr.projectId.toString()) || wr.projectId) || '';
+                        const sameProject = pid === projectIdStr || pid === (selectedProject.projectCode || '');
+                        const sameCat = (wr.category || '').trim().toLowerCase() === (selectedCategory.label || '').trim().toLowerCase();
+                        return sameProject && sameCat && wr.incrementRule && wr.incrementRule.isActive && matchesIncContractor(wr);
+                    });
+                    const preferContractor = withRule.find(wr => wr.contractorId != null && String(wr.contractorId?._id ?? wr.contractorId) === String(incRuleContractorId));
+                    return (preferContractor || withRule[0])?.incrementRule || null;
+                })();
+
                 const data = buildingUnits.map(unit => {
                     // Find rate from materials or plannedWorks
                     const plannedWork = plannedWorks.find(pw =>
@@ -753,6 +776,17 @@ export default function Planning() {
                     );
 
                     const floorNum = parseInt(unit.floor) || 0;
+                    const currentContractorId = headerDetails.contractor ? (headerDetails.contractor._id ?? headerDetails.contractor) : null;
+                    // Only use rates for the selected contractor (or project-level). Prefer contractor-specific so each contractor sees their own rates.
+                    const matchesContractor = (wr) => {
+                        const wrCid = wr.contractorId?._id ?? wr.contractorId;
+                        if (currentContractorId == null) return wrCid == null;
+                        return wrCid == null || String(wrCid) === String(currentContractorId);
+                    };
+                    const isContractorRate = (wr) => {
+                        const wrCid = wr.contractorId?._id ?? wr.contractorId;
+                        return wrCid != null && String(wrCid) === String(currentContractorId);
+                    };
                     const normalizeCat = (s) => (s ? String(s).replace(/\s+/g, ' ').trim().toLowerCase() : '');
                     const subCategoryMatches = (wrSub, t) => {
                         const a = normalizeCat(wrSub);
@@ -766,16 +800,16 @@ export default function Planning() {
                     const selCatNorm = normalizeCat(selectedCategory.label);
                     const selectedBuildingNorm = normalizeBuilding(selectedBuilding);
                     const findWorkRate = (task) => {
-                        // 1. Unit-specific match
+                        // 1. Unit-specific match (contractor or project-level only)
                         const unitSpecific = workRates.find(wr =>
+                            matchesContractor(wr) &&
                             subCategoryMatches(wr.subCategory, task) &&
                             wr.unitNumber === unit.unitNumber
                         );
                         if (unitSpecific) return { rate: unitSpecific.rate, note: unitSpecific.isConsolidated ? unitSpecific.activityNote : null };
 
-                        // 2. Floor/building/unitType match (incl. Other category) – same logic as Set Rate
+                        // 2. Floor/building/unitType match (incl. Other category) – same logic as Set Rate, contractor-scoped
                         const unitTypeNormVal = unitTypeNorm(unit.unitType);
-                        // Helper: check floor + building match regardless of unit type
                         const matchesFloorBuilding = (wr) => {
                             if (normalizeCat(wr.category) !== selCatNorm && normalizeCat(wr.category) !== 'other') return false;
                             if (!subCategoryMatches(wr.subCategory, task)) return false;
@@ -786,22 +820,33 @@ export default function Planning() {
                             if (wr.buildingPattern && wr.buildingPattern !== 'AllBuildings' && selectedBuilding && !wr.buildingPattern.includes(selectedBuilding)) return false;
                             return true;
                         };
-                        // First pass: exact unit type or 'All' unit type
-                        const floorMatch = workRates.find(wr => {
-                            if (!matchesFloorBuilding(wr)) return false;
+                        const floorCandidates = workRates.filter(wr => {
+                            if (!matchesContractor(wr) || !matchesFloorBuilding(wr)) return false;
                             const wrUt = unitTypeNorm(wr.unitType);
                             if (unitTypeNormVal && wrUt && wrUt !== unitTypeNormVal && (wrUt || '').toLowerCase() !== 'all') return false;
                             return true;
                         });
+                        const floorMatch = floorCandidates.length > 0
+                            ? floorCandidates.sort((a, b) => {
+                                const aContractor = isContractorRate(a) ? 0 : 1;
+                                const bContractor = isContractorRate(b) ? 0 : 1;
+                                if (aContractor !== bContractor) return aContractor - bContractor;
+                                const aHasRate = (a.rate ?? 0) > 0 ? 1 : 0;
+                                const bHasRate = (b.rate ?? 0) > 0 ? 1 : 0;
+                                if (bHasRate !== aHasRate) return aHasRate - bHasRate;
+                                return (a.unitNumber ? 1 : 0) - (b.unitNumber ? 1 : 0);
+                            })[0]
+                            : null;
                         if (floorMatch) return { rate: floorMatch.rate, note: floorMatch.isConsolidated ? floorMatch.activityNote : null };
-                        // Fallback pass: any rate for same building/floor/task regardless of unit type
-                        // (mirrors Set Rate behaviour so duplex/mixed-type buildings get rates too)
-                        const fallbackMatch = workRates.find(wr => matchesFloorBuilding(wr) && (wr.rate ?? 0) > 0)
-                            || workRates.find(wr => matchesFloorBuilding(wr));
+                        const fallbackCandidates = workRates.filter(wr => matchesContractor(wr) && matchesFloorBuilding(wr));
+                        const fallbackMatch = fallbackCandidates.filter(wr => (wr.rate ?? 0) > 0).sort((a, b) => (isContractorRate(a) ? 0 : 1) - (isContractorRate(b) ? 0 : 1))[0]
+                            || fallbackCandidates.find(wr => !wr.unitNumber)
+                            || fallbackCandidates[0];
                         if (fallbackMatch) return { rate: fallbackMatch.rate, note: null };
 
-                        // 3. Fallback: consolidated bundle (componentActivities)
+                        // 3. Fallback: consolidated bundle (componentActivities), contractor-scoped
                         const bundleMatch = workRates.find(wr =>
+                            matchesContractor(wr) &&
                             (wr.category === selectedCategory.label || wr.category === 'Other') &&
                             wr.isConsolidated &&
                             Array.isArray(wr.componentActivities) &&
@@ -870,7 +915,12 @@ export default function Planning() {
                         });
 
                         const rateResult = foundPlanned?.rate != null ? { rate: foundPlanned.rate, note: foundPlanned.rateSourceNote } : findWorkRate(item);
-                        unitData[`${item}_rate`] = rateResult?.rate ?? 0;
+                        const baseRate = rateResult?.rate ?? 0;
+                        const effectiveRate = (foundPlanned?.rate != null)
+                            ? baseRate
+                            : (categoryIncrementRule ? calculateDynamicRate(baseRate, unit.floor ?? unit.floorNumber, categoryIncrementRule) : baseRate);
+                        unitData[`${item}_rate`] = effectiveRate;
+                        unitData[`${item}_baseRate`] = baseRate;
                         unitData[`${item}_rateNote`] = rateResult?.note ?? null;
 
                         // 3. Flags for coloring & locking (Independent of Date)
@@ -990,9 +1040,9 @@ export default function Planning() {
                             style={{ flex: 1, minWidth: 200 }}
                             onChange={(val) => {
                                 setSelectedCategory(WORK_CATEGORIES.find(c => c.id === val));
-                                // Clear floor and description when work type changes
+                                // Clear floor and sub-type when work type changes
                                 setSelectedFloor(null);
-                                setExtraWorkDescription('');
+                                setExtraWorkSubType(null);
                             }}
                             disabled={!selectedProject || !selectedBuilding}
                             value={selectedCategory?.id}
@@ -1015,14 +1065,19 @@ export default function Planning() {
                     </div>
 
                     {selectedCategory?.label === 'Extra Work' && (
-                        <div style={{ marginBottom: 24 }}>
-                            <div style={{ marginBottom: 8, fontWeight: 500 }}>Extra Work Description</div>
-                            <TextArea
-                                rows={3}
-                                placeholder="Enter details of extra work..."
-                                value={extraWorkDescription}
-                                onChange={(e) => setExtraWorkDescription(e.target.value)}
-                            />
+                        <div style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 12 }}>
+                            <div style={{ fontWeight: 500, whiteSpace: 'nowrap' }}>Sub Work Type:</div>
+                            <Select
+                                placeholder="Select actual work type for extra work"
+                                style={{ flex: 1, maxWidth: 320 }}
+                                allowClear
+                                value={extraWorkSubType}
+                                onChange={setExtraWorkSubType}
+                            >
+                                {WORK_CATEGORIES.filter(c => c.label !== 'Extra Work').map(c => (
+                                    <Option key={c.id} value={c.label}>{c.label}</Option>
+                                ))}
+                            </Select>
                         </div>
                     )}
 
@@ -1123,6 +1178,7 @@ export default function Planning() {
                                 onRateChange={handleRateChange}
                                 onSelectAllColumn={handleSelectAllColumn}
                                 disabled={!headerDetails.contractor}
+                                onDescChange={(id, val) => setTableData(prev => prev.map(row => row._id === id ? { ...row, _extraDesc: val } : row))}
                             />
                         </Card>
                     ) : (
@@ -1466,7 +1522,7 @@ function PlanningChart({ data, vendors, staff, groupOption, headerDetails, onDel
     );
 }
 
-function PlanningTable({ data, category, onCheckChange, onRateChange, onSelectAllColumn, disabled }) {
+function PlanningTable({ data, category, onCheckChange, onRateChange, onSelectAllColumn, disabled, onDescChange }) {
     const checklist = category?.fields || [];
 
     const columns = [
@@ -1580,6 +1636,20 @@ function PlanningTable({ data, category, onCheckChange, onRateChange, onSelectAl
                 }
             ];
         }),
+
+        ...(category?.label === 'Extra Work' ? [{
+            title: 'Description',
+            key: 'extraDesc',
+            width: 200,
+            render: (_, record) => (
+                <Input
+                    placeholder="Enter description..."
+                    size="small"
+                    value={record._extraDesc || ''}
+                    onChange={(e) => onDescChange && onDescChange(record._id, e.target.value)}
+                />
+            )
+        }] : []),
     ];
 
 
@@ -1590,6 +1660,7 @@ function PlanningTable({ data, category, onCheckChange, onRateChange, onSelectAl
             rowKey="_id"
             pagination={{ pageSize: 12 }}
             scroll={{ x: 'max-content' }}
+            sticky
         />
     );
 }

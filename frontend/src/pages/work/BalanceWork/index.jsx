@@ -525,6 +525,7 @@ export default function BalanceWork() {
                                     size="small"
                                     scroll={{ x: 'max-content', y: 600 }}
                                     footer={footerRender}
+                                    sticky
                                 />
                             </>
                         ) : (

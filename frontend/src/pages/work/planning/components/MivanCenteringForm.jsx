@@ -122,6 +122,7 @@ const MivanCenteringForm = ({ data, setData }) => {
             scroll={{ x: 3800, y: 600 }}
             size="small"
             bordered
+            sticky
         />
     );
 };

@@ -101,6 +101,7 @@ const ElectricalWorkEForm = ({ data, setData, currentTask }) => {
             size="small"
             bordered
             scroll={{ x: 'max-content' }}
+            sticky
         />
     );
 };

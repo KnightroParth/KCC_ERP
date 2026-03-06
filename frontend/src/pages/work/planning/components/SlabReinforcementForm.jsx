@@ -175,6 +175,7 @@ const SlabReinforcementForm = ({ data, setData }) => {
                 scroll={{ x: 'max-content', y: 600 }}
                 size="small"
                 bordered
+                sticky
             />
             <Button type="dashed" onClick={handleAdd} block icon={<PlusOutlined />} style={{ marginTop: 16 }}>
                 Add Beam Row

@@ -53,11 +53,11 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
       const sub = (currentItems || []).reduce((sum, item) => sum + (parseFloat(item?.amount) || 0), 0);
       const tax = (sub * (parseFloat(currentTaxRate) || 0)) / 100;
       const total = sub + tax;
-      
+
       setSubTotal(sub);
       setTaxTotal(tax);
       setTotalAmount(total);
-      
+
       form.setFieldValue('subTotal', sub);
       form.setFieldValue('taxTotal', tax);
       form.setFieldValue('totalAmount', total);
@@ -132,7 +132,7 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
     try {
       const poDate = form.getFieldValue('date');
       const leadTime = form.getFieldValue('leadTimeDays');
-      
+
       if (poDate && leadTime && leadTime > 0) {
         const expectedDate = dayjs(poDate).add(leadTime, 'day');
         form.setFieldValue('expiredDate', expectedDate);
@@ -172,16 +172,16 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
       const res = await request.read({ entity: 'inventory/requirement', id: requirementId });
       if (res?.result) {
         const requirement = res.result || {};
-        
+
         const groupedItems = {};
-        
+
         (requirement.items || []).forEach((item) => {
           let materialVal = item?.material;
           if (!materialVal) materialVal = { _id: 'unknown', name: 'Unknown Material' };
-          
+
           const materialId = materialVal._id || materialVal;
           const quantity = parseFloat(item?.quantity) || 0;
-          
+
           if (groupedItems[materialId]) {
             groupedItems[materialId].quantity += quantity;
             groupedItems[materialId].originalIndentQty += quantity;
@@ -271,7 +271,7 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
         item.amount = calculatedAmount;
         form.setFieldValue(['items', index, 'amount'], calculatedAmount);
       }
-      
+
       form.setFieldValue(['items', index, field], value);
       newItems[index] = item;
       setItems(newItems);
@@ -313,11 +313,11 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
       title: 'Material',
       dataIndex: 'material',
       key: 'material',
-      width: 350, 
+      width: 350,
       render: (_, record, index) => (
         <Form.Item name={['items', index, 'material']} rules={[{ required: true, message: 'Select material' }]} style={{ margin: 0 }}>
           <AutoCompleteAsync
-            key={record?.key} 
+            key={record?.key}
             entity="material"
             displayLabels={['name', 'category']}
             searchFields="name,category"
@@ -338,23 +338,23 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
         const currentQty = parseFloat(items[index]?.quantity) || 0;
         const originalQty = items[index]?.originalIndentQty;
         const variance = getVarianceStatus(currentQty, originalQty);
-        
+
         return (
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Form.Item 
-              name={['items', index, 'quantity']} 
-              rules={[{ required: true, message: 'Required' }]} 
+            <Form.Item
+              name={['items', index, 'quantity']}
+              rules={[{ required: true, message: 'Required' }]}
               style={{ margin: 0, minWidth: '200px', flex: 1 }}
               getValueProps={(value) => ({ value: value !== undefined && value !== null ? parseFloat(value) : undefined })}
               normalize={(value) => value !== undefined && value !== null ? parseFloat(value) : undefined}
             >
-              <InputNumber 
-                min={0.01} 
+              <InputNumber
+                min={0.01}
                 step={0.01}
-                style={{ width: '100%', minWidth: '180px', fontSize: '14px' }} 
-                placeholder="Qty" 
+                style={{ width: '100%', minWidth: '180px', fontSize: '14px' }}
+                placeholder="Qty"
                 precision={2}
-                onChange={(value) => updateItem(record?.key, 'quantity', value)} 
+                onChange={(value) => updateItem(record?.key, 'quantity', value)}
               />
             </Form.Item>
             {variance && (
@@ -376,13 +376,13 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
       width: 200,
       render: (_, record, index) => (
         <Form.Item name={['items', index, 'rate']} rules={[{ required: true, message: 'Required' }]} style={{ margin: 0 }}>
-          <InputNumber 
-            min={0} 
-            step={0.01} 
-            style={{ width: '100%', minWidth: '150px', fontSize: '14px' }} 
-            prefix="₹" 
-            placeholder="Rate" 
-            onChange={(value) => updateItem(record?.key, 'rate', value)} 
+          <InputNumber
+            min={0}
+            step={0.01}
+            style={{ width: '100%', minWidth: '150px', fontSize: '14px' }}
+            prefix="₹"
+            placeholder="Rate"
+            onChange={(value) => updateItem(record?.key, 'rate', value)}
           />
         </Form.Item>
       ),
@@ -505,7 +505,8 @@ function PurchaseOrderForm({ isUpdateForm = false }) {
           pagination={false}
           size="small"
           rowKey="key"
-          scroll={{ x: 'max-content' }} 
+          scroll={{ x: 'max-content' }}
+          sticky
           footer={() => <Button type="dashed" onClick={addItem} icon={<PlusOutlined />} block>Add Material</Button>}
         />
       </Form.Item>
@@ -557,12 +558,12 @@ export default function PurchaseOrder() {
     deleteModalLabels: ['number'],
     tableActions: { showEdit: true, showDelete: true },
     dataTableColumns: [
-        { title: 'PO Number', key: 'number', render: (_, record) => `PO-${record?.year || ''}-${String(record?.number || '').padStart(4, '0')}` },
-        { title: 'Project', key: 'project', render: (_, r) => (r?.projectId && typeof r.projectId === 'object') ? (r.projectId.projectCode ? `${r.projectId.name} (${r.projectId.projectCode})` : r.projectId.name) : (r?.referenceRequirement?.projectId && typeof r.referenceRequirement?.projectId === 'object') ? r.referenceRequirement.projectId.name : '-' },
-        { title: 'Supplier', key: 'supplier', render: (_, r) => (r?.supplier && typeof r.supplier === 'object') ? r.supplier?.name || '-' : r?.supplier || '-' },
-        { title: 'Date', dataIndex: 'date', render: (date) => (date ? dayjs(date).format('DD/MM/YYYY') : '-') },
-        { title: 'Status', dataIndex: 'status', render: (status) => <Tag>{status || '-'}</Tag> },
-        { title: 'Total', dataIndex: 'totalAmount', render: (val) => `₹${(val || 0).toLocaleString('en-IN')}` },
+      { title: 'PO Number', key: 'number', render: (_, record) => `PO-${record?.year || ''}-${String(record?.number || '').padStart(4, '0')}` },
+      { title: 'Project', key: 'project', render: (_, r) => (r?.projectId && typeof r.projectId === 'object') ? (r.projectId.projectCode ? `${r.projectId.name} (${r.projectId.projectCode})` : r.projectId.name) : (r?.referenceRequirement?.projectId && typeof r.referenceRequirement?.projectId === 'object') ? r.referenceRequirement.projectId.name : '-' },
+      { title: 'Supplier', key: 'supplier', render: (_, r) => (r?.supplier && typeof r.supplier === 'object') ? r.supplier?.name || '-' : r?.supplier || '-' },
+      { title: 'Date', dataIndex: 'date', render: (date) => (date ? dayjs(date).format('DD/MM/YYYY') : '-') },
+      { title: 'Status', dataIndex: 'status', render: (status) => <Tag>{status || '-'}</Tag> },
+      { title: 'Total', dataIndex: 'totalAmount', render: (val) => `₹${(val || 0).toLocaleString('en-IN')}` },
     ],
   };
 

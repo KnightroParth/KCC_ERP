@@ -101,6 +101,7 @@ export default function RecentTable({ ...props }) {
       pagination={false}
       loading={isLoading}
       scroll={{ x: true }}
+      sticky
     />
   );
 }

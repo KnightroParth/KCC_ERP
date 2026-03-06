@@ -6,7 +6,7 @@ import { useSelector } from 'react-redux';
 import { selectCurrentProject, selectShouldLockProject } from '@/redux/erp/selectors';
 import request from '@/request/request';
 import { assignWork } from '@/request/assignWork';
-import { WORK_CATEGORIES, SUB_CATEGORY_ALIASES } from '@/config/workConfig';
+import { WORK_CATEGORIES, SUB_CATEGORY_ALIASES, WORK_TYPE_TO_CONTRACTOR_TYPES } from '@/config/workConfig';
 import { SaveOutlined, UploadOutlined } from '@ant-design/icons';
 import axios from 'axios';
 import storePersist from '@/redux/storePersist';
@@ -142,18 +142,52 @@ export default function SetRate() {
         fetchRates();
     }, [selectedProject, selectedContractor]);
 
-    // When category or work rates change, sync category-level increment from first matching rate
+    // Filter contractors by work type (same as Planning): only show contractors for the selected Work Type
+    const filteredContractors = useMemo(() => {
+        const categoryLabel = selectedCategory?.label;
+        if (!categoryLabel) return contractors;
+        const allowedTypes = WORK_TYPE_TO_CONTRACTOR_TYPES[categoryLabel];
+        if (allowedTypes === null || allowedTypes === undefined) return contractors;
+        const normalise = (s) => String(s || '').replace(/\s+/g, ' ').trim().toLowerCase();
+        const allowedNorm = allowedTypes.map(normalise);
+        return contractors.filter((c) => allowedNorm.includes(normalise(c.workType)));
+    }, [contractors, selectedCategory?.label]);
+
+    // When work type changes, clear contractor if they are not in the filtered list
+    useEffect(() => {
+        if (!selectedContractor) return;
+        const inList = filteredContractors.some(
+            (c) => String(c._id ?? c.id) === String(selectedContractor._id ?? selectedContractor.id)
+        );
+        if (!inList) setSelectedContractor(null);
+    }, [selectedCategory?.label, filteredContractors, selectedContractor]);
+
+    // When category, contractor, or work rates change, sync rate increment from saved rates for this contractor (or project-level)
     useEffect(() => {
         if (!selectedCategory || workRates.length === 0) return;
         const normalizeCat = (s) => (s ? String(s).replace(/\s+/g, ' ').trim().toLowerCase() : '');
         const catNorm = normalizeCat(selectedCategory.label);
-        const match = workRates.find((wr) => normalizeCat(wr.category) === catNorm && wr.incrementRule);
+        const expectedCid = selectedContractor ? (selectedContractor._id ?? selectedContractor) : null;
+        const withRule = workRates.filter(
+            (wr) => normalizeCat(wr.category) === catNorm && wr.incrementRule
+        );
+        const matchContractor = expectedCid != null
+            ? withRule.find((wr) => {
+                const cid = wr.contractorId?._id ?? wr.contractorId;
+                return cid != null && String(cid) === String(expectedCid);
+            })
+            : null;
+        const matchProject = withRule.find((wr) => (wr.contractorId?._id ?? wr.contractorId) == null);
+        const match = matchContractor || matchProject;
         if (match?.incrementRule) {
             setFloorIncrementEnabled(!!match.incrementRule.isActive);
             const pct = match.incrementRule.percentageIncrement;
             setFloorIncrementPercent(typeof pct === 'number' && pct >= INCREMENT_MIN && pct <= INCREMENT_MAX ? pct : 5);
+        } else {
+            setFloorIncrementEnabled(false);
+            setFloorIncrementPercent(5);
         }
-    }, [selectedCategory?.label, workRates]);
+    }, [selectedCategory?.label, selectedContractor, workRates]);
 
     // Prepare table data
     useEffect(() => {
@@ -192,11 +226,18 @@ export default function SetRate() {
                 const selCatNorm = normalizeCat(selectedCategory.label);
 
                 const expectedCid = selectedContractor ? (selectedContractor._id ?? selectedContractor) : null;
-                selectedCategory.fields.forEach(task => {
+
+                const getCandidatesForTask = (task, restrictToContractorId) => {
                     const taskNorm = normalizeCat(task);
-                    const candidates = workRates.filter((wr) => {
+                    return workRates.filter((wr) => {
                         const wrCid = wr.contractorId?._id ?? wr.contractorId;
-                        if (expectedCid != null) {
+                        if (restrictToContractorId !== undefined) {
+                            if (restrictToContractorId != null) {
+                                if (wrCid == null || String(wrCid) !== String(restrictToContractorId)) return false;
+                            } else {
+                                if (wrCid != null) return false;
+                            }
+                        } else if (expectedCid != null) {
                             if (wrCid != null && String(wrCid) !== String(expectedCid)) return false;
                         } else {
                             if (wrCid != null) return false;
@@ -224,9 +265,30 @@ export default function SetRate() {
                         }
                         return true;
                     });
+                };
+
+                const pickRateFromCandidates = (candidates) => {
+                    const wrNorm = (w) => normalizeUnitType(w?.unitType);
+                    const hasRate = (wr) => typeof wr.rate === 'number' && !Number.isNaN(wr.rate) && wr.rate > 0;
+                    const unitNumMatch = (wr) => !wr.unitNumber || wr.unitNumber === unit.unitNumber;
+                    const exactUnitType = candidates.filter(unitNumMatch).find((wr) => unitTypeNorm && wrNorm(wr) === unitTypeNorm)
+                        || candidates.find((wr) => unitTypeNorm && wrNorm(wr) === unitTypeNorm);
+                    const allUnitType = candidates.filter(unitNumMatch).find((wr) => (wrNorm(wr) || '').toLowerCase() === 'all')
+                        || candidates.find((wr) => (wrNorm(wr) || '').toLowerCase() === 'all');
+                    let rateRecord = null;
+                    if (exactUnitType && hasRate(exactUnitType)) rateRecord = exactUnitType;
+                    else if (exactUnitType) rateRecord = exactUnitType;
+                    else if (allUnitType && hasRate(allUnitType)) rateRecord = allUnitType;
+                    else if (allUnitType) rateRecord = allUnitType;
+                    else rateRecord = candidates.find(hasRate) || candidates[0];
+                    return rateRecord ? (rateRecord.rate ?? 0) : 0;
+                };
+
+                selectedCategory.fields.forEach(task => {
+                    let candidates = getCandidatesForTask(task, expectedCid);
 
                     if (expectedCid != null && candidates.length > 1) {
-                        candidates.sort((a, b) => {
+                        candidates = [...candidates].sort((a, b) => {
                             const aC = a.contractorId?._id ?? a.contractorId;
                             const bC = b.contractorId?._id ?? b.contractorId;
                             const aMatch = aC != null && String(aC) === String(expectedCid);
@@ -237,17 +299,14 @@ export default function SetRate() {
                         });
                     }
 
-                    const wrNorm = (w) => normalizeUnitType(w?.unitType);
-                    const hasRate = (wr) => typeof wr.rate === 'number' && !Number.isNaN(wr.rate) && wr.rate > 0;
-                    const exactUnitType = candidates.find((wr) => unitTypeNorm && wrNorm(wr) === unitTypeNorm);
-                    const allUnitType = candidates.find((wr) => (wrNorm(wr) || '').toLowerCase() === 'all');
-                    let rateRecord = null;
-                    if (exactUnitType && hasRate(exactUnitType)) rateRecord = exactUnitType;
-                    else if (exactUnitType) rateRecord = exactUnitType;
-                    else if (allUnitType && hasRate(allUnitType)) rateRecord = allUnitType;
-                    else if (allUnitType) rateRecord = allUnitType;
-                    else rateRecord = candidates.find(hasRate) || candidates[0];
-                    const displayRate = rateRecord ? (rateRecord.rate ?? 0) : 0;
+                    const contractorRate = pickRateFromCandidates(candidates);
+                    const projectLevelCandidates = getCandidatesForTask(task, null);
+                    const projectRate = pickRateFromCandidates(projectLevelCandidates);
+                    // When contractor selected: show their saved rate if they have one, else fall back to project-level. When no contractor: show project-level.
+                    const displayRate =
+                        expectedCid != null && contractorRate > 0
+                            ? contractorRate
+                            : (expectedCid != null && projectRate > 0 ? projectRate : contractorRate);
                     unitData[task] = typeof displayRate === 'number' && !Number.isNaN(displayRate) ? displayRate : 0;
                 });
 
@@ -499,21 +558,6 @@ export default function SetRate() {
                             </Select>
                         </Col>
                         <Col xs={12} sm={8} md={6} lg={4}>
-                            <span className="filter-label">Contractor</span>
-                            <Select
-                                size="small"
-                                style={{ width: '100%' }}
-                                placeholder="All"
-                                value={selectedContractor?._id}
-                                onChange={(val) => setSelectedContractor(val ? contractors.find(c => (c._id ?? c.id) === val) : null)}
-                                allowClear
-                            >
-                                {contractors.map(c => (
-                                    <Option key={c._id ?? c.id} value={c._id ?? c.id}>{c.name}</Option>
-                                ))}
-                            </Select>
-                        </Col>
-                        <Col xs={12} sm={8} md={6} lg={4}>
                             <span className="filter-label">Work Type</span>
                             <Select
                                 size="small"
@@ -526,6 +570,23 @@ export default function SetRate() {
                                     <Option key={c.id} value={c.id}>{c.label}</Option>
                                 ))}
                             </Select>
+                        </Col>
+                        <Col xs={12} sm={8} md={6} lg={4}>
+                            <span className="filter-label">Contractor</span>
+                            <Select
+                                size="small"
+                                style={{ width: '100%' }}
+                                placeholder={selectedCategory ? 'Select contractor' : 'Select work type first'}
+                                value={selectedContractor?._id}
+                                onChange={(val) => setSelectedContractor(val ? filteredContractors.find(c => (c._id ?? c.id) === val) : null)}
+                                allowClear
+                                showSearch
+                                optionFilterProp="label"
+                                options={filteredContractors.map((c) => ({
+                                    label: `${c.name} - ${c.workType || 'General'}`,
+                                    value: c._id ?? c.id
+                                }))}
+                            />
                         </Col>
                         <Col xs={12} sm={8} md={6} lg={3}>
                             <span className="filter-label">Floor</span>
@@ -549,7 +610,7 @@ export default function SetRate() {
                     <Card size="small" bordered={false} className="increment-rule-card">
                         <Row gutter={[8, 0]} align="middle" wrap={false}>
                             <Col flex="none">
-                                <Text strong style={{ fontSize: 12 }}>Floor increment for {selectedCategory.label}</Text>
+                                <Text strong style={{ fontSize: 12 }}>Rate increment for {selectedCategory.label}</Text>
                             </Col>
                             <Col>
                                 <Switch
@@ -572,6 +633,17 @@ export default function SetRate() {
                                     <Text type="secondary" style={{ marginLeft: 4, fontSize: 11 }}>% (Flr 1+)</Text>
                                 </Col>
                             )}
+                            <Col>
+                                <Button
+                                    size="small"
+                                    onClick={() => {
+                                        setFloorIncrementEnabled(false);
+                                        setFloorIncrementPercent(5);
+                                    }}
+                                >
+                                    Default
+                                </Button>
+                            </Col>
                         </Row>
                     </Card>
                 )}
@@ -585,6 +657,7 @@ export default function SetRate() {
                         scroll={{ x: 'max-content', y: 'calc(100vh - 280px)' }}
                         bordered
                         size="small"
+                        sticky
                     />
                 </Card>
             </Content>
