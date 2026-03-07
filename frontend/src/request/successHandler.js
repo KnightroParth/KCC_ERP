@@ -12,9 +12,10 @@ const successHandler = (response, options = { notifyOnSuccess: false, notifyOnFa
     if (options.notifyOnSuccess) {
       notification.config({
         duration: 2,
-        maxCount: 2,
+        maxCount: 1,
       });
       notification.success({
+        key: 'global-update',
         className: 'custom-success-notification',
         message: `Request success`,
         description: successText,
@@ -28,9 +29,10 @@ const successHandler = (response, options = { notifyOnSuccess: false, notifyOnFa
     if (options.notifyOnFailed) {
       notification.config({
         duration: 4,
-        maxCount: 2,
+        maxCount: 1,
       });
       notification.error({
+        key: 'global-error',
         className: 'custom-error-notification',
         message: `Request error ${status}`,
         description: errorText,

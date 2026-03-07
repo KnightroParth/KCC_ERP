@@ -17,7 +17,16 @@ const { Content } = Layout;
 const { Option } = Select;
 
 function generatePDF(data, vendors, staff, groupOption, headerDetails, projectName) {
-    const doc = new jsPDF();
+    const doc = new jsPDF({ format: 'a4', orientation: 'portrait' });
+    const PAGE_W = doc.internal.pageSize.getWidth();
+    const PAGE_H = doc.internal.pageSize.getHeight();
+    const MARGIN = 10;
+    const CONTENT_W = PAGE_W - MARGIN * 2;
+    const ROW_H = 6.5;           // estimated row height at 7pt font
+    const CAT_LABEL_H = 7;       // category label + gap
+    const CONTRACTOR_LABEL_H = 8; // contractor name + gap
+    const SUBTOTAL_H = 8;        // subtotal text + gap
+    const GRAND_TOTAL_H = 12;
 
     // Helper to get name
     const getName = (id, list) => {
@@ -26,52 +35,24 @@ function generatePDF(data, vendors, staff, groupOption, headerDetails, projectNa
         return item ? item.name : '-';
     };
 
-    // Extract Header Details from Props
-    const siteEngineerName = getName(headerDetails.siteEngineer, staff);
-    const inchargeName = getName(headerDetails.incharge, staff);
-    const supervisorName = getName(headerDetails.supervisor, staff);
-
-    // Date Range from Header Props
-    const minDate = headerDetails.startDate ? dayjs(headerDetails.startDate).format('DD/MM/YYYY') : '-';
-    const maxDate = headerDetails.endDate ? dayjs(headerDetails.endDate).format('DD/MM/YYYY') : '-';
-
-    // Company Header
-    doc.setFontSize(14);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(0, 0, 0);
-    doc.text("KCC CONSTRUCTION", 14, 15);
-
-    // Separator Line
-    doc.setDrawColor(0, 0, 0);
-    doc.setLineWidth(0.5);
-    doc.line(14, 18, 196, 18);
-
-    // Document Title
-    doc.setFontSize(16);
-    doc.text("15-DAY WORK PLANNING CHART", 14, 28);
-
-    // Main Info Section (Project & Stats)
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "normal");
-    doc.text(`Project: ${projectName || '-'}`, 14, 38);
-    doc.text(`Generated On: ${dayjs().format('DD MMM YYYY')}`, 196, 38, { align: 'right' });
-
-    // Date Range
-    doc.setFont("helvetica", "bold");
     const displayStartDate = headerDetails.startDate ? dayjs(headerDetails.startDate).format('DD MMM YYYY') : '-';
     const displayEndDate = headerDetails.endDate ? dayjs(headerDetails.endDate).format('DD MMM YYYY') : '-';
-    doc.text(`${displayStartDate} - ${displayEndDate}`, 14, 45);
 
-    // Personnel Block
-    doc.setFont("helvetica", "normal");
-    const personnelInfo = `Site Engineer: ${siteEngineerName}  |  Incharge: ${inchargeName}  |  Supervisor: ${supervisorName}`;
-    doc.text(personnelInfo, 14, 55);
+    // Draws the compact single-line header at the top of each page
+    const drawCompactHeader = () => {
+        doc.setFontSize(8);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(80, 80, 80);
+        const headerText = `Project: ${projectName || '-'}  |  ${displayStartDate} - ${displayEndDate}  |  Generated: ${dayjs().format('DD MMM YYYY')}`;
+        doc.text(headerText, MARGIN, MARGIN);
+        doc.setDrawColor(180, 180, 180);
+        doc.setLineWidth(0.3);
+        doc.line(MARGIN, MARGIN + 2.5, MARGIN + CONTENT_W, MARGIN + 2.5);
+        doc.setTextColor(0, 0, 0);
+    };
 
-    // Closing Separator Line
-    doc.line(14, 60, 196, 60);
-
-    // RESTORED: Grouping Logic
-    const groupedData = {};
+    // Draw the compact header on the first page
+    drawCompactHeader();
 
     // Strict Date Filtering for PDF
     const filteredData = data.filter(item =>
@@ -79,18 +60,17 @@ function generatePDF(data, vendors, staff, groupOption, headerDetails, projectNa
         dayjs(item.endDate).isSame(headerDetails.endDate, 'day')
     );
 
+    // Build grouped data
+    const groupedData = {};
     if (groupOption === 'Contractors') {
-        // Group by Contractor -> Category
         filteredData.forEach(item => {
             const contractorName = vendors.find(v => v._id === (item.contractorId?._id || item.contractorId))?.name || 'Unknown';
             const category = item.category || 'Other';
-
             if (!groupedData[contractorName]) groupedData[contractorName] = {};
             if (!groupedData[contractorName][category]) groupedData[contractorName][category] = [];
             groupedData[contractorName][category].push(item);
         });
     } else {
-        // Group by Work Type (Category) directly
         filteredData.forEach(item => {
             const groupKey = item.category || 'Other';
             if (!groupedData[groupKey]) groupedData[groupKey] = [];
@@ -98,42 +78,69 @@ function generatePDF(data, vendors, staff, groupOption, headerDetails, projectNa
         });
     }
 
-    let yPos = 70;
+    // y starts just below the compact header
+    let yPos = MARGIN + 6;
 
-    let isFirstContractor = true;
+    // ── Estimate the total height of one contractor block ──────────────────────
+    const estimateContractorHeight = (categories) => {
+        let h = CONTRACTOR_LABEL_H;
+        Object.entries(categories).forEach(([, items]) => {
+            const rowCount = items.length;
+            h += CAT_LABEL_H;          // category label
+            h += ROW_H;                // table header row
+            h += rowCount * ROW_H;     // data rows
+            h += SUBTOTAL_H;           // subtotal line
+        });
+        return h;
+    };
+
     if (groupOption === 'Contractors') {
-        Object.entries(groupedData).forEach(([contractorName, categories]) => {
-            if (!isFirstContractor) {
-                doc.addPage();
-                yPos = 20;
-            }
-            isFirstContractor = false;
+        const contractorEntries = Object.entries(groupedData);
 
-            // Re-draw Header on new page for specific contractor if needed, 
-            // but at minimum we need the Contractor Header
-            doc.setFontSize(14);
-            doc.setTextColor(0, 0, 0);
-            doc.text(`Contractor: ${contractorName}`, 14, yPos);
-            yPos += 10;
-
-            Object.entries(categories).forEach(([categoryName, items]) => {
-                // Sort items by Work Type -> Building -> Unit
+        contractorEntries.forEach(([contractorName, categories]) => {
+            // Sort categories' items
+            Object.values(categories).forEach(items => {
                 items.sort((a, b) => {
                     const wtA = a.workType || a.category || '';
                     const wtB = b.workType || b.category || '';
                     if (wtA !== wtB) return wtA.localeCompare(wtB);
-
                     const bA = a.buildingName || '';
                     const bB = b.buildingName || '';
                     if (bA !== bB) return bA.localeCompare(bB);
                     return (a.unitNumber || '').localeCompare(b.unitNumber || '', undefined, { numeric: true });
                 });
+            });
 
-                // Category Header
-                doc.setFontSize(12);
-                doc.setTextColor(22, 119, 255); // Blue color for category
-                doc.text(categoryName, 14, yPos);
-                yPos += 6;
+        const estimatedH = estimateContractorHeight(categories);
+            const remainingSpace = PAGE_H - MARGIN - yPos;
+
+            // Every contractor starts on its own page (except the very first)
+            if (yPos > MARGIN + 6) {
+                doc.addPage();
+                drawCompactHeader();
+                yPos = MARGIN + 6;
+            }
+
+            // ── Contractor Name + Activity Count ──────────────────────────────
+            const totalActivities = Object.values(categories).reduce((sum, arr) => sum + arr.length, 0);
+            doc.setFontSize(11);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(0, 0, 0);
+            doc.text(`Contractor: ${contractorName}`, MARGIN, yPos);
+            doc.setFontSize(8);
+            doc.setFont('helvetica', 'normal');
+            doc.setTextColor(80, 80, 80);
+            doc.text(`Total Activities: ${totalActivities}`, MARGIN + CONTENT_W, yPos, { align: 'right' });
+            doc.setTextColor(0, 0, 0);
+            yPos += CONTRACTOR_LABEL_H;
+
+            Object.entries(categories).forEach(([categoryName, items]) => {
+                // Category label
+                doc.setFontSize(9);
+                doc.setFont('helvetica', 'bold');
+                doc.setTextColor(22, 119, 255);
+                doc.text(categoryName, MARGIN, yPos);
+                yPos += CAT_LABEL_H;
 
                 const isExtraWork = categoryName === 'Extra Work';
                 const tableBody = items.map(item => {
@@ -141,11 +148,11 @@ function generatePDF(data, vendors, staff, groupOption, headerDetails, projectNa
                     const floor = item.floor || item.floorNumber || '-';
                     const unitType = item.unitType || '-';
                     const row = [
-                        item.workType || item.category, // Task Name
-                        item.buildingName,
+                        item.workType || item.category,
+                        item.buildingName || '-',
                         unitType,
-                        floor,
-                        item.unitNumber,
+                        String(floor),
+                        String(item.unitNumber || '-'),
                         rate.toFixed(2)
                     ];
                     if (isExtraWork) row.push(item.description || '-');
@@ -160,37 +167,46 @@ function generatePDF(data, vendors, staff, groupOption, headerDetails, projectNa
                     head: [headRow],
                     body: tableBody,
                     theme: 'grid',
-                    headStyles: { fillColor: [22, 119, 255] },
-                    columnStyles: {
-                        0: { cellWidth: 40 },
-                        2: { cellWidth: 25 },
-                        3: { halign: 'center' },
-                        5: { halign: 'right' },
-                        ...(isExtraWork ? { 6: { cellWidth: 40 } } : {}),
+                    styles: {
+                        fontSize: 7,
+                        cellPadding: 1.5,
+                        overflow: 'linebreak',
+                        lineColor: [200, 200, 200],
+                        lineWidth: 0.2,
                     },
-                    didDrawPage: (data) => {
-                        yPos = data.cursor.y;
-                    }
+                    headStyles: {
+                        fillColor: [22, 119, 255],
+                        fontSize: 7,
+                        fontStyle: 'bold',
+                        cellPadding: 1.5,
+                    },
+                    columnStyles: {
+                        3: { halign: 'center' },
+                        4: { halign: 'center' },
+                        5: { halign: 'right' },
+                    },
+                    margin: { left: MARGIN, right: MARGIN },
+                    didDrawPage: () => {
+                        drawCompactHeader();
+                    },
                 });
 
-                // Subtotal for Category
                 const subTotal = items.reduce((sum, item) => sum + (item.rate || 0), 0);
-                doc.setFontSize(10);
-                doc.setTextColor(0, 0, 0);
-                doc.text(`SubTotal (${categoryName}): ${subTotal.toFixed(2)}`, 14, doc.lastAutoTable.finalY + 6);
-                yPos = doc.lastAutoTable.finalY + 16;
-
-                // Add page if needed within same contractor
-                if (yPos > 250) {
-                    doc.addPage();
-                    yPos = 20;
-                }
+                const subTotalY = doc.lastAutoTable.finalY + 4;
+                // Align value with right edge of the full table
+                const RATE_COL_RIGHT = MARGIN + CONTENT_W;
+                doc.setFontSize(8);
+                doc.setFont('helvetica', 'bold');
+                doc.setTextColor(60, 60, 60);
+                doc.text(`SubTotal (${categoryName}):`, MARGIN, subTotalY);
+                doc.text(subTotal.toFixed(2), RATE_COL_RIGHT, subTotalY, { align: 'right' });
+                yPos = doc.lastAutoTable.finalY + SUBTOTAL_H;
             });
         });
+
     } else {
-        // Work Type Grouping (Flat list of categories)
+        // ── Work Type grouping ─────────────────────────────────────────────────
         Object.entries(groupedData).forEach(([groupName, items]) => {
-            // Sort items by Building -> Unit
             items.sort((a, b) => {
                 const bA = a.buildingName || '';
                 const bB = b.buildingName || '';
@@ -205,23 +221,31 @@ function generatePDF(data, vendors, staff, groupOption, headerDetails, projectNa
                 const floor = item.floor || item.floorNumber || '-';
                 const unitType = item.unitType || '-';
                 const row = [
-                    item.workType || item.category, // Task Name
+                    item.workType || item.category,
                     contractorName,
-                    item.buildingName,
+                    item.buildingName || '-',
                     unitType,
-                    floor,
-                    item.unitNumber,
+                    String(floor),
+                    String(item.unitNumber || '-'),
                     rate.toFixed(2)
                 ];
                 if (isExtraWork) row.push(item.description || '-');
                 return row;
             });
 
-            // Group Header
-            doc.setFontSize(12);
+            // Estimate height and page-break if needed
+            const estimatedH = CAT_LABEL_H + ROW_H + items.length * ROW_H + SUBTOTAL_H;
+            if (yPos > MARGIN + 6 && estimatedH > PAGE_H - MARGIN - yPos) {
+                doc.addPage();
+                drawCompactHeader();
+                yPos = MARGIN + 6;
+            }
+
+            doc.setFontSize(9);
+            doc.setFont('helvetica', 'bold');
             doc.setTextColor(0, 0, 0);
-            doc.text(`${groupOption}: ${groupName}`, 14, yPos);
-            yPos += 6;
+            doc.text(`${groupOption}: ${groupName}`, MARGIN, yPos);
+            yPos += CAT_LABEL_H;
 
             const headRow = ['Task', 'Contractor', 'Building', 'Unit Type', 'Floor', 'Unit', 'Rate'];
             if (isExtraWork) headRow.push('Description');
@@ -231,45 +255,54 @@ function generatePDF(data, vendors, staff, groupOption, headerDetails, projectNa
                 head: [headRow],
                 body: tableBody,
                 theme: 'grid',
-                headStyles: { fillColor: [22, 119, 255] },
-                columnStyles: {
-                    0: { cellWidth: 35 },
-                    3: { cellWidth: 20 },
-                    4: { halign: 'center' },
-                    6: { halign: 'right' },
-                    ...(isExtraWork ? { 7: { cellWidth: 35 } } : {}),
+                styles: {
+                    fontSize: 7,
+                    cellPadding: 1.5,
+                    overflow: 'linebreak',
+                    lineColor: [200, 200, 200],
+                    lineWidth: 0.2,
                 },
-                didDrawPage: (data) => {
-                    yPos = data.cursor.y;
-                }
+                headStyles: {
+                    fillColor: [22, 119, 255],
+                    fontSize: 7,
+                    fontStyle: 'bold',
+                    cellPadding: 1.5,
+                },
+                columnStyles: {
+                    4: { halign: 'center' },
+                    5: { halign: 'center' },
+                    6: { halign: 'right' },
+                },
+                margin: { left: MARGIN, right: MARGIN },
+                didDrawPage: () => {
+                    drawCompactHeader();
+                },
             });
 
-            // Subtotal
             const subTotal = items.reduce((sum, item) => sum + (item.rate || 0), 0);
-            doc.setFontSize(10);
-            doc.text(`SubTotal: ${subTotal.toFixed(2)}`, 14, doc.lastAutoTable.finalY + 10);
-            yPos = doc.lastAutoTable.finalY + 20;
-
-            if (yPos > 250) {
-                doc.addPage();
-                yPos = 20;
-            }
+            doc.setFontSize(8);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(60, 60, 60);
+            doc.text(`SubTotal: ${subTotal.toFixed(2)}`, MARGIN, doc.lastAutoTable.finalY + 4);
+            yPos = doc.lastAutoTable.finalY + SUBTOTAL_H;
         });
     }
 
-    // Grand Total — use filteredData so only the selected date range is summed
+    // ── Grand Total ──────────────────────────────────────────────────────────
     const grandTotal = filteredData.reduce((sum, item) => sum + (item.rate || 0), 0);
-    doc.setFontSize(12);
+
+    if (yPos + GRAND_TOTAL_H > PAGE_H - MARGIN) {
+        doc.addPage();
+        drawCompactHeader();
+        yPos = MARGIN + 6;
+    }
+
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
     doc.setTextColor(255, 255, 255);
     doc.setFillColor(22, 119, 255);
-
-    // Draw total box
-    if (yPos > 270) {
-        doc.addPage();
-        yPos = 20;
-    }
-    doc.rect(14, yPos, 180, 10, 'F');
-    doc.text(`Grand Total: ${grandTotal.toFixed(2)}`, 160, yPos + 7, { align: 'right' });
+    doc.rect(MARGIN, yPos, CONTENT_W, 9, 'F');
+    doc.text(`Grand Total: ${grandTotal.toFixed(2)}`, MARGIN + CONTENT_W - 2, yPos + 6.2, { align: 'right' });
 
     doc.save('planning-chart.pdf');
 }

@@ -8,6 +8,7 @@ import CrudModule from '@/modules/CrudModule/CrudModule';
 import DynamicForm from '@/forms/DynamicForm';
 import { request } from '@/request';
 import storePersist from '@/redux/storePersist';
+import { BASE_URL } from '@/config/serverApiConfig';
 
 const fields = {
   name: {
@@ -64,7 +65,7 @@ function MaterialLibrary() {
       const token = auth?.current?.token;
 
       const response = await axios.post(
-        `${import.meta.env.VITE_BACKEND_SERVER || 'http://localhost:8888/'}api/inventory/material/import`,
+        `${BASE_URL}api/inventory/material/import`,
         formData,
         {
           headers: {

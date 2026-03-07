@@ -30,12 +30,10 @@ const aiRouter = require('./routes/appRoutes/aiRoutes');
 
 const app = express();
 
-app.use(
-  cors({
-    origin: true,
-    credentials: true,
-  })
-);
+// CORS: use CORS_ORIGIN env (e.g. * or https://your-app.vercel.app) or reflect request origin (Phase 1)
+const corsOrigin = process.env.CORS_ORIGIN;
+const originValue = !corsOrigin ? true : corsOrigin === '*' ? '*' : corsOrigin.split(',').map((s) => s.trim()).filter(Boolean);
+app.use(cors({ origin: originValue, credentials: originValue !== '*' }));
 
 app.use(cookieParser());
 app.use(express.json());

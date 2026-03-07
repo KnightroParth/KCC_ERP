@@ -9,8 +9,8 @@ const errorHandler = (error) => {
       duration: 15,
       maxCount: 1,
     });
-    // Code to execute when there is internet connection
     notification.error({
+      key: 'global-error',
       className: 'custom-error-notification',
       message: 'No internet connection',
       description: 'Cannot connect to the Internet, Check your internet network',
@@ -60,9 +60,10 @@ const errorHandler = (error) => {
     const { status, error } = response;
     notification.config({
       duration: 20,
-      maxCount: 2,
+      maxCount: 1,
     });
     notification.error({
+      key: 'global-error',
       className: 'custom-error-notification',
       message: `Request error ${status}`,
       description: errorText,
@@ -83,6 +84,7 @@ const errorHandler = (error) => {
     if (navigator.onLine) {
       // Code to execute when there is internet connection
       notification.error({
+        key: 'global-error',
         className: 'custom-error-notification',
         message: 'Problem connecting to server',
         description: 'Cannot connect to the server, Try again later',
@@ -96,6 +98,7 @@ const errorHandler = (error) => {
     } else {
       // Code to execute when there is no internet connection
       notification.error({
+        key: 'global-error',
         className: 'custom-error-notification',
         message: 'No internet connection',
         description: 'Cannot connect to the Internet, Check your internet network',
