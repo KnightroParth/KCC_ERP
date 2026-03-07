@@ -12,7 +12,75 @@
   </head>
 
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <!-- Loading screen: replaced automatically when React mounts -->
+      <div id="kcc-splash" style="
+        position: fixed;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        background: #f5f5f5;
+        z-index: 9999;
+        gap: 28px;
+        font-family: 'Segoe UI', system-ui, sans-serif;
+      ">
+        <!-- Logo mark -->
+        <div style="
+          width: 72px;
+          height: 72px;
+          background: #22075e;
+          border-radius: 18px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          box-shadow: 0 8px 32px rgba(34,7,94,0.25);
+          animation: kcc-pulse 2s ease-in-out infinite;
+        ">
+          <span style="
+            color: #fff;
+            font-size: 28px;
+            font-weight: 800;
+            letter-spacing: -1px;
+          ">KCC</span>
+        </div>
+
+        <!-- App name -->
+        <div style="text-align: center; line-height: 1.3;">
+          <div style="font-size: 20px; font-weight: 700; color: #22075e; letter-spacing: -0.4px;">KCC ERP System</div>
+          <div style="font-size: 13px; color: #888; margin-top: 4px;">Loading, please wait…</div>
+        </div>
+
+        <!-- Spinner -->
+        <div style="
+          width: 36px;
+          height: 36px;
+          border: 3px solid rgba(34,7,94,0.15);
+          border-top-color: #22075e;
+          border-radius: 50%;
+          animation: kcc-spin 0.75s linear infinite;
+        "></div>
+      </div>
+    </div>
+
+    <style>
+      @keyframes kcc-spin {
+        to { transform: rotate(360deg); }
+      }
+      @keyframes kcc-pulse {
+        0%, 100% { transform: scale(1);   box-shadow: 0 8px 32px rgba(34,7,94,0.25); }
+        50%        { transform: scale(1.06); box-shadow: 0 12px 40px rgba(34,7,94,0.38); }
+      }
+
+      /* Fade out once React has painted */
+      #kcc-splash.kcc-done {
+        opacity: 0;
+        transition: opacity 0.35s ease;
+        pointer-events: none;
+      }
+    </style>
+
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

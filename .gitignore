@@ -16,6 +16,8 @@ import_*.txt
 *_debug*.txt
 wp_rates_debug.txt
 error.log
+lp_rates_full.txt
+read_duplex.txt
 # Local data dumps
 *_dump.json
 *-completed.json
@@ -25,3 +27,58 @@ lp_rates_report.json
 lp_mivan_debug.json
 project_dump.json
 checklist_data.json
+excel_structure.json
+unit_113.json
+
+# Backend root one-off / debug scripts (do not commit)
+/backend/audit_firstcoat.js
+/backend/check_firstcoat.js
+/backend/check_janat.js
+/backend/check_lg_wp.js
+/backend/check_wp_cids.js
+/backend/check_wr.js
+/backend/check_zenal.js
+/backend/diag_fc.js
+/backend/dump_excel.js
+/backend/dump_excel_data.js
+/backend/dump_lp_rates.js
+/backend/extract_headers.js
+/backend/final_audit.js
+/backend/final_get_projects.js
+/backend/find_all_lp_rates.js
+/backend/find_project_names.js
+/backend/find_project_names_exact.js
+/backend/fix_firstcoat.js
+/backend/fix_lg_fc.js
+/backend/gen_lp_report.js
+/backend/get_projects.js
+/backend/inspect_all_sheets.js
+/backend/inspect_excel_projects.js
+/backend/inspect_strings.js
+/backend/list_all_projects.js
+/backend/list_p.js
+/backend/read_excel.js
+/backend/sim_listall.js
+/backend/verify_final.js
+/backend/verify_fix.js
+/backend/verify_fix_detail.js
+/backend/verify_import.js
+/backend/verify_lp_rates.js
+/backend/verify_raw.js
+
+# Backend scripts – project-specific one-offs + data Excel (do not commit)
+/backend/scripts/deleteLotusParkGreenPlanning.js
+/backend/scripts/deleteLotusParkGreenWIP.js
+/backend/scripts/patchLotusParkChatursima.js
+/backend/scripts/removeLegacyCompletedWork.js
+/backend/scripts/updateLotusGreen.js
+/backend/scripts/updateLotusHeight.js
+/backend/scripts/updateLotusPark.js
+/backend/scripts/verifyDeleteLotusParkGreen.js
+/backend/scripts/Contractor List.xlsx
+/backend/scripts/Supplier Data of KCC.xlsx
+/backend/scripts/kothari_construction_company_all_material_21_nov_2025 (1).xlsx
+
+# Root / frontend clutter
+lotus-park-extract.txt
+frontend/temp.env
