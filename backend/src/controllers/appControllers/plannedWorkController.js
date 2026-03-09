@@ -37,9 +37,13 @@ function plannedWorkController() {
                 removed: false
             };
 
+            const Units = mongoose.model('Units');
+            const unit = await Units.findOne({ projectId: oldDoc.projectId, unitNumber: oldDoc.unitNumber, removed: false });
+
             // Update Checklist
+            const checklistFilter = { ...filter, type: oldDoc.workType, 'personnel.contractor': oldDoc.contractorId };
             await Checklist.updateMany(
-                { ...filter, type: oldDoc.workType, 'personnel.contractor': oldDoc.contractorId },
+                checklistFilter,
                 {
                     'personnel.contractor': newDoc.contractorId,
                     'personnel.siteEngineer': newDoc.siteEngineer,
@@ -49,15 +53,20 @@ function plannedWorkController() {
             );
 
             // Update Activities
+            const activityFilter = {
+                projectId: oldDoc.projectId,
+                activityName: oldDoc.workType,
+                contractorId: oldDoc.contractorId,
+                startDate: oldDoc.startDate,
+                endDate: oldDoc.endDate,
+                removed: false
+            };
+            if (unit) {
+                activityFilter.unitId = unit._id;
+            }
+
             await Activities.updateMany(
-                {
-                    projectId: oldDoc.projectId,
-                    activityName: oldDoc.workType,
-                    contractorId: oldDoc.contractorId,
-                    startDate: oldDoc.startDate,
-                    endDate: oldDoc.endDate,
-                    removed: false
-                },
+                activityFilter,
                 {
                     contractorId: newDoc.contractorId,
                     defaultRate: newDoc.rate,
@@ -99,6 +108,9 @@ function plannedWorkController() {
             // Soft delete the PlannedWork
             await Model.findByIdAndUpdate(id, { removed: true });
 
+            const Units = mongoose.model('Units');
+            const unit = await Units.findOne({ projectId: doc.projectId, unitNumber: doc.unitNumber, removed: false });
+
             // Cascade to Checklist
             await Checklist.updateMany(
                 {
@@ -114,15 +126,20 @@ function plannedWorkController() {
             );
 
             // Cascade to Activities
+            const activityFilter = {
+                projectId: doc.projectId,
+                activityName: doc.workType,
+                contractorId: doc.contractorId,
+                startDate: doc.startDate,
+                endDate: doc.endDate,
+                removed: false
+            };
+            if (unit) {
+                activityFilter.unitId = unit._id;
+            }
+
             await Activities.updateMany(
-                {
-                    projectId: doc.projectId,
-                    activityName: doc.workType,
-                    contractorId: doc.contractorId,
-                    startDate: doc.startDate,
-                    endDate: doc.endDate,
-                    removed: false
-                },
+                activityFilter,
                 { removed: true }
             );
 
